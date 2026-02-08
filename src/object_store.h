@@ -3,7 +3,9 @@
 #include <array>
 #include <cstdint>
 #include <filesystem>
+#include <string>
 
+#include "dropbox_storage.h"
 #include "util.h"
 
 struct Config {
@@ -14,23 +16,24 @@ struct Config {
 
 class ObjectStore {
  public:
-  explicit ObjectStore(std::filesystem::path root);
+  ObjectStore(std::string access_token, std::string root_path);
 
-  const std::filesystem::path& root() const;
-
-  std::filesystem::path config_path() const;
-  std::filesystem::path head_path() const;
-  std::filesystem::path objects_dir() const;
+  const std::string& root() const;
 
   bool config_exists() const;
   Config load_config() const;
   void save_config(const Config& config) const;
 
-  std::filesystem::path object_path(const std::array<uint8_t, 32>& hash) const;
+  void write_head(const ByteVec& data) const;
+  ByteVec read_head() const;
+
+  std::string object_key(const std::array<uint8_t, 32>& hash) const;
   bool object_exists(const std::array<uint8_t, 32>& hash) const;
   void write_object(const std::array<uint8_t, 32>& hash, const ByteVec& data) const;
+  void write_object_from_file(const std::array<uint8_t, 32>& hash, const std::filesystem::path& path) const;
   ByteVec read_object(const std::array<uint8_t, 32>& hash) const;
 
  private:
-  std::filesystem::path root_;
+  std::string root_;
+  DropboxStorage storage_;
 };

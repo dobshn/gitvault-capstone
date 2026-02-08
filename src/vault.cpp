@@ -99,11 +99,11 @@ void write_head(const ObjectStore& store, const Keys& keys, const std::array<uin
   append_bytes(out, cipher.data(), cipher.size());
   append_bytes(out, tag.data(), tag.size());
 
-  write_file_bytes(store.head_path(), out);
+  store.write_head(out);
 }
 
 std::array<uint8_t, 32> read_head(const ObjectStore& store, const Keys& keys) {
-  ByteVec data = read_file_bytes(store.head_path());
+  ByteVec data = store.read_head();
   if (data.size() != kIvSize + kHeadCipherSize + kHeadTagSize) {
     throw std::runtime_error("invalid HEAD size");
   }
@@ -220,7 +220,7 @@ std::array<uint8_t, 32> store_blob(const std::filesystem::path& path,
   Sha256 hasher;
   hasher.update(iv.data(), iv.size());
 
-  std::filesystem::path tmp_dir = store.root() / "tmp";
+  std::filesystem::path tmp_dir = std::filesystem::temp_directory_path() / "gitvault";
   std::filesystem::create_directories(tmp_dir);
   std::filesystem::path tmp_path = tmp_dir / ("obj_" + to_hex(random_bytes(8)) + ".tmp");
   TempFileGuard guard;
@@ -282,16 +282,10 @@ std::array<uint8_t, 32> store_blob(const std::filesystem::path& path,
   }
 
   std::array<uint8_t, 32> hash = hasher.finalize();
-  std::filesystem::path final_path = store.object_path(hash);
-  if (std::filesystem::exists(final_path)) {
-    guard.active = false;
-    std::error_code rm_ec;
-    std::filesystem::remove(tmp_path, rm_ec);
-  } else {
-    std::filesystem::create_directories(final_path.parent_path());
-    std::filesystem::rename(tmp_path, final_path);
-    guard.active = false;
-  }
+  store.write_object_from_file(hash, tmp_path);
+  guard.active = false;
+  std::error_code rm_ec;
+  std::filesystem::remove(tmp_path, rm_ec);
 
   if (log_progress && processed != last_logged_bytes) {
     log_progress_line(path, processed, total_size, start_time);
@@ -303,8 +297,7 @@ std::array<uint8_t, 32> store_blob(const std::filesystem::path& path,
 std::array<uint8_t, 32> store_tree(const std::filesystem::path& dir,
                                   const ObjectStore& store,
                                   const Keys& keys,
-                                  const std::filesystem::path& state_path,
-                                  const std::optional<std::filesystem::path>& skip_store) {
+                                  const std::filesystem::path& state_path) {
   Tree tree;
   std::vector<Entry> entries;
 
@@ -326,10 +319,6 @@ std::array<uint8_t, 32> store_tree(const std::filesystem::path& dir,
       }
     }
 
-    if (skip_store.has_value() && is_descendant_path(skip_store.value(), path)) {
-      continue;
-    }
-
     Entry out;
     out.name = path.filename().string();
 
@@ -337,7 +326,7 @@ std::array<uint8_t, 32> store_tree(const std::filesystem::path& dir,
       out.type = 1;
       out.flags = 0x02;
       out.mtime = file_mtime_seconds(path);
-      out.hash = store_tree(path, store, keys, state_path, skip_store);
+      out.hash = store_tree(path, store, keys, state_path);
       entries.push_back(out);
       continue;
     }
@@ -502,16 +491,7 @@ std::array<uint8_t, 32> lock_vault(const std::filesystem::path& plain_dir,
     throw std::runtime_error("plain_dir must be a directory");
   }
 
-  std::optional<std::filesystem::path> skip_store;
-  std::error_code ec;
-  if (std::filesystem::equivalent(plain_dir, store.root(), ec) && !ec) {
-    throw std::runtime_error("store_dir must not be the same as plain_dir");
-  }
-  if (is_descendant_path(plain_dir, store.root())) {
-    skip_store = store.root();
-  }
-
-  std::array<uint8_t, 32> root_hash = store_tree(plain_dir, store, keys, state_path, skip_store);
+  std::array<uint8_t, 32> root_hash = store_tree(plain_dir, store, keys, state_path);
 
   Commit commit;
   commit.commit_time = static_cast<uint64_t>(

@@ -8,6 +8,7 @@ add_executable(gitvault
   src/main.cpp
   src/vault.cpp
   src/object_store.cpp
+  src/dropbox_storage.cpp
   src/format.cpp
   src/util.cpp
   src/crypto/sha256.cpp
@@ -18,5 +19,6 @@ add_executable(gitvault
 
 target_include_directories(gitvault PRIVATE src)
 
-find_package(OpenSSL REQUIRED)
-target_link_libraries(gitvault PRIVATE OpenSSL::Crypto)
+find_package(OpenSSL REQUIRED COMPONENTS SSL Crypto)
+target_compile_definitions(gitvault PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
+target_link_libraries(gitvault PRIVATE OpenSSL::SSL OpenSSL::Crypto)

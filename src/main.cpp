@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -11,6 +12,7 @@ namespace {
 struct Options {
   std::optional<std::string> password;
   std::optional<std::string> password_file;
+  std::optional<std::string> dropbox_token;
   std::optional<std::filesystem::path> state_path;
   std::vector<std::string> positional;
 };
@@ -34,6 +36,11 @@ Options parse_options(int argc, char** argv, int start) {
         throw std::runtime_error("--state requires a path");
       }
       opts.state_path = std::filesystem::path(argv[++i]);
+    } else if (arg == "--dropbox-token") {
+      if (i + 1 >= argc) {
+        throw std::runtime_error("--dropbox-token requires a value");
+      }
+      opts.dropbox_token = argv[++i];
     } else {
       opts.positional.push_back(arg);
     }
@@ -60,16 +67,37 @@ std::string read_password(const Options& opts) {
   return password;
 }
 
+std::string read_dropbox_token(const Options& opts) {
+  if (opts.dropbox_token.has_value()) {
+    return opts.dropbox_token.value();
+  }
+
+  const char* token = std::getenv("GITVAULT_DROPBOX_TOKEN");
+  if (token != nullptr && token[0] != '\0') {
+    return token;
+  }
+
+  token = std::getenv("DROPBOX_ACCESS_TOKEN");
+  if (token != nullptr && token[0] != '\0') {
+    return token;
+  }
+
+  throw std::runtime_error(
+      "Dropbox token is required. Use --dropbox-token or set GITVAULT_DROPBOX_TOKEN.");
+}
+
 void print_usage() {
-  std::cout << "gitvault <command> [args] [--password <pw>] [--password-file <path>] [--state <path>]\n";
+  std::cout << "gitvault <command> [args] [--dropbox-token <token>] [--password <pw>] "
+               "[--password-file <path>] [--state <path>]\n";
   std::cout << "\nCommands:\n";
-  std::cout << "  init <store_dir>\n";
-  std::cout << "  lock <plain_dir> <store_dir>\n";
-  std::cout << "  list <store_dir> [path]\n";
-  std::cout << "  tree <store_dir> [path]\n";
-  std::cout << "  cat <store_dir> <path>\n";
-  std::cout << "  quick-scan <store_dir>\n";
-  std::cout << "  deep-scan <store_dir>\n";
+  std::cout << "  init <store_root>\n";
+  std::cout << "  lock <plain_dir> <store_root>\n";
+  std::cout << "  list <store_root> [path]\n";
+  std::cout << "  tree <store_root> [path]\n";
+  std::cout << "  cat <store_root> <path>\n";
+  std::cout << "  quick-scan <store_root>\n";
+  std::cout << "  deep-scan <store_root>\n";
+  std::cout << "\nstore_root is a Dropbox root path like /my_gitvault\n";
 }
 }  // namespace
 
@@ -82,24 +110,28 @@ int main(int argc, char** argv) {
 
     std::string command = argv[1];
     Options opts = parse_options(argc, argv, 2);
+    const bool needs_store = (command == "init" || command == "lock" || command == "list" ||
+                              command == "tree" || command == "cat" || command == "quick-scan" ||
+                              command == "deep-scan");
+    const std::string dropbox_token = needs_store ? read_dropbox_token(opts) : "";
 
     if (command == "init") {
       if (opts.positional.size() != 1) {
-        throw std::runtime_error("init requires <store_dir>");
+        throw std::runtime_error("init requires <store_root>");
       }
-      ObjectStore store(opts.positional[0]);
+      ObjectStore store(dropbox_token, opts.positional[0]);
       Config cfg = ensure_store_config(store);
-      std::cout << "initialized store at " << store.root().string() << "\n";
+      std::cout << "initialized store at " << store.root() << "\n";
       std::cout << "kdf_salt=" << to_hex(cfg.salt) << "\n";
       return 0;
     }
 
     if (command == "lock") {
       if (opts.positional.size() != 2) {
-        throw std::runtime_error("lock requires <plain_dir> <store_dir>");
+        throw std::runtime_error("lock requires <plain_dir> <store_root>");
       }
       std::filesystem::path plain_dir = opts.positional[0];
-      ObjectStore store(opts.positional[1]);
+      ObjectStore store(dropbox_token, opts.positional[1]);
       Config cfg = ensure_store_config(store);
       std::string password = read_password(opts);
       Keys keys = derive_keys(cfg, password);
@@ -112,9 +144,9 @@ int main(int argc, char** argv) {
 
     if (command == "list") {
       if (opts.positional.size() < 1 || opts.positional.size() > 2) {
-        throw std::runtime_error("list requires <store_dir> [path]");
+        throw std::runtime_error("list requires <store_root> [path]");
       }
-      ObjectStore store(opts.positional[0]);
+      ObjectStore store(dropbox_token, opts.positional[0]);
       Config cfg = store.load_config();
       std::string password = read_password(opts);
       Keys keys = derive_keys(cfg, password);
@@ -136,9 +168,9 @@ int main(int argc, char** argv) {
 
     if (command == "tree") {
       if (opts.positional.size() < 1 || opts.positional.size() > 2) {
-        throw std::runtime_error("tree requires <store_dir> [path]");
+        throw std::runtime_error("tree requires <store_root> [path]");
       }
-      ObjectStore store(opts.positional[0]);
+      ObjectStore store(dropbox_token, opts.positional[0]);
       Config cfg = store.load_config();
       std::string password = read_password(opts);
       Keys keys = derive_keys(cfg, password);
@@ -149,9 +181,9 @@ int main(int argc, char** argv) {
 
     if (command == "cat") {
       if (opts.positional.size() != 2) {
-        throw std::runtime_error("cat requires <store_dir> <path>");
+        throw std::runtime_error("cat requires <store_root> <path>");
       }
-      ObjectStore store(opts.positional[0]);
+      ObjectStore store(dropbox_token, opts.positional[0]);
       Config cfg = store.load_config();
       std::string password = read_password(opts);
       Keys keys = derive_keys(cfg, password);
@@ -164,9 +196,9 @@ int main(int argc, char** argv) {
 
     if (command == "quick-scan" || command == "deep-scan") {
       if (opts.positional.size() != 1) {
-        throw std::runtime_error(command + " requires <store_dir>");
+        throw std::runtime_error(command + " requires <store_root>");
       }
-      ObjectStore store(opts.positional[0]);
+      ObjectStore store(dropbox_token, opts.positional[0]);
       Config cfg = store.load_config();
       std::string password = read_password(opts);
       Keys keys = derive_keys(cfg, password);
