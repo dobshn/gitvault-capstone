@@ -102,7 +102,7 @@ void DropboxStorage::init() {
     if (!res) {
       throw std::runtime_error("Create root folder request failed (network/TLS)");
     }
-    if (res->status != 200 && res->status != 409) {
+    if (res->status != 409 && res->status != 200) {
       throw std::runtime_error("Create root folder failed. HTTP " + std::to_string(res->status) + ": " +
                                res->body);
     }
