@@ -97,6 +97,10 @@ bool ObjectStore::object_exists(const std::array<uint8_t, 32>& hash) const {
   return storage_.exists(object_key(hash));
 }
 
+bool ObjectStore::remove_object(const std::array<uint8_t, 32>& hash) const {
+  return storage_.remove(object_key(hash));
+}
+
 void ObjectStore::write_object(const std::array<uint8_t, 32>& hash, const ByteVec& data) const {
   std::string key = object_key(hash);
   if (storage_.exists(key)) {

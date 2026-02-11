@@ -19,6 +19,7 @@ class DropboxStorage {
   void put(std::string_view path, const ByteVec& data, bool overwrite = true) const;
   ByteVec get(std::string_view path) const;
   bool exists(std::string_view path) const;
+  bool remove(std::string_view path) const;
 
  private:
   static void check(const httplib::Result& res, int expected, std::string_view ctx);
