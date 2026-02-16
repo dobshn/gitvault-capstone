@@ -26,6 +26,9 @@ cmake --build build
 # Encrypt a plaintext directory into Dropbox
 ./build/gitvault lock <plain_dir> /my_gitvault --dropbox-token <token>
 
+# Add one local file into an existing vault path
+./build/gitvault add /my_gitvault <local_path> <cloud_path> --dropbox-token <token>
+
 # List a directory inside the vault (lazy load)
 ./build/gitvault list /my_gitvault [path] --dropbox-token <token>
 

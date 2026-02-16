@@ -462,6 +462,54 @@ void print_tree_recursive(const ObjectStore& store,
     }
   }
 }
+
+std::array<uint8_t, 32> upsert_blob_to_tree(const ObjectStore& store,
+                                            const Keys& keys,
+                                            const std::array<uint8_t, 32>& tree_hash,
+                                            const std::vector<std::string>& dirs,
+                                            size_t depth,
+                                            const Entry& blob_entry,
+                                            uint64_t touch_time,
+                                            std::vector<std::array<uint8_t, 32>>& old_tree_hashes) {
+  old_tree_hashes.push_back(tree_hash);
+  Tree tree = load_tree_checked(store, keys, tree_hash);
+
+  if (depth == dirs.size()) {
+    auto it = std::find_if(tree.entries.begin(), tree.entries.end(),
+                           [&](const Entry& e) { return e.name == blob_entry.name; });
+    if (it == tree.entries.end()) {
+      tree.entries.push_back(blob_entry);
+    } else {
+      if (it->type == 1) {
+        throw std::runtime_error("cloud_path points to existing directory: " + blob_entry.name);
+      }
+      *it = blob_entry;
+    }
+  } else {
+    const std::string& dir_name = dirs[depth];
+    auto it = std::find_if(tree.entries.begin(), tree.entries.end(),
+                           [&](const Entry& e) { return e.name == dir_name; });
+    if (it == tree.entries.end()) {
+      throw std::runtime_error("path not found: " + dir_name);
+    }
+    if (it->type != 1) {
+      throw std::runtime_error("not a directory: " + dir_name);
+    }
+
+    it->hash = upsert_blob_to_tree(store, keys, it->hash, dirs, depth + 1, blob_entry, touch_time, old_tree_hashes);
+    it->flags |= 0x02;
+    it->mtime = touch_time;
+  }
+
+  std::sort(tree.entries.begin(), tree.entries.end(), [](const Entry& a, const Entry& b) {
+    return a.name < b.name;
+  });
+
+  ByteVec serialized = serialize_tree(tree);
+  EncryptedObject obj = encrypt_object(keys.enc_key, serialized);
+  store.write_object(obj.hash, obj.data);
+  return obj.hash;
+}
 }  // namespace
 
 Config ensure_store_config(ObjectStore& store) {
@@ -589,4 +637,73 @@ void print_tree(const ObjectStore& store,
   if (result.is_directory) {
     print_tree_recursive(store, keys, result.tree, "", out);
   }
+}
+
+std::array<uint8_t, 32> add(const ObjectStore& store, const Keys& keys, const std::filesystem::path& local_path, const std::string& cloud_path) {
+  // 인자가 비어있지 않은지 검사한 뒤, 로컬 파일이 일반 파일임을 검증한다.
+  if (local_path.empty()) throw std::runtime_error("local_path required");
+  if (cloud_path.empty()) throw std::runtime_error("cloud_path required");
+  if (!std::filesystem::exists(local_path) || !std::filesystem::is_regular_file(local_path)) throw std::runtime_error("local_path must be a regular file: " + local_path.string());
+
+  // 로컬 파일을 blob으로 만들어 업로드한 뒤, 새로 추가된 blob의 object id를 저장한다.
+  std::array<uint8_t, 32> uploaded_object_id = store_blob(local_path, store, keys);
+
+  // cloud_path를 분해하고 마지막 요소를 파일명으로 쓴다.
+  std::vector<std::string> parts = split_path(cloud_path);
+  if (parts.empty()) throw std::runtime_error("invalid cloud_path: " + cloud_path);
+  const std::string file_name = parts.back();
+  parts.pop_back();
+
+  // 현재 HEAD 기준 commit을 가져온다.
+  auto commit_hash = resolve_commit_hash(store, keys, std::nullopt);
+  Commit commit = load_commit_checked(store, keys, commit_hash);
+
+  // leaf에 넣을 파일 엔트리를 만든다.
+  std::error_code ec;
+  uint64_t file_size = std::filesystem::file_size(local_path, ec);
+  if (ec) throw std::runtime_error("failed to get local file size: " + local_path.string());
+
+  uint64_t now_sec = static_cast<uint64_t>(
+      std::chrono::duration_cast<std::chrono::seconds>(
+          std::chrono::system_clock::now().time_since_epoch())
+          .count());
+
+  Entry file_entry;
+  file_entry.type = 0;
+  file_entry.flags = 0x03;
+  file_entry.name = file_name;
+  file_entry.hash = uploaded_object_id;
+  file_entry.size = file_size;
+  file_entry.mtime = file_mtime_seconds(local_path);
+
+  // 루트에서 내려갔다가 올라오면서 tree hash를 한 번에 갱신한다.
+  std::vector<std::array<uint8_t, 32>> old_tree_hashes;
+  std::array<uint8_t, 32> new_root_hash =
+      upsert_blob_to_tree(store, keys, commit.root_hash, parts, 0, file_entry, now_sec, old_tree_hashes);
+
+  // 새 root tree로 commit/HEAD를 갱신한다.
+  Commit new_commit = commit;
+  new_commit.commit_time = now_sec;
+  new_commit.root_hash = new_root_hash;
+  ByteVec serialized_commit = serialize_commit(new_commit);
+  EncryptedObject commit_obj = encrypt_object(keys.enc_key, serialized_commit);
+  store.write_object(commit_obj.hash, commit_obj.data);
+  write_head(store, keys, commit_obj.hash);
+
+  // 이전 commit 객체를 삭제한다.
+  if (!store.remove_object(commit_hash)) {
+    throw std::runtime_error("failed to delete old commit object: " + to_hex(commit_hash));
+  }
+
+  // 이전 tree 객체들을 삭제한다.
+  for (const auto& old_hash : old_tree_hashes) {
+    try {
+      store.remove_object(old_hash);
+    } catch (const std::exception& ex) {
+      std::cerr << "warning: failed to delete old tree object " << to_hex(old_hash)
+                << ": " << ex.what() << "\n";
+    }
+  }
+
+  return commit_obj.hash;
 }
