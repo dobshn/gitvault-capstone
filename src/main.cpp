@@ -7,101 +7,163 @@
 #include <vector>
 
 #include "vault.h"
-
+#include "loginHandler.h"
+#include "LoginHandler/DropboxLoginHandler.h"
 namespace {
-struct Options {
-  std::optional<std::string> password;
-  std::optional<std::string> password_file;
-  std::optional<std::string> dropbox_token;
-  std::optional<std::filesystem::path> state_path;
-  std::vector<std::string> positional;
-};
+  struct Options {
+    std::optional<std::string> password;
+    std::optional<std::string> password_file;
+    std::optional<std::string> dropbox_token;
+    std::optional<std::filesystem::path> state_path;
+    std::vector<std::string> positional;
+  };
 
-Options parse_options(int argc, char** argv, int start) {
-  Options opts;
-  for (int i = start; i < argc; ++i) {
-    std::string arg = argv[i];
-    if (arg == "--password") {
-      if (i + 1 >= argc) {
-        throw std::runtime_error("--password requires a value");
+  Options parse_options(int argc, char** argv, int start) {
+    Options opts;
+    for (int i = start; i < argc; ++i) {
+      std::string arg = argv[i];
+      if (arg == "--password") {
+        if (i + 1 >= argc) {
+          throw std::runtime_error("--password requires a value");
+        }
+        opts.password = argv[++i];
+      } else if (arg == "--password-file") {
+        if (i + 1 >= argc) {
+          throw std::runtime_error("--password-file requires a path");
+        }
+        opts.password_file = argv[++i];
+      } else if (arg == "--state") {
+        if (i + 1 >= argc) {
+          throw std::runtime_error("--state requires a path");
+        }
+        opts.state_path = std::filesystem::path(argv[++i]);
+      } else if (arg == "--dropbox-token") {
+        if (i + 1 >= argc) {
+          throw std::runtime_error("--dropbox-token requires a value");
+        }
+        opts.dropbox_token = argv[++i];
+      } else {
+        opts.positional.push_back(arg);
       }
-      opts.password = argv[++i];
-    } else if (arg == "--password-file") {
-      if (i + 1 >= argc) {
-        throw std::runtime_error("--password-file requires a path");
+    }
+    return opts;
+  }
+
+  std::string read_password(const Options& opts) {
+    if (opts.password.has_value()) {
+      return opts.password.value();
+    }
+    if (opts.password_file.has_value()) {
+      std::ifstream file(opts.password_file.value());
+      if (!file) {
+        throw std::runtime_error("failed to read password file");
       }
-      opts.password_file = argv[++i];
-    } else if (arg == "--state") {
-      if (i + 1 >= argc) {
-        throw std::runtime_error("--state requires a path");
-      }
-      opts.state_path = std::filesystem::path(argv[++i]);
-    } else if (arg == "--dropbox-token") {
-      if (i + 1 >= argc) {
-        throw std::runtime_error("--dropbox-token requires a value");
-      }
-      opts.dropbox_token = argv[++i];
-    } else {
-      opts.positional.push_back(arg);
+      std::string line;
+      std::getline(file, line);
+      return line;
+    }
+    std::string password;
+    std::cerr << "Password: ";
+    std::getline(std::cin, password);
+    return password;
+  }
+
+  std::string read_dropbox_token(const Options& opts) {
+    if (opts.dropbox_token.has_value()) {
+      return opts.dropbox_token.value();
+    }
+
+    const char* token = std::getenv("GITVAULT_DROPBOX_TOKEN");
+    if (token != nullptr && token[0] != '\0') {
+      return token;
+    }
+
+    token = std::getenv("DROPBOX_ACCESS_TOKEN");
+    if (token != nullptr && token[0] != '\0') {
+      return token;
+    }
+
+    throw std::runtime_error(
+        "Dropbox token is required. Use --dropbox-token or set GITVAULT_DROPBOX_TOKEN.");
+  }
+
+  void print_usage() {
+    std::cout << "gitvault <command> [args] [--dropbox-token <token>] [--password <pw>] "
+                "[--password-file <path>] [--state <path>]\n";
+    std::cout << "\nCommands:\n";
+    std::cout << "  init <store_root>\n";
+    std::cout << "  lock <plain_dir> <store_root>\n";
+    std::cout << "  list <store_root> [path]\n";
+    std::cout << "  tree <store_root> [path]\n";
+    std::cout << "  cat <store_root> <path>\n";
+    std::cout << "  quick-scan <store_root>\n";
+    std::cout << "  deep-scan <store_root>\n";
+    std::cout << "\nstore_root is a Dropbox root path like /my_gitvault\n";
+  }
+
+	std::string getHomeDirectory() {
+		#if defined(_WIN32) || defined(_WIN64)
+		const char* home = std::getenv("USERPROFILE");
+		#else
+		const char* home = std::getenv("HOME");
+		#endif
+
+		if (!home) throw std::runtime_error("Cannot determine home directory");
+		return std::string(home);
+	}
+
+	std::string getTokenPath() {
+		return getHomeDirectory() + "/.gitvault/.gitvault_refresh_token";
+	}
+
+  void removeRefreshToken() {
+    namespace fs = std::filesystem;
+    fs::path tokenPath = getTokenPath();
+
+    if (!fs::exists(tokenPath)) {
+        throw std::runtime_error("Already logged out.");
+        return;
+    }
+
+    std::error_code ec;
+    fs::remove(tokenPath, ec);
+    if (ec) {
+        throw std::runtime_error("Failed to remove refresh token file");
     }
   }
-  return opts;
-}
 
-std::string read_password(const Options& opts) {
-  if (opts.password.has_value()) {
-    return opts.password.value();
-  }
-  if (opts.password_file.has_value()) {
-    std::ifstream file(opts.password_file.value());
-    if (!file) {
-      throw std::runtime_error("failed to read password file");
-    }
-    std::string line;
-    std::getline(file, line);
-    return line;
-  }
-  std::string password;
-  std::cerr << "Password: ";
-  std::getline(std::cin, password);
-  return password;
-}
+	void saveRefreshToken(const std::string& token) {
+		namespace fs = std::filesystem;
 
-std::string read_dropbox_token(const Options& opts) {
-  if (opts.dropbox_token.has_value()) {
-    return opts.dropbox_token.value();
-  }
+		fs::path tokenPath = getTokenPath();
+		fs::path dir = tokenPath.parent_path();
 
-  const char* token = std::getenv("GITVAULT_DROPBOX_TOKEN");
-  if (token != nullptr && token[0] != '\0') {
-    return token;
-  }
+		// 디렉터리 없으면 생성
+		if (!fs::exists(dir)) {
+			fs::create_directories(dir);
+		}
 
-  token = std::getenv("DROPBOX_ACCESS_TOKEN");
-  if (token != nullptr && token[0] != '\0') {
-    return token;
-  }
+		std::ofstream ofs(getTokenPath(), std::ios::trunc);
+		if (!ofs.is_open()) {
+			std::cerr << "Failed to open token file: " << getTokenPath() << "\n";
+		}
 
-  throw std::runtime_error(
-      "Dropbox token is required. Use --dropbox-token or set GITVAULT_DROPBOX_TOKEN.");
-}
+		ofs << token;
+	}
 
-void print_usage() {
-  std::cout << "gitvault <command> [args] [--dropbox-token <token>] [--password <pw>] "
-               "[--password-file <path>] [--state <path>]\n";
-  std::cout << "\nCommands:\n";
-  std::cout << "  init <store_root>\n";
-  std::cout << "  lock <plain_dir> <store_root>\n";
-  std::cout << "  list <store_root> [path]\n";
-  std::cout << "  tree <store_root> [path]\n";
-  std::cout << "  cat <store_root> <path>\n";
-  std::cout << "  quick-scan <store_root>\n";
-  std::cout << "  deep-scan <store_root>\n";
-  std::cout << "\nstore_root is a Dropbox root path like /my_gitvault\n";
-}
+	std::string loadRefreshToken() {
+		std::ifstream ifs(getTokenPath());
+		if (!ifs.is_open()) return "";
+		std::string token;
+		std::getline(ifs, token);
+		return token;
+	}
+  const std::string APP_KEY = "iopaczar4klxa1i";
 }  // namespace
 
 int main(int argc, char** argv) {
+  loginHandler* lh = new DropboxLoginHandler(APP_KEY);
+
   try {
     if (argc < 2) {
       print_usage();
@@ -113,7 +175,32 @@ int main(int argc, char** argv) {
     const bool needs_store = (command == "init" || command == "lock" || command == "list" ||
                               command == "tree" || command == "cat" || command == "quick-scan" ||
                               command == "deep-scan");
-    const std::string dropbox_token = needs_store ? read_dropbox_token(opts) : "";
+
+    if (command == "help") {
+      print_usage();
+      return 0;
+    }
+
+    if (command == "login") {
+      if (loadRefreshToken() != "") {
+        throw std::runtime_error("Already logged in");
+      }
+      std::string refreshToken = lh->getRefreshToken();
+      saveRefreshToken(refreshToken);
+      std::cout << "Login finished. Token is saved on your local." << std::endl;
+
+      std::cout << "=============================================" << std::endl;
+      print_usage();
+      return 0;
+    }
+
+    if (command == "logout") {
+      removeRefreshToken();      
+      std::cout << "Logged out.\n";
+      return 0;
+    }
+
+    const std::string dropbox_token = lh->login(loadRefreshToken());
 
     if (command == "init") {
       if (opts.positional.size() != 1) {
