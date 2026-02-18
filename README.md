@@ -29,6 +29,9 @@ cmake --build build
 # Add one local file into an existing vault path
 ./build/gitvault add /my_gitvault <local_path> <cloud_path> --dropbox-token <token>
 
+# Remove one file from an existing vault path
+./build/gitvault remove /my_gitvault <cloud_path> --dropbox-token <token>
+
 # List a directory inside the vault (lazy load)
 ./build/gitvault list /my_gitvault [path] --dropbox-token <token>
 

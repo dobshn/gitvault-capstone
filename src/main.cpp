@@ -93,6 +93,7 @@ void print_usage() {
   std::cout << "  init <store_root>\n";
   std::cout << "  lock <plain_dir> <store_root>\n";
   std::cout << "  add <store_root> <local_path> <cloud_path>\n";
+  std::cout << "  remove <store_root> <cloud_path>\n";
   std::cout << "  list <store_root> [path]\n";
   std::cout << "  tree <store_root> [path]\n";
   std::cout << "  cat <store_root> <path>\n";
@@ -113,7 +114,7 @@ int main(int argc, char** argv) {
     Options opts = parse_options(argc, argv, 2);
     const bool needs_store = (command == "init" || command == "lock" || command == "list" ||
                               command == "tree" || command == "cat" || command == "quick-scan" ||
-                              command == "add" ||
+                              command == "add" || command == "remove" ||
                               command == "deep-scan");
     const std::string dropbox_token = needs_store ? read_dropbox_token(opts) : "";
 
@@ -153,6 +154,19 @@ int main(int argc, char** argv) {
       std::string password = read_password(opts);
       Keys keys = derive_keys(cfg, password);
       auto commit_hash = add(store, keys, std::filesystem::path(opts.positional[1]), opts.positional[2]);
+      std::cout << "commit=" << to_hex(commit_hash) << "\n";
+      return 0;
+    }
+
+    if (command == "remove") {
+      if (opts.positional.size() != 2) {
+        throw std::runtime_error("remove requires <store_root> <cloud_path>");
+      }
+      ObjectStore store(dropbox_token, opts.positional[0]);
+      Config cfg = store.load_config();
+      std::string password = read_password(opts);
+      Keys keys = derive_keys(cfg, password);
+      auto commit_hash = remove(store, keys, opts.positional[1]);
       std::cout << "commit=" << to_hex(commit_hash) << "\n";
       return 0;
     }

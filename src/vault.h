@@ -34,6 +34,10 @@ std::array<uint8_t, 32> add(const ObjectStore& store,
                             const std::filesystem::path& local_path,
                             const std::string& cloud_path);
 
+std::array<uint8_t, 32> remove(const ObjectStore& store,
+                            const Keys& keys,
+                            const std::string& cloud_path);
+
 Tree list_directory(const ObjectStore& store,
                     const Keys& keys,
                     const std::optional<std::filesystem::path>& state_path,
