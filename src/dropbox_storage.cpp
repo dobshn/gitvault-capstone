@@ -183,3 +183,31 @@ bool DropboxStorage::exists(std::string_view path) const {
   }
   throw std::runtime_error("Metadata request failed. HTTP " + std::to_string(res->status) + ": " + body);
 }
+
+// 루트 기준 상대 경로의 파일/폴더를 삭제한다.
+// 삭제 성공 시 true, 대상이 없으면 false(HTTP 409)를 반환한다.
+// 네트워크/TLS 오류나 기타 HTTP 오류는 std::runtime_error를 던진다.
+bool DropboxStorage::remove(std::string_view path) const {
+  require_initialized("remove()");
+
+  auto res = api_client_.Post("/2/files/delete_v2",
+                              {{"Authorization", "Bearer " + access_token_}},
+                              json{{"path", build_dropbox_path(path)}}.dump(),
+                              "application/json");
+  if (!res) {
+    throw std::runtime_error("Delete request failed (network/TLS)");
+  }
+  if (res->status == 200) {
+    return true;
+  }
+  if (res->status == 409) {
+    return false;
+  }
+
+  std::string body = res->body;
+  if (body.size() > 4096) {
+    body.resize(4096);
+    body += "...";
+  }
+  throw std::runtime_error("Delete request failed. HTTP " + std::to_string(res->status) + ": " + body);
+}

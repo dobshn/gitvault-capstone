@@ -29,6 +29,7 @@ class ObjectStore {
 
   std::string object_key(const std::array<uint8_t, 32>& hash) const;
   bool object_exists(const std::array<uint8_t, 32>& hash) const;
+  bool remove_object(const std::array<uint8_t, 32>& hash) const;
   void write_object(const std::array<uint8_t, 32>& hash, const ByteVec& data) const;
   void write_object_from_file(const std::array<uint8_t, 32>& hash, const std::filesystem::path& path) const;
   ByteVec read_object(const std::array<uint8_t, 32>& hash) const;
