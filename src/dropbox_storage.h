@@ -5,7 +5,6 @@
 #endif
 
 #include "httplib.h"
-
 #include <string>
 #include <string_view>
 
