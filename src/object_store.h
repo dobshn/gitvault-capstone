@@ -35,6 +35,8 @@ class ObjectStore {
   ByteVec read_object(const std::array<uint8_t, 32>& hash) const;
 
  private:
+  std::filesystem::path config_path() const;
+
   std::string root_;
   DropboxStorage storage_;
 };

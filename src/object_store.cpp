@@ -1,5 +1,6 @@
 #include "object_store.h"
 
+#include <fstream>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
@@ -7,6 +8,15 @@
 namespace {
 constexpr const char* kConfigKey = "config";
 constexpr const char* kHeadKey = "HEAD";
+}
+
+std::filesystem::path ObjectStore::config_path() const {
+  std::filesystem::path vault_name = std::filesystem::path(root_).filename();
+  if (vault_name.empty()) {
+    throw std::runtime_error("invalid store root: " + root_);
+  }
+  // 로컬 config 위치: ~/.gitvault/<vault_name>/config
+  return std::filesystem::path(getHomeDirectory()) / ".gitvault" / vault_name / "config";
 }
 
 ObjectStore::ObjectStore(std::string access_token, std::string root_path)
@@ -19,17 +29,14 @@ const std::string& ObjectStore::root() const {
 }
 
 bool ObjectStore::config_exists() const {
-  return storage_.exists(kConfigKey);
+  return std::filesystem::exists(config_path());
 }
 
 Config ObjectStore::load_config() const {
-  if (!config_exists()) {
-    throw std::runtime_error("config not found: " + root_ + "/" + kConfigKey);
+  std::ifstream file(config_path());
+  if (!file) {
+    throw std::runtime_error("config not found: " + config_path().string());
   }
-
-  ByteVec data = storage_.get(kConfigKey);
-  std::string text(data.begin(), data.end());
-  std::istringstream file(text);
 
   Config cfg;
   std::string line;
@@ -65,16 +72,19 @@ Config ObjectStore::load_config() const {
 }
 
 void ObjectStore::save_config(const Config& config) const {
-  std::ostringstream oss;
-  oss << "version=1\n";
-  oss << "kdf=pbkdf2-hmac-sha256\n";
-  oss << "kdf_iter=" << config.iterations << "\n";
-  oss << "kdf_salt=" << to_hex(config.salt) << "\n";
-  oss << "enc=aes-256-ctr\n";
+  const std::filesystem::path path = config_path();
+  std::filesystem::create_directories(path.parent_path());
 
-  std::string text = oss.str();
-  ByteVec data(text.begin(), text.end());
-  storage_.put(kConfigKey, data, true);
+  std::ofstream file(path, std::ios::trunc);
+  if (!file) {
+    throw std::runtime_error("failed to write config: " + path.string());
+  }
+
+  file << "version=1\n";
+  file << "kdf=pbkdf2-hmac-sha256\n";
+  file << "kdf_iter=" << config.iterations << "\n";
+  file << "kdf_salt=" << to_hex(config.salt) << "\n";
+  file << "enc=aes-256-ctr\n";
 }
 
 void ObjectStore::write_head(const ByteVec& data) const {
