@@ -11,6 +11,8 @@ using ByteVec = std::vector<uint8_t>;
 ByteVec read_file_bytes(const std::filesystem::path& path);
 void write_file_bytes(const std::filesystem::path& path, const ByteVec& data);
 
+std::string getHomeDirectory();
+
 std::string to_hex(const ByteVec& data);
 std::string to_hex(const std::array<uint8_t, 32>& data);
 ByteVec from_hex(const std::string& hex);

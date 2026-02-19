@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "vault.h"
+#include "util.h"
 #include "loginHandler.h"
 #include "LoginHandler/DropboxLoginHandler.h"
 namespace {
@@ -102,17 +103,6 @@ namespace {
     std::cout << "  deep-scan <store_root>\n";
     std::cout << "\nstore_root is a Dropbox root path like /my_gitvault\n";
   }
-
-	std::string getHomeDirectory() {
-		#if defined(_WIN32) || defined(_WIN64)
-		const char* home = std::getenv("USERPROFILE");
-		#else
-		const char* home = std::getenv("HOME");
-		#endif
-
-		if (!home) throw std::runtime_error("Cannot determine home directory");
-		return std::string(home);
-	}
 
 	std::string getTokenPath() {
 		return getHomeDirectory() + "/.gitvault/.gitvault_refresh_token";
