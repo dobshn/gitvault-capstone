@@ -113,7 +113,14 @@ ByteVec ObjectStore::read_head() const {
   if (storage_.exists(kHeadKey)) {
     std::cerr << "warning: local HEAD not found at " << local_head.string()
               << ", falling back to cloud HEAD\n";
-    return storage_.get(kHeadKey);
+    ByteVec cloud_head = storage_.get(kHeadKey);
+    try {
+      write_file_bytes(local_head, cloud_head);
+    } catch (const std::exception& ex) {
+      std::cerr << "warning: failed to cache HEAD locally at " << local_head.string()
+                << ": " << ex.what() << "\n";
+    }
+    return cloud_head;
   }
 
   throw std::runtime_error("HEAD not found in local or cloud");
