@@ -3,7 +3,6 @@
 #include <array>
 #include <filesystem>
 #include <iosfwd>
-#include <optional>
 #include <string>
 
 #include "format.h"
@@ -26,8 +25,7 @@ Keys derive_keys(const Config& config, const std::string& password);
 
 std::array<uint8_t, 32> lock_vault(const std::filesystem::path& plain_dir,
                                   ObjectStore& store,
-                                  const Keys& keys,
-                                  const std::filesystem::path& state_path);
+                                  const Keys& keys);
 
 std::array<uint8_t, 32> add(const ObjectStore& store,
                             const Keys& keys,
@@ -40,30 +38,24 @@ std::array<uint8_t, 32> remove(const ObjectStore& store,
 
 Tree list_directory(const ObjectStore& store,
                     const Keys& keys,
-                    const std::optional<std::filesystem::path>& state_path,
                     const std::string& path);
 
 Entry resolve_entry(const ObjectStore& store,
                     const Keys& keys,
-                    const std::optional<std::filesystem::path>& state_path,
                     const std::string& path,
                     bool require_directory);
 
 ByteVec read_file_from_vault(const ObjectStore& store,
                              const Keys& keys,
-                             const std::optional<std::filesystem::path>& state_path,
                              const std::string& path);
 
 ScanStats quick_scan(const ObjectStore& store,
-                     const Keys& keys,
-                     const std::optional<std::filesystem::path>& state_path);
+                     const Keys& keys);
 
 ScanStats deep_scan(const ObjectStore& store,
-                    const Keys& keys,
-                    const std::optional<std::filesystem::path>& state_path);
+                    const Keys& keys);
 
 void print_tree(const ObjectStore& store,
                 const Keys& keys,
-                const std::optional<std::filesystem::path>& state_path,
                 const std::string& path,
                 std::ostream& out);

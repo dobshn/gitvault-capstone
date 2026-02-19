@@ -1,6 +1,7 @@
 #include "object_store.h"
 
 #include <fstream>
+#include <iostream>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
@@ -10,13 +11,21 @@ constexpr const char* kConfigKey = "config";
 constexpr const char* kHeadKey = "HEAD";
 }
 
-std::filesystem::path ObjectStore::config_path() const {
+std::filesystem::path ObjectStore::metadata_dir() const {
   std::filesystem::path vault_name = std::filesystem::path(root_).filename();
   if (vault_name.empty()) {
     throw std::runtime_error("invalid store root: " + root_);
   }
-  // 로컬 config 위치: ~/.gitvault/<vault_name>/config
-  return std::filesystem::path(getHomeDirectory()) / ".gitvault" / vault_name / "config";
+  // 로컬 메타데이터 위치: ~/.gitvault/<vault_name>/
+  return std::filesystem::path(getHomeDirectory()) / ".gitvault" / vault_name;
+}
+
+std::filesystem::path ObjectStore::config_path() const {
+  return metadata_dir() / kConfigKey;
+}
+
+std::filesystem::path ObjectStore::head_path() const {
+  return metadata_dir() / kHeadKey;
 }
 
 ObjectStore::ObjectStore(std::string access_token, std::string root_path)
@@ -88,11 +97,26 @@ void ObjectStore::save_config(const Config& config) const {
 }
 
 void ObjectStore::write_head(const ByteVec& data) const {
+  const std::filesystem::path local_head = head_path();
+  std::filesystem::create_directories(local_head.parent_path());
+  write_file_bytes(local_head, data);
+
   storage_.put(kHeadKey, data, true);
 }
 
 ByteVec ObjectStore::read_head() const {
-  return storage_.get(kHeadKey);
+  const std::filesystem::path local_head = head_path();
+  if (std::filesystem::exists(local_head)) {
+    return read_file_bytes(local_head);
+  }
+
+  if (storage_.exists(kHeadKey)) {
+    std::cerr << "warning: local HEAD not found at " << local_head.string()
+              << ", falling back to cloud HEAD\n";
+    return storage_.get(kHeadKey);
+  }
+
+  throw std::runtime_error("HEAD not found in local or cloud");
 }
 
 std::string ObjectStore::object_key(const std::array<uint8_t, 32>& hash) const {

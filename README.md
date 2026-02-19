@@ -61,21 +61,22 @@ Provide secrets via:
 If `--dropbox-token` is omitted, the tool uses `GITVAULT_DROPBOX_TOKEN` or `DROPBOX_ACCESS_TOKEN`.
 If password is not provided, the tool prompts on stdin.
 
-### Local state
+### Local metadata
 
-`lock` writes a trusted local state file at:
+Vault metadata is stored locally at:
 
 ```
-<plain_dir>/.gitvault_state
+~/.gitvault/<vault_name>/
+  config
+  HEAD
 ```
 
-This file stores the latest commit hash. Commands that need a commit hash will use this file if provided via `--state <path>`. If `--state` is not supplied, the tool uses the encrypted `HEAD` file stored in the object store.
+`HEAD` is read from local storage first. If the local `HEAD` file is missing, GitVault falls back to the cloud `HEAD` and prints a warning.
 
 ### Remote store layout
 
 ```
 <dropbox_root>/
-  config
   HEAD
   objects/
     <sha256-hex>

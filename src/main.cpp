@@ -15,7 +15,6 @@ namespace {
     std::optional<std::string> password;
     std::optional<std::string> password_file;
     std::optional<std::string> dropbox_token;
-    std::optional<std::filesystem::path> state_path;
     std::vector<std::string> positional;
   };
 
@@ -33,11 +32,6 @@ namespace {
           throw std::runtime_error("--password-file requires a path");
         }
         opts.password_file = argv[++i];
-      } else if (arg == "--state") {
-        if (i + 1 >= argc) {
-          throw std::runtime_error("--state requires a path");
-        }
-        opts.state_path = std::filesystem::path(argv[++i]);
       } else if (arg == "--dropbox-token") {
         if (i + 1 >= argc) {
           throw std::runtime_error("--dropbox-token requires a value");
@@ -90,7 +84,7 @@ namespace {
 
   void print_usage() {
     std::cout << "gitvault <command> [args] [--dropbox-token <token>] [--password <pw>] "
-                "[--password-file <path>] [--state <path>]\n";
+                "[--password-file <path>]\n";
     std::cout << "\nCommands:\n";
     std::cout << "  init <store_root>\n";
     std::cout << "  lock <plain_dir> <store_root>\n";
@@ -215,10 +209,8 @@ int main(int argc, char** argv) {
       Config cfg = ensure_store_config(store);
       std::string password = read_password(opts);
       Keys keys = derive_keys(cfg, password);
-      std::filesystem::path state_path = opts.state_path.value_or(plain_dir / ".gitvault_state");
-      auto commit_hash = lock_vault(plain_dir, store, keys, state_path);
+      auto commit_hash = lock_vault(plain_dir, store, keys);
       std::cout << "commit=" << to_hex(commit_hash) << "\n";
-      std::cout << "state=" << state_path.string() << "\n";
       return 0;
     }
 
@@ -257,7 +249,7 @@ int main(int argc, char** argv) {
       std::string password = read_password(opts);
       Keys keys = derive_keys(cfg, password);
       std::string path = (opts.positional.size() == 2) ? opts.positional[1] : "";
-      Tree tree = list_directory(store, keys, opts.state_path, path);
+      Tree tree = list_directory(store, keys, path);
       for (const auto& entry : tree.entries) {
         char type = (entry.type == 1) ? 'd' : 'f';
         std::cout << type << " " << entry.name;
@@ -281,7 +273,7 @@ int main(int argc, char** argv) {
       std::string password = read_password(opts);
       Keys keys = derive_keys(cfg, password);
       std::string path = (opts.positional.size() == 2) ? opts.positional[1] : "";
-      print_tree(store, keys, opts.state_path, path, std::cout);
+      print_tree(store, keys, path, std::cout);
       return 0;
     }
 
@@ -293,7 +285,7 @@ int main(int argc, char** argv) {
       Config cfg = store.load_config();
       std::string password = read_password(opts);
       Keys keys = derive_keys(cfg, password);
-      ByteVec data = read_file_from_vault(store, keys, opts.state_path, opts.positional[1]);
+      ByteVec data = read_file_from_vault(store, keys, opts.positional[1]);
       if (!data.empty()) {
         std::cout.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
       }
@@ -309,8 +301,8 @@ int main(int argc, char** argv) {
       std::string password = read_password(opts);
       Keys keys = derive_keys(cfg, password);
       ScanStats stats = (command == "quick-scan")
-                            ? quick_scan(store, keys, opts.state_path)
-                            : deep_scan(store, keys, opts.state_path);
+                            ? quick_scan(store, keys)
+                            : deep_scan(store, keys);
       std::cout << "trees=" << stats.trees_checked << " blobs=" << stats.blobs_checked
                 << " missing=" << stats.blobs_missing << " hashed=" << stats.blobs_hashed
                 << "\n";

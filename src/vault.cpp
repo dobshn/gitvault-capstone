@@ -20,7 +20,6 @@ namespace {
 constexpr size_t kIvSize = 16;
 constexpr size_t kHeadCipherSize = 32;
 constexpr size_t kHeadTagSize = 32;
-constexpr const char* kStateFileName = ".gitvault_state";
 constexpr size_t kChunkSize = 1 << 20;
 constexpr uint64_t kProgressThresholdBytes = 16ull * 1024 * 1024;
 constexpr uint64_t kProgressIntervalBytes = 64ull * 1024 * 1024;
@@ -131,54 +130,8 @@ std::array<uint8_t, 32> read_head(const ObjectStore& store, const Keys& keys) {
   return out;
 }
 
-void write_state(const std::filesystem::path& state_path, const std::array<uint8_t, 32>& commit_hash) {
-  if (!state_path.parent_path().empty()) {
-    std::filesystem::create_directories(state_path.parent_path());
-  }
-  std::ofstream file(state_path, std::ios::trunc);
-  if (!file) {
-    throw std::runtime_error("failed to write state: " + state_path.string());
-  }
-  file << "version=1\n";
-  file << "commit=" << to_hex(commit_hash) << "\n";
-}
-
-std::array<uint8_t, 32> read_state(const std::filesystem::path& state_path) {
-  std::ifstream file(state_path);
-  if (!file) {
-    throw std::runtime_error("state not found: " + state_path.string());
-  }
-  std::string line;
-  std::string commit_hex;
-  while (std::getline(file, line)) {
-    if (line.empty()) {
-      continue;
-    }
-    auto pos = line.find('=');
-    if (pos == std::string::npos) {
-      continue;
-    }
-    std::string key = line.substr(0, pos);
-    std::string value = line.substr(pos + 1);
-    if (key == "commit") {
-      commit_hex = value;
-    }
-  }
-  if (commit_hex.empty()) {
-    throw std::runtime_error("state missing commit hash");
-  }
-  return hash_from_hex(commit_hex);
-}
-
 std::array<uint8_t, 32> resolve_commit_hash(const ObjectStore& store,
-                                            const Keys& keys,
-                                            const std::optional<std::filesystem::path>& state_path) {
-  if (state_path.has_value()) {
-    if (!std::filesystem::exists(state_path.value())) {
-      throw std::runtime_error("state file not found: " + state_path.value().string());
-    }
-    return read_state(state_path.value());
-  }
+                                            const Keys& keys) {
   return read_head(store, keys);
 }
 
@@ -296,8 +249,7 @@ std::array<uint8_t, 32> store_blob(const std::filesystem::path& path,
 
 std::array<uint8_t, 32> store_tree(const std::filesystem::path& dir,
                                   const ObjectStore& store,
-                                  const Keys& keys,
-                                  const std::filesystem::path& state_path) {
+                                  const Keys& keys) {
   Tree tree;
   std::vector<Entry> entries;
 
@@ -308,17 +260,6 @@ std::array<uint8_t, 32> store_tree(const std::filesystem::path& dir,
       continue;
     }
 
-    if (path.filename() == kStateFileName) {
-      continue;
-    }
-
-    if (!state_path.empty()) {
-      std::error_code ec;
-      if (std::filesystem::equivalent(path, state_path, ec) && !ec) {
-        continue;
-      }
-    }
-
     Entry out;
     out.name = path.filename().string();
 
@@ -326,7 +267,7 @@ std::array<uint8_t, 32> store_tree(const std::filesystem::path& dir,
       out.type = 1;
       out.flags = 0x02;
       out.mtime = file_mtime_seconds(path);
-      out.hash = store_tree(path, store, keys, state_path);
+      out.hash = store_tree(path, store, keys);
       entries.push_back(out);
       continue;
     }
@@ -362,9 +303,8 @@ struct PathResult {
 
 PathResult resolve_path(const ObjectStore& store,
                         const Keys& keys,
-                        const std::optional<std::filesystem::path>& state_path,
                         const std::string& path) {
-  auto commit_hash = resolve_commit_hash(store, keys, state_path);
+  auto commit_hash = resolve_commit_hash(store, keys);
   Commit commit = load_commit_checked(store, keys, commit_hash);
   std::array<uint8_t, 32> current_hash = commit.root_hash;
 
@@ -580,13 +520,12 @@ Keys derive_keys(const Config& config, const std::string& password) {
 
 std::array<uint8_t, 32> lock_vault(const std::filesystem::path& plain_dir,
                                   ObjectStore& store,
-                                  const Keys& keys,
-                                  const std::filesystem::path& state_path) {
+                                  const Keys& keys) {
   if (!std::filesystem::exists(plain_dir) || !std::filesystem::is_directory(plain_dir)) {
     throw std::runtime_error("plain_dir must be a directory");
   }
 
-  std::array<uint8_t, 32> root_hash = store_tree(plain_dir, store, keys, state_path);
+  std::array<uint8_t, 32> root_hash = store_tree(plain_dir, store, keys);
 
   Commit commit;
   commit.commit_time = static_cast<uint64_t>(
@@ -600,16 +539,14 @@ std::array<uint8_t, 32> lock_vault(const std::filesystem::path& plain_dir,
   store.write_object(obj.hash, obj.data);
 
   write_head(store, keys, obj.hash);
-  write_state(state_path, obj.hash);
 
   return obj.hash;
 }
 
 Tree list_directory(const ObjectStore& store,
                     const Keys& keys,
-                    const std::optional<std::filesystem::path>& state_path,
                     const std::string& path) {
-  PathResult result = resolve_path(store, keys, state_path, path);
+  PathResult result = resolve_path(store, keys, path);
   if (!result.is_directory) {
     throw std::runtime_error("path is not a directory: " + path);
   }
@@ -618,13 +555,12 @@ Tree list_directory(const ObjectStore& store,
 
 Entry resolve_entry(const ObjectStore& store,
                     const Keys& keys,
-                    const std::optional<std::filesystem::path>& state_path,
                     const std::string& path,
                     bool require_directory) {
   if (path.empty()) {
     throw std::runtime_error("path required");
   }
-  PathResult result = resolve_path(store, keys, state_path, path);
+  PathResult result = resolve_path(store, keys, path);
   if (require_directory && !result.is_directory) {
     throw std::runtime_error("path is not a directory: " + path);
   }
@@ -639,9 +575,8 @@ Entry resolve_entry(const ObjectStore& store,
 
 ByteVec read_file_from_vault(const ObjectStore& store,
                              const Keys& keys,
-                             const std::optional<std::filesystem::path>& state_path,
                              const std::string& path) {
-  Entry entry = resolve_entry(store, keys, state_path, path, false);
+  Entry entry = resolve_entry(store, keys, path, false);
   if (entry.type != 0) {
     throw std::runtime_error("path is not a file: " + path);
   }
@@ -650,9 +585,8 @@ ByteVec read_file_from_vault(const ObjectStore& store,
 }
 
 ScanStats quick_scan(const ObjectStore& store,
-                     const Keys& keys,
-                     const std::optional<std::filesystem::path>& state_path) {
-  auto commit_hash = resolve_commit_hash(store, keys, state_path);
+                     const Keys& keys) {
+  auto commit_hash = resolve_commit_hash(store, keys);
   Commit commit = load_commit_checked(store, keys, commit_hash);
   ScanStats stats;
   scan_tree(store, keys, commit.root_hash, false, stats);
@@ -660,9 +594,8 @@ ScanStats quick_scan(const ObjectStore& store,
 }
 
 ScanStats deep_scan(const ObjectStore& store,
-                    const Keys& keys,
-                    const std::optional<std::filesystem::path>& state_path) {
-  auto commit_hash = resolve_commit_hash(store, keys, state_path);
+                    const Keys& keys) {
+  auto commit_hash = resolve_commit_hash(store, keys);
   Commit commit = load_commit_checked(store, keys, commit_hash);
   ScanStats stats;
   scan_tree(store, keys, commit.root_hash, true, stats);
@@ -671,10 +604,9 @@ ScanStats deep_scan(const ObjectStore& store,
 
 void print_tree(const ObjectStore& store,
                 const Keys& keys,
-                const std::optional<std::filesystem::path>& state_path,
                 const std::string& path,
                 std::ostream& out) {
-  PathResult result = resolve_path(store, keys, state_path, path);
+  PathResult result = resolve_path(store, keys, path);
   std::string label = path.empty() ? "." : path;
   out << label;
   if (result.is_directory && (label.empty() || label.back() != '/')) {
@@ -702,7 +634,7 @@ std::array<uint8_t, 32> add(const ObjectStore& store, const Keys& keys, const st
   parts.pop_back();
 
   // 현재 HEAD 기준 commit을 가져온다.
-  auto commit_hash = resolve_commit_hash(store, keys, std::nullopt);
+  auto commit_hash = resolve_commit_hash(store, keys);
   Commit commit = load_commit_checked(store, keys, commit_hash);
 
   // leaf에 넣을 파일 엔트리를 만든다.
@@ -759,7 +691,7 @@ std::array<uint8_t, 32> add(const ObjectStore& store, const Keys& keys, const st
 std::array<uint8_t, 32> remove(const ObjectStore& store, const Keys& keys, const std::string& cloud_path) {
   // 인자가 비어있지 않은지 검사한 뒤, cloud_path를 분해해 대상 파일명을 추출한다.
   if (cloud_path.empty()) throw std::runtime_error("cloud_path required");
-  Entry removed_entry = resolve_entry(store, keys, std::nullopt, cloud_path, false);
+  Entry removed_entry = resolve_entry(store, keys, cloud_path, false);
   if (removed_entry.type != 0) throw std::runtime_error("path is not a file: " + cloud_path);
   std::array<uint8_t, 32> removed_blob_hash = removed_entry.hash;
 
@@ -769,7 +701,7 @@ std::array<uint8_t, 32> remove(const ObjectStore& store, const Keys& keys, const
   parts.pop_back();
 
   // 현재 HEAD 기준 commit을 가져온다.
-  auto commit_hash = resolve_commit_hash(store, keys, std::nullopt);
+  auto commit_hash = resolve_commit_hash(store, keys);
   Commit commit = load_commit_checked(store, keys, commit_hash);
 
   uint64_t now_sec = static_cast<uint64_t>(
