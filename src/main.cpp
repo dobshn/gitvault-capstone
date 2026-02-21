@@ -86,7 +86,7 @@ namespace {
     std::cout << "gitvault <command> [args] [--dropbox-token <token>] [--password <pw>] "
                 "[--password-file <path>]\n";
     std::cout << "\nCommands:\n";
-    std::cout << "  init <store_root>\n";
+    std::cout << "  init <vault_name>\n";
     std::cout << "  lock <plain_dir> <store_root>\n";
     std::cout << "  add <store_root> <local_path> <cloud_path>\n";
     std::cout << "  remove <store_root> <cloud_path>\n";
@@ -95,7 +95,7 @@ namespace {
     std::cout << "  cat <store_root> <path>\n";
     std::cout << "  quick-scan <store_root>\n";
     std::cout << "  deep-scan <store_root>\n";
-    std::cout << "\nstore_root is a Dropbox root path like /my_gitvault\n";
+    std::cout << "\ninit creates store at /<vault_name>\n";
   }
 
 	std::string getTokenPath() {
@@ -191,12 +191,21 @@ int main(int argc, char** argv) {
 
     if (command == "init") {
       if (opts.positional.size() != 1) {
-        throw std::runtime_error("init requires <store_root>");
+        throw std::runtime_error("init requires <vault_name>");
       }
-      ObjectStore store(dropbox_token, opts.positional[0]);
+      const std::string vault_name = opts.positional[0];
+      if (vault_name.empty() || vault_name.find('/') != std::string::npos ||
+          vault_name.find('\\') != std::string::npos) {
+        throw std::runtime_error("vault_name must not contain '/' or '\\\\'");
+      }
+      ObjectStore store(dropbox_token, "/" + vault_name);
       Config cfg = ensure_store_config(store);
+      std::string password = read_password(opts);
+      Keys keys = derive_keys(cfg, password);
+      auto commit_hash = init_vault(store, keys);
       std::cout << "initialized store at " << store.root() << "\n";
       std::cout << "kdf_salt=" << to_hex(cfg.salt) << "\n";
+      std::cout << "commit=" << to_hex(commit_hash) << "\n";
       return 0;
     }
 

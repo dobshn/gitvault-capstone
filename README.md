@@ -20,8 +20,8 @@ cmake --build build
 ## Usage
 
 ```
-# Initialize an empty object store in Dropbox (creates config)
-./build/gitvault init /my_gitvault --dropbox-token <token>
+# Initialize an empty object store in Dropbox (vault name -> /<vault_name>)
+./build/gitvault init <vault_name> --dropbox-token <token>
 
 # Encrypt a plaintext directory into Dropbox
 ./build/gitvault lock <plain_dir> /my_gitvault --dropbox-token <token>
@@ -92,14 +92,15 @@ cmake -S . -B build && cmake --build build -j4
 
 # 2) 토큰/테스트 데이터 준비
 export GITVAULT_DROPBOX_TOKEN="<YOUR_DROPBOX_TOKEN>"
-ROOT="/gitvault-smoke-$(date +%s)"
+VAULT_NAME="gitvault-smoke-$(date +%s)"
+ROOT="/$VAULT_NAME"
 WORK="$(mktemp -d)"
 mkdir -p "$WORK/plain/sub"
 echo "hello vault" > "$WORK/plain/a.txt"
 echo '{"ok":true}' > "$WORK/plain/sub/b.json"
 
 # 3) Dropbox vault 동작 확인
-./build/gitvault init "$ROOT"
+./build/gitvault init "$VAULT_NAME"
 ./build/gitvault lock "$WORK/plain" "$ROOT" --password test123
 ./build/gitvault list "$ROOT" --password test123
 ./build/gitvault tree "$ROOT" --password test123
