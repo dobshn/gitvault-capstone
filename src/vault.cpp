@@ -130,6 +130,37 @@ std::array<uint8_t, 32> read_head(const ObjectStore& store, const Keys& keys) {
   return out;
 }
 
+uint64_t unix_time_seconds() {
+  return static_cast<uint64_t>(
+      std::chrono::duration_cast<std::chrono::seconds>(
+          std::chrono::system_clock::now().time_since_epoch())
+          .count());
+}
+
+std::array<uint8_t, 32> store_commit(const ObjectStore& store,
+                                     const Keys& keys,
+                                     const std::array<uint8_t, 32>& root_hash,
+                                     uint64_t commit_time) {
+  Commit commit;
+  commit.commit_time = commit_time;
+  commit.root_hash = root_hash;
+
+  ByteVec serialized = serialize_commit(commit);
+  EncryptedObject obj = encrypt_object(keys.enc_key, serialized);
+  store.write_object(obj.hash, obj.data);
+  write_head(store, keys, obj.hash);
+  return obj.hash;
+}
+
+std::array<uint8_t, 32> store_tree_object(const ObjectStore& store,
+                                          const Keys& keys,
+                                          const Tree& tree) {
+  ByteVec serialized = serialize_tree(tree);
+  EncryptedObject obj = encrypt_object(keys.enc_key, serialized);
+  store.write_object(obj.hash, obj.data);
+  return obj.hash;
+}
+
 std::array<uint8_t, 32> resolve_commit_hash(const ObjectStore& store,
                                             const Keys& keys) {
   return read_head(store, keys);
@@ -289,10 +320,7 @@ std::array<uint8_t, 32> store_tree(const std::filesystem::path& dir,
   });
 
   tree.entries = std::move(entries);
-  ByteVec serialized = serialize_tree(tree);
-  EncryptedObject obj = encrypt_object(keys.enc_key, serialized);
-  store.write_object(obj.hash, obj.data);
-  return obj.hash;
+  return store_tree_object(store, keys, tree);
 }
 
 struct PathResult {
@@ -445,10 +473,7 @@ std::array<uint8_t, 32> upsert_blob_to_tree(const ObjectStore& store,
     return a.name < b.name;
   });
 
-  ByteVec serialized = serialize_tree(tree);
-  EncryptedObject obj = encrypt_object(keys.enc_key, serialized);
-  store.write_object(obj.hash, obj.data);
-  return obj.hash;
+  return store_tree_object(store, keys, tree);
 }
 
 std::array<uint8_t, 32> remove_blob_from_tree(const ObjectStore& store,
@@ -492,10 +517,7 @@ std::array<uint8_t, 32> remove_blob_from_tree(const ObjectStore& store,
     return a.name < b.name;
   });
 
-  ByteVec serialized = serialize_tree(tree);
-  EncryptedObject obj = encrypt_object(keys.enc_key, serialized);
-  store.write_object(obj.hash, obj.data);
-  return obj.hash;
+  return store_tree_object(store, keys, tree);
 }
 }  // namespace
 
@@ -519,28 +541,14 @@ Keys derive_keys(const Config& config, const std::string& password) {
 }
 
 std::array<uint8_t, 32> lock_vault(const std::filesystem::path& plain_dir,
-                                  ObjectStore& store,
-                                  const Keys& keys) {
+                                   ObjectStore& store,
+                                   const Keys& keys) {
   if (!std::filesystem::exists(plain_dir) || !std::filesystem::is_directory(plain_dir)) {
     throw std::runtime_error("plain_dir must be a directory");
   }
 
   std::array<uint8_t, 32> root_hash = store_tree(plain_dir, store, keys);
-
-  Commit commit;
-  commit.commit_time = static_cast<uint64_t>(
-      std::chrono::duration_cast<std::chrono::seconds>(
-          std::chrono::system_clock::now().time_since_epoch())
-          .count());
-  commit.root_hash = root_hash;
-
-  ByteVec serialized = serialize_commit(commit);
-  EncryptedObject obj = encrypt_object(keys.enc_key, serialized);
-  store.write_object(obj.hash, obj.data);
-
-  write_head(store, keys, obj.hash);
-
-  return obj.hash;
+  return store_commit(store, keys, root_hash, unix_time_seconds());
 }
 
 Tree list_directory(const ObjectStore& store,
@@ -618,34 +626,39 @@ void print_tree(const ObjectStore& store,
   }
 }
 
-std::array<uint8_t, 32> add(const ObjectStore& store, const Keys& keys, const std::filesystem::path& local_path, const std::string& cloud_path) {
-  // 인자가 비어있지 않은지 검사한 뒤, 로컬 파일이 일반 파일임을 검증한다.
-  if (local_path.empty()) throw std::runtime_error("local_path required");
-  if (cloud_path.empty()) throw std::runtime_error("cloud_path required");
-  if (!std::filesystem::exists(local_path) || !std::filesystem::is_regular_file(local_path)) throw std::runtime_error("local_path must be a regular file: " + local_path.string());
+std::array<uint8_t, 32> add(const ObjectStore& store,
+                            const Keys& keys,
+                            const std::filesystem::path& local_path,
+                            const std::string& cloud_path) {
+  if (local_path.empty()) {
+    throw std::runtime_error("local_path required");
+  }
+  if (cloud_path.empty()) {
+    throw std::runtime_error("cloud_path required");
+  }
+  if (!std::filesystem::exists(local_path) || !std::filesystem::is_regular_file(local_path)) {
+    throw std::runtime_error("local_path must be a regular file: " + local_path.string());
+  }
 
-  // 로컬 파일을 blob으로 만들어 업로드한 뒤, 새로 추가된 blob의 object id를 저장한다.
   std::array<uint8_t, 32> uploaded_object_id = store_blob(local_path, store, keys);
-
-  // cloud_path를 분해하고 마지막 요소를 파일명으로 쓴다.
   std::vector<std::string> parts = split_path(cloud_path);
-  if (parts.empty()) throw std::runtime_error("invalid cloud_path: " + cloud_path);
+  if (parts.empty()) {
+    throw std::runtime_error("invalid cloud_path: " + cloud_path);
+  }
+
   const std::string file_name = parts.back();
   parts.pop_back();
 
-  // 현재 HEAD 기준 commit을 가져온다.
-  auto commit_hash = resolve_commit_hash(store, keys);
-  Commit commit = load_commit_checked(store, keys, commit_hash);
+  auto old_commit_hash = resolve_commit_hash(store, keys);
+  Commit old_commit = load_commit_checked(store, keys, old_commit_hash);
 
-  // leaf에 넣을 파일 엔트리를 만든다.
   std::error_code ec;
   uint64_t file_size = std::filesystem::file_size(local_path, ec);
-  if (ec) throw std::runtime_error("failed to get local file size: " + local_path.string());
+  if (ec) {
+    throw std::runtime_error("failed to get local file size: " + local_path.string());
+  }
 
-  uint64_t now_sec = static_cast<uint64_t>(
-      std::chrono::duration_cast<std::chrono::seconds>(
-          std::chrono::system_clock::now().time_since_epoch())
-          .count());
+  uint64_t now_sec = unix_time_seconds();
 
   Entry file_entry;
   file_entry.type = 0;
@@ -655,26 +668,15 @@ std::array<uint8_t, 32> add(const ObjectStore& store, const Keys& keys, const st
   file_entry.size = file_size;
   file_entry.mtime = file_mtime_seconds(local_path);
 
-  // 루트에서 내려갔다가 올라오면서 tree hash를 한 번에 갱신한다.
   std::vector<std::array<uint8_t, 32>> old_tree_hashes;
   std::array<uint8_t, 32> new_root_hash =
-      upsert_blob_to_tree(store, keys, commit.root_hash, parts, 0, file_entry, now_sec, old_tree_hashes);
+      upsert_blob_to_tree(store, keys, old_commit.root_hash, parts, 0, file_entry, now_sec, old_tree_hashes);
+  std::array<uint8_t, 32> new_commit_hash = store_commit(store, keys, new_root_hash, now_sec);
 
-  // 새 root tree로 commit/HEAD를 갱신한다.
-  Commit new_commit = commit;
-  new_commit.commit_time = now_sec;
-  new_commit.root_hash = new_root_hash;
-  ByteVec serialized_commit = serialize_commit(new_commit);
-  EncryptedObject commit_obj = encrypt_object(keys.enc_key, serialized_commit);
-  store.write_object(commit_obj.hash, commit_obj.data);
-  write_head(store, keys, commit_obj.hash);
-
-  // 이전 commit 객체를 삭제한다.
-  if (!store.remove_object(commit_hash)) {
-    throw std::runtime_error("failed to delete old commit object: " + to_hex(commit_hash));
+  if (!store.remove_object(old_commit_hash)) {
+    throw std::runtime_error("failed to delete old commit object: " + to_hex(old_commit_hash));
   }
 
-  // 이전 tree 객체들을 삭제한다.
   for (const auto& old_hash : old_tree_hashes) {
     try {
       store.remove_object(old_hash);
@@ -684,51 +686,42 @@ std::array<uint8_t, 32> add(const ObjectStore& store, const Keys& keys, const st
     }
   }
 
-  return commit_obj.hash;
+  return new_commit_hash;
 }
 
-// TODO: 디렉토리 삭제 정책 결정 및 구현 필요. 현재는 파일만 삭제 가능
-std::array<uint8_t, 32> remove(const ObjectStore& store, const Keys& keys, const std::string& cloud_path) {
-  // 인자가 비어있지 않은지 검사한 뒤, cloud_path를 분해해 대상 파일명을 추출한다.
-  if (cloud_path.empty()) throw std::runtime_error("cloud_path required");
+std::array<uint8_t, 32> remove(const ObjectStore& store,
+                               const Keys& keys,
+                               const std::string& cloud_path) {
+  if (cloud_path.empty()) {
+    throw std::runtime_error("cloud_path required");
+  }
+
   Entry removed_entry = resolve_entry(store, keys, cloud_path, false);
-  if (removed_entry.type != 0) throw std::runtime_error("path is not a file: " + cloud_path);
+  if (removed_entry.type != 0) {
+    throw std::runtime_error("path is not a file: " + cloud_path);
+  }
   std::array<uint8_t, 32> removed_blob_hash = removed_entry.hash;
 
   std::vector<std::string> parts = split_path(cloud_path);
-  if (parts.empty()) throw std::runtime_error("invalid cloud_path: " + cloud_path);
+  if (parts.empty()) {
+    throw std::runtime_error("invalid cloud_path: " + cloud_path);
+  }
   const std::string file_name = parts.back();
   parts.pop_back();
 
-  // 현재 HEAD 기준 commit을 가져온다.
-  auto commit_hash = resolve_commit_hash(store, keys);
-  Commit commit = load_commit_checked(store, keys, commit_hash);
+  auto old_commit_hash = resolve_commit_hash(store, keys);
+  Commit old_commit = load_commit_checked(store, keys, old_commit_hash);
 
-  uint64_t now_sec = static_cast<uint64_t>(
-      std::chrono::duration_cast<std::chrono::seconds>(
-          std::chrono::system_clock::now().time_since_epoch())
-          .count());
-
-  // 루트에서 내려갔다가 올라오면서 대상 파일을 제거한 tree hash를 재계산한다.
+  uint64_t now_sec = unix_time_seconds();
   std::vector<std::array<uint8_t, 32>> old_tree_hashes;
   std::array<uint8_t, 32> new_root_hash =
-      remove_blob_from_tree(store, keys, commit.root_hash, parts, 0, file_name, now_sec, old_tree_hashes);
+      remove_blob_from_tree(store, keys, old_commit.root_hash, parts, 0, file_name, now_sec, old_tree_hashes);
+  std::array<uint8_t, 32> new_commit_hash = store_commit(store, keys, new_root_hash, now_sec);
 
-  // 새 root tree로 commit/HEAD를 갱신한다.
-  Commit new_commit = commit;
-  new_commit.commit_time = now_sec;
-  new_commit.root_hash = new_root_hash;
-  ByteVec serialized_commit = serialize_commit(new_commit);
-  EncryptedObject commit_obj = encrypt_object(keys.enc_key, serialized_commit);
-  store.write_object(commit_obj.hash, commit_obj.data);
-  write_head(store, keys, commit_obj.hash);
-
-  // 이전 commit 객체를 삭제한다.
-  if (!store.remove_object(commit_hash)) {
-    throw std::runtime_error("failed to delete old commit object: " + to_hex(commit_hash));
+  if (!store.remove_object(old_commit_hash)) {
+    throw std::runtime_error("failed to delete old commit object: " + to_hex(old_commit_hash));
   }
 
-  // 이전 tree 객체들을 삭제한다.
   for (const auto& old_hash : old_tree_hashes) {
     try {
       store.remove_object(old_hash);
@@ -738,10 +731,9 @@ std::array<uint8_t, 32> remove(const ObjectStore& store, const Keys& keys, const
     }
   }
 
-  // 삭제 대상 blob 객체를 삭제한다.
   if (!store.remove_object(removed_blob_hash)) {
     throw std::runtime_error("failed to delete old blob object: " + to_hex(removed_blob_hash));
   }
 
-  return commit_obj.hash;
+  return new_commit_hash;
 }

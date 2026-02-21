@@ -24,8 +24,8 @@ Config ensure_store_config(ObjectStore& store);
 Keys derive_keys(const Config& config, const std::string& password);
 
 std::array<uint8_t, 32> lock_vault(const std::filesystem::path& plain_dir,
-                                  ObjectStore& store,
-                                  const Keys& keys);
+                                   ObjectStore& store,
+                                   const Keys& keys);
 
 std::array<uint8_t, 32> add(const ObjectStore& store,
                             const Keys& keys,
@@ -33,8 +33,8 @@ std::array<uint8_t, 32> add(const ObjectStore& store,
                             const std::string& cloud_path);
 
 std::array<uint8_t, 32> remove(const ObjectStore& store,
-                            const Keys& keys,
-                            const std::string& cloud_path);
+                               const Keys& keys,
+                               const std::string& cloud_path);
 
 Tree list_directory(const ObjectStore& store,
                     const Keys& keys,
