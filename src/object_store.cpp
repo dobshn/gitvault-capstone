@@ -9,6 +9,22 @@
 namespace {
 constexpr const char* kConfigKey = "config";
 constexpr const char* kHeadKey = "HEAD";
+
+std::string normalize_root_path(std::string root_path) {
+  if (root_path.empty()) {
+    throw std::runtime_error("invalid root path: empty");
+  }
+  if (root_path.front() != '/') {
+    root_path.insert(root_path.begin(), '/');
+  }
+  while (root_path.size() > 1 && root_path.back() == '/') {
+    root_path.pop_back();
+  }
+  if (root_path.size() < 2 || root_path.find("//") != std::string::npos) {
+    throw std::runtime_error("invalid root path: use format like \"/my_root\"");
+  }
+  return root_path;
+}
 }
 
 std::filesystem::path ObjectStore::metadata_dir() const {
@@ -29,7 +45,7 @@ std::filesystem::path ObjectStore::head_path() const {
 }
 
 ObjectStore::ObjectStore(std::string access_token, std::string root_path)
-    : root_(std::move(root_path)), storage_(std::move(access_token), root_) {
+    : root_(normalize_root_path(std::move(root_path))), storage_(std::move(access_token), root_) {
   storage_.init();
 }
 
