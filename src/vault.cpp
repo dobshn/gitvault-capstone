@@ -540,6 +540,13 @@ Keys derive_keys(const Config& config, const std::string& password) {
   return keys;
 }
 
+std::array<uint8_t, 32> init_vault(ObjectStore& store,
+                                   const Keys& keys) {
+  Tree empty_tree;
+  std::array<uint8_t, 32> root_hash = store_tree_object(store, keys, empty_tree);
+  return store_commit(store, keys, root_hash, unix_time_seconds());
+}
+
 std::array<uint8_t, 32> lock_vault(const std::filesystem::path& plain_dir,
                                    ObjectStore& store,
                                    const Keys& keys) {

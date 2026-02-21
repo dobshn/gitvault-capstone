@@ -23,6 +23,9 @@ struct ScanStats {
 Config ensure_store_config(ObjectStore& store);
 Keys derive_keys(const Config& config, const std::string& password);
 
+std::array<uint8_t, 32> init_vault(ObjectStore& store,
+                                   const Keys& keys);
+
 std::array<uint8_t, 32> lock_vault(const std::filesystem::path& plain_dir,
                                    ObjectStore& store,
                                    const Keys& keys);
