@@ -2,11 +2,24 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdlib>
 #include <fstream>
 #include <random>
 #include <sstream>
 #include <stdexcept>
 #include <system_error>
+
+std::string getHomeDirectory() {
+#if defined(_WIN32) || defined(_WIN64)
+  const char* home = std::getenv("USERPROFILE");
+#else
+  const char* home = std::getenv("HOME");
+#endif
+  if (!home) {
+    throw std::runtime_error("Cannot determine home directory");
+  }
+  return std::string(home);
+}
 
 ByteVec read_file_bytes(const std::filesystem::path& path) {
   std::ifstream file(path, std::ios::binary);

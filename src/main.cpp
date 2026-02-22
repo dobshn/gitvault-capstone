@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "vault.h"
+#include "util.h"
 #include "loginHandler.h"
 #include "LoginHandler/DropboxLoginHandler.h"
 namespace {
@@ -14,7 +15,6 @@ namespace {
     std::optional<std::string> password;
     std::optional<std::string> password_file;
     std::optional<std::string> dropbox_token;
-    std::optional<std::filesystem::path> state_path;
     std::vector<std::string> positional;
   };
 
@@ -32,11 +32,6 @@ namespace {
           throw std::runtime_error("--password-file requires a path");
         }
         opts.password_file = argv[++i];
-      } else if (arg == "--state") {
-        if (i + 1 >= argc) {
-          throw std::runtime_error("--state requires a path");
-        }
-        opts.state_path = std::filesystem::path(argv[++i]);
       } else if (arg == "--dropbox-token") {
         if (i + 1 >= argc) {
           throw std::runtime_error("--dropbox-token requires a value");
@@ -87,32 +82,38 @@ namespace {
         "Dropbox token is required. Use --dropbox-token or set GITVAULT_DROPBOX_TOKEN.");
   }
 
-  void print_usage() {
-    std::cout << "gitvault <command> [args] [--dropbox-token <token>] [--password <pw>] "
-                "[--password-file <path>] [--state <path>]\n";
-    std::cout << "\nCommands:\n";
-    std::cout << "  init <store_root>\n";
-    std::cout << "  lock <plain_dir> <store_root>\n";
-    std::cout << "  add <store_root> <local_path> <cloud_path>\n";
-    std::cout << "  remove <store_root> <cloud_path>\n";
-    std::cout << "  list <store_root> [path]\n";
-    std::cout << "  tree <store_root> [path]\n";
-    std::cout << "  cat <store_root> <path>\n";
-    std::cout << "  quick-scan <store_root>\n";
-    std::cout << "  deep-scan <store_root>\n";
-    std::cout << "\nstore_root is a Dropbox root path like /my_gitvault\n";
+  std::string normalize_vault_name(std::string vault_name) {
+    if (vault_name.empty()) {
+      throw std::runtime_error("vault_name required");
+    }
+    while (vault_name.size() > 1 && vault_name.back() == '/') {
+      vault_name.pop_back();
+    }
+    if (!vault_name.empty() && vault_name.front() == '/') {
+      vault_name.erase(vault_name.begin());
+    }
+    if (vault_name.empty() || vault_name.find('/') != std::string::npos ||
+        vault_name.find('\\') != std::string::npos) {
+      throw std::runtime_error("vault_name must not contain '/' or '\\\\'");
+    }
+    return vault_name;
   }
 
-	std::string getHomeDirectory() {
-		#if defined(_WIN32) || defined(_WIN64)
-		const char* home = std::getenv("USERPROFILE");
-		#else
-		const char* home = std::getenv("HOME");
-		#endif
-
-		if (!home) throw std::runtime_error("Cannot determine home directory");
-		return std::string(home);
-	}
+  void print_usage() {
+    std::cout << "gitvault <command> [args] [--dropbox-token <token>] [--password <pw>] "
+                "[--password-file <path>]\n";
+    std::cout << "\nCommands:\n";
+    std::cout << "  init <vault_name>\n";
+    std::cout << "  lock <plain_dir> <vault_name>\n";
+    std::cout << "  add <vault_name> <local_path> <cloud_path>\n";
+    std::cout << "  remove <vault_name> <cloud_path>\n";
+    std::cout << "  list <vault_name> [path]\n";
+    std::cout << "  tree <vault_name> [path]\n";
+    std::cout << "  cat <vault_name> <path>\n";
+    std::cout << "  quick-scan <vault_name>\n";
+    std::cout << "  deep-scan <vault_name>\n";
+    std::cout << "\nvault_name can be my_vault or /my_vault.\n";
+  }
 
 	std::string getTokenPath() {
 		return getHomeDirectory() + "/.gitvault/.gitvault_refresh_token";
@@ -207,36 +208,39 @@ int main(int argc, char** argv) {
 
     if (command == "init") {
       if (opts.positional.size() != 1) {
-        throw std::runtime_error("init requires <store_root>");
+        throw std::runtime_error("init requires <vault_name>");
       }
-      ObjectStore store(dropbox_token, opts.positional[0]);
+      const std::string vault_name = normalize_vault_name(opts.positional[0]);
+      ObjectStore store(dropbox_token, vault_name);
       Config cfg = ensure_store_config(store);
+      std::string password = read_password(opts);
+      Keys keys = derive_keys(cfg, password);
+      auto commit_hash = init_vault(store, keys);
       std::cout << "initialized store at " << store.root() << "\n";
       std::cout << "kdf_salt=" << to_hex(cfg.salt) << "\n";
+      std::cout << "commit=" << to_hex(commit_hash) << "\n";
       return 0;
     }
 
     if (command == "lock") {
       if (opts.positional.size() != 2) {
-        throw std::runtime_error("lock requires <plain_dir> <store_root>");
+        throw std::runtime_error("lock requires <plain_dir> <vault_name>");
       }
       std::filesystem::path plain_dir = opts.positional[0];
-      ObjectStore store(dropbox_token, opts.positional[1]);
+      ObjectStore store(dropbox_token, normalize_vault_name(opts.positional[1]));
       Config cfg = ensure_store_config(store);
       std::string password = read_password(opts);
       Keys keys = derive_keys(cfg, password);
-      std::filesystem::path state_path = opts.state_path.value_or(plain_dir / ".gitvault_state");
-      auto commit_hash = lock_vault(plain_dir, store, keys, state_path);
+      auto commit_hash = lock_vault(plain_dir, store, keys);
       std::cout << "commit=" << to_hex(commit_hash) << "\n";
-      std::cout << "state=" << state_path.string() << "\n";
       return 0;
     }
 
     if (command == "add") {
       if (opts.positional.size() != 3) {
-        throw std::runtime_error("add requires <store_root> <local_path> <cloud_path>");
+        throw std::runtime_error("add requires <vault_name> <local_path> <cloud_path>");
       }
-      ObjectStore store(dropbox_token, opts.positional[0]);
+      ObjectStore store(dropbox_token, normalize_vault_name(opts.positional[0]));
       Config cfg = store.load_config();
       std::string password = read_password(opts);
       Keys keys = derive_keys(cfg, password);
@@ -247,9 +251,9 @@ int main(int argc, char** argv) {
 
     if (command == "remove") {
       if (opts.positional.size() != 2) {
-        throw std::runtime_error("remove requires <store_root> <cloud_path>");
+        throw std::runtime_error("remove requires <vault_name> <cloud_path>");
       }
-      ObjectStore store(dropbox_token, opts.positional[0]);
+      ObjectStore store(dropbox_token, normalize_vault_name(opts.positional[0]));
       Config cfg = store.load_config();
       std::string password = read_password(opts);
       Keys keys = derive_keys(cfg, password);
@@ -260,14 +264,14 @@ int main(int argc, char** argv) {
 
     if (command == "list") {
       if (opts.positional.size() < 1 || opts.positional.size() > 2) {
-        throw std::runtime_error("list requires <store_root> [path]");
+        throw std::runtime_error("list requires <vault_name> [path]");
       }
-      ObjectStore store(dropbox_token, opts.positional[0]);
+      ObjectStore store(dropbox_token, normalize_vault_name(opts.positional[0]));
       Config cfg = store.load_config();
       std::string password = read_password(opts);
       Keys keys = derive_keys(cfg, password);
       std::string path = (opts.positional.size() == 2) ? opts.positional[1] : "";
-      Tree tree = list_directory(store, keys, opts.state_path, path);
+      Tree tree = list_directory(store, keys, path);
       for (const auto& entry : tree.entries) {
         char type = (entry.type == 1) ? 'd' : 'f';
         std::cout << type << " " << entry.name;
@@ -284,26 +288,26 @@ int main(int argc, char** argv) {
 
     if (command == "tree") {
       if (opts.positional.size() < 1 || opts.positional.size() > 2) {
-        throw std::runtime_error("tree requires <store_root> [path]");
+        throw std::runtime_error("tree requires <vault_name> [path]");
       }
-      ObjectStore store(dropbox_token, opts.positional[0]);
+      ObjectStore store(dropbox_token, normalize_vault_name(opts.positional[0]));
       Config cfg = store.load_config();
       std::string password = read_password(opts);
       Keys keys = derive_keys(cfg, password);
       std::string path = (opts.positional.size() == 2) ? opts.positional[1] : "";
-      print_tree(store, keys, opts.state_path, path, std::cout);
+      print_tree(store, keys, path, std::cout);
       return 0;
     }
 
     if (command == "cat") {
       if (opts.positional.size() != 2) {
-        throw std::runtime_error("cat requires <store_root> <path>");
+        throw std::runtime_error("cat requires <vault_name> <path>");
       }
-      ObjectStore store(dropbox_token, opts.positional[0]);
+      ObjectStore store(dropbox_token, normalize_vault_name(opts.positional[0]));
       Config cfg = store.load_config();
       std::string password = read_password(opts);
       Keys keys = derive_keys(cfg, password);
-      ByteVec data = read_file_from_vault(store, keys, opts.state_path, opts.positional[1]);
+      ByteVec data = read_file_from_vault(store, keys, opts.positional[1]);
       if (!data.empty()) {
         std::cout.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
       }
@@ -312,15 +316,15 @@ int main(int argc, char** argv) {
 
     if (command == "quick-scan" || command == "deep-scan") {
       if (opts.positional.size() != 1) {
-        throw std::runtime_error(command + " requires <store_root>");
+        throw std::runtime_error(command + " requires <vault_name>");
       }
-      ObjectStore store(dropbox_token, opts.positional[0]);
+      ObjectStore store(dropbox_token, normalize_vault_name(opts.positional[0]));
       Config cfg = store.load_config();
       std::string password = read_password(opts);
       Keys keys = derive_keys(cfg, password);
       ScanStats stats = (command == "quick-scan")
-                            ? quick_scan(store, keys, opts.state_path)
-                            : deep_scan(store, keys, opts.state_path);
+                            ? quick_scan(store, keys)
+                            : deep_scan(store, keys);
       std::cout << "trees=" << stats.trees_checked << " blobs=" << stats.blobs_checked
                 << " missing=" << stats.blobs_missing << " hashed=" << stats.blobs_hashed
                 << "\n";
