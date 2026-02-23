@@ -83,6 +83,11 @@ void DropboxStorage::fetch(std::string access_token, std::string root_path) {
   access_token_ = access_token;
   root_path_ = root_path;
 
+  if (access_token_.empty()) {
+    throw std::runtime_error("dropbox access token is empty");
+  }
+  require_root_path(root_path_);
+
   {
     auto res = api_client_.Post("/2/users/get_current_account",
                                 {{"Authorization", "Bearer " + access_token_}},
@@ -131,6 +136,14 @@ void DropboxStorage::init(std::string access_token, std::string root_path) {
   if (fetched) {
     return;
   }
+
+  access_token_ = access_token;
+  root_path_ = root_path;
+
+  if (access_token_.empty()) {
+    throw std::runtime_error("dropbox access token is empty");
+  }
+  require_root_path(root_path_);
 
   {
     auto res = api_client_.Post("/2/users/get_current_account",

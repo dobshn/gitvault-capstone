@@ -5,18 +5,17 @@
 #include "util.h"
 
 namespace {
-constexpr size_t kIvSize = 16;
+    constexpr size_t kIvSize = 16;
 }
 
 EncryptedObject CryptoImpl::encrypt_object(const ByteVec& enc_key,
                                       const ByteVec& plaintext) {
     ByteVec iv = random_bytes(kIvSize);
     ByteVec ciphertext = aes256_ctr_crypt(enc_key, iv, plaintext);
-
     ByteVec combined;
-    combined.insert(combined.end(), iv.begin(), iv.end());
-    combined.insert(combined.end(), ciphertext.begin(), ciphertext.end());
-
+    combined.reserve(iv.size() + ciphertext.size());
+    append_bytes(combined, iv.data(), iv.size());
+    append_bytes(combined, ciphertext.data(), ciphertext.size());
     auto hash = Sha256::hash(combined);
     return {combined, hash};
 }
