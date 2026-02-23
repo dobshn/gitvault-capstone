@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <string>
 
+#include "API.h"
 #include "dropbox_storage.h"
 #include "util.h"
 
@@ -15,8 +16,19 @@ struct Config {
 };
 
 class ObjectStore {
- public:
-  ObjectStore(std::string access_token, std::string root_path);
+private:
+  std::filesystem::path metadata_dir() const;
+  std::filesystem::path config_path() const;
+  std::filesystem::path head_path() const;
+
+  std::string root_;
+  API* CloudAPI;
+
+public:
+  ObjectStore();
+  ~ObjectStore();
+  void init(std::string access_token, std::string root_path);
+  void fetch(std::string access_token, std::string root_path);
 
   const std::string& root() const;
 
@@ -33,12 +45,4 @@ class ObjectStore {
   void write_object(const std::array<uint8_t, 32>& hash, const ByteVec& data) const;
   void write_object_from_file(const std::array<uint8_t, 32>& hash, const std::filesystem::path& path) const;
   ByteVec read_object(const std::array<uint8_t, 32>& hash) const;
-
- private:
-  std::filesystem::path metadata_dir() const;
-  std::filesystem::path config_path() const;
-  std::filesystem::path head_path() const;
-
-  std::string root_;
-  DropboxStorage storage_;
 };

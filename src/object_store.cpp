@@ -7,24 +7,24 @@
 #include <utility>
 
 namespace {
-constexpr const char* kConfigKey = "config";
-constexpr const char* kHeadKey = "HEAD";
+  constexpr const char* kConfigKey = "config";
+  constexpr const char* kHeadKey = "HEAD";
 
 std::string normalize_root_path(std::string root_path) {
-  if (root_path.empty()) {
-    throw std::runtime_error("invalid root path: empty");
+    if (root_path.empty()) {
+      throw std::runtime_error("invalid root path: empty");
+    }
+    if (root_path.front() != '/') {
+      root_path.insert(root_path.begin(), '/');
+    }
+    while (root_path.size() > 1 && root_path.back() == '/') {
+      root_path.pop_back();
+    }
+    if (root_path.size() < 2 || root_path.find("//") != std::string::npos) {
+      throw std::runtime_error("invalid root path: use format like \"/my_root\"");
+    }
+    return root_path;
   }
-  if (root_path.front() != '/') {
-    root_path.insert(root_path.begin(), '/');
-  }
-  while (root_path.size() > 1 && root_path.back() == '/') {
-    root_path.pop_back();
-  }
-  if (root_path.size() < 2 || root_path.find("//") != std::string::npos) {
-    throw std::runtime_error("invalid root path: use format like \"/my_root\"");
-  }
-  return root_path;
-}
 }
 
 std::filesystem::path ObjectStore::metadata_dir() const {
@@ -44,9 +44,24 @@ std::filesystem::path ObjectStore::head_path() const {
   return metadata_dir() / kHeadKey;
 }
 
-ObjectStore::ObjectStore(std::string access_token, std::string root_path)
-    : root_(normalize_root_path(std::move(root_path))), storage_(std::move(access_token), root_) {
-  storage_.init();
+// 생성자
+ObjectStore::ObjectStore() {
+  CloudAPI = new DropboxStorage();
+}
+
+// 소멸자
+ObjectStore::~ObjectStore() {
+  delete CloudAPI;
+}
+
+void ObjectStore::fetch(std::string access_token, std::string root_path) {
+  root_ = normalize_root_path(std::move(root_path));
+  CloudAPI->fetch(access_token, root_);
+}
+
+void ObjectStore::init(std::string access_token, std::string root_path) {
+  root_ = normalize_root_path(std::move(root_path));
+  CloudAPI->init(access_token, root_);
 }
 
 const std::string& ObjectStore::root() const {
@@ -117,7 +132,7 @@ void ObjectStore::write_head(const ByteVec& data) const {
   std::filesystem::create_directories(local_head.parent_path());
   write_file_bytes(local_head, data);
 
-  storage_.put(kHeadKey, data, true);
+  CloudAPI->put(kHeadKey, data, true);
 }
 
 ByteVec ObjectStore::read_head() const {
@@ -126,10 +141,10 @@ ByteVec ObjectStore::read_head() const {
     return read_file_bytes(local_head);
   }
 
-  if (storage_.exists(kHeadKey)) {
+  if (CloudAPI->exists(kHeadKey)) {
     std::cerr << "warning: local HEAD not found at " << local_head.string()
               << ", falling back to cloud HEAD\n";
-    ByteVec cloud_head = storage_.get(kHeadKey);
+    ByteVec cloud_head = CloudAPI->get(kHeadKey);
     try {
       write_file_bytes(local_head, cloud_head);
     } catch (const std::exception& ex) {
@@ -151,36 +166,36 @@ std::string ObjectStore::object_key(const std::array<uint8_t, 32>& hash) const {
 }
 
 bool ObjectStore::object_exists(const std::array<uint8_t, 32>& hash) const {
-  return storage_.exists(object_key(hash));
+  return CloudAPI->exists(object_key(hash));
 }
 
 bool ObjectStore::remove_object(const std::array<uint8_t, 32>& hash) const {
-  return storage_.remove(object_key(hash));
+  return CloudAPI->remove(object_key(hash));
 }
 
 void ObjectStore::write_object(const std::array<uint8_t, 32>& hash, const ByteVec& data) const {
   std::string key = object_key(hash);
-  if (storage_.exists(key)) {
+  if (CloudAPI->exists(key)) {
     return;
   }
-  storage_.put(key, data, true);
+  CloudAPI->put(key, data, true);
 }
 
 void ObjectStore::write_object_from_file(const std::array<uint8_t, 32>& hash,
                                          const std::filesystem::path& path) const {
   std::string key = object_key(hash);
-  if (storage_.exists(key)) {
+  if (CloudAPI->exists(key)) {
     return;
   }
 
   ByteVec data = read_file_bytes(path);
-  storage_.put(key, data, true);
+  CloudAPI->put(key, data, true);
 }
 
 ByteVec ObjectStore::read_object(const std::array<uint8_t, 32>& hash) const {
   std::string key = object_key(hash);
-  if (!storage_.exists(key)) {
+  if (!CloudAPI->exists(key)) {
     throw std::runtime_error("object not found: " + root_ + "/" + key);
   }
-  return storage_.get(key);
+  return CloudAPI->get(key);
 }

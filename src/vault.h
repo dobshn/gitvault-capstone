@@ -1,64 +1,22 @@
 #pragma once
 
-#include <array>
-#include <filesystem>
-#include <iosfwd>
 #include <string>
+#include <vector>
+#include <optional>
 
-#include "format.h"
-#include "object_store.h"
+#include "loginHandler.h"
 
-struct Keys {
-  ByteVec enc_key;
-  ByteVec mac_key;
+struct Command {
+    std::string command;
+    std::optional<std::string> password;
+    std::vector<std::string> positional;
 };
 
-struct ScanStats {
-  size_t trees_checked = 0;
-  size_t blobs_checked = 0;
-  size_t blobs_missing = 0;
-  size_t blobs_hashed = 0;
+class Vault {
+private:
+    loginHandler* lh;
+public:
+    Vault();
+    ~Vault();
+    void execute(Command& cmd);
 };
-
-Config ensure_store_config(ObjectStore& store);
-Keys derive_keys(const Config& config, const std::string& password);
-
-std::array<uint8_t, 32> init_vault(ObjectStore& store,
-                                   const Keys& keys);
-
-std::array<uint8_t, 32> lock_vault(const std::filesystem::path& plain_dir,
-                                   ObjectStore& store,
-                                   const Keys& keys);
-
-std::array<uint8_t, 32> add(const ObjectStore& store,
-                            const Keys& keys,
-                            const std::filesystem::path& local_path,
-                            const std::string& cloud_path);
-
-std::array<uint8_t, 32> remove(const ObjectStore& store,
-                               const Keys& keys,
-                               const std::string& cloud_path);
-
-Tree list_directory(const ObjectStore& store,
-                    const Keys& keys,
-                    const std::string& path);
-
-Entry resolve_entry(const ObjectStore& store,
-                    const Keys& keys,
-                    const std::string& path,
-                    bool require_directory);
-
-ByteVec read_file_from_vault(const ObjectStore& store,
-                             const Keys& keys,
-                             const std::string& path);
-
-ScanStats quick_scan(const ObjectStore& store,
-                     const Keys& keys);
-
-ScanStats deep_scan(const ObjectStore& store,
-                    const Keys& keys);
-
-void print_tree(const ObjectStore& store,
-                const Keys& keys,
-                const std::string& path,
-                std::ostream& out);
