@@ -34,9 +34,8 @@ VaultEngine::~VaultEngine() {
 
 std::array<uint8_t, 32> VaultEngine::init_vault() {
     Tree empty_tree;
-
-    std::array<uint8_t, 32> root_hash = store_tree_object(empty_tree);
     std::cout << "kdf_salt=" << to_hex(cfg.salt) << "\n";
+    std::array<uint8_t, 32> root_hash = store_tree_object(empty_tree);
     return store_commit(root_hash, unix_time_seconds());
 }
 
