@@ -22,7 +22,7 @@ namespace {
     constexpr uint64_t kProgressIntervalBytes = 64ull * 1024 * 1024;
 }
 
-VaultEngine::VaultEngine(ObjectStore& s, std::string password) : store(s) {
+VaultEngine::VaultEngine(ObjectStore& s, std::string password) : store(s), pool(3) {
     crypto = new CryptoImpl();
     cfg = ensure_store_config(store);
     keys = crypto->derive_keys(cfg.salt, cfg.iterations, password);
@@ -45,6 +45,7 @@ std::array<uint8_t, 32> VaultEngine::lock_vault(const std::filesystem::path& pla
   }
 
   std::array<uint8_t, 32> root_hash = store_tree(plain_dir);
+  wait_for_uploads();
   return store_commit(root_hash, unix_time_seconds());
 }
 
@@ -420,13 +421,33 @@ Config VaultEngine::ensure_store_config(ObjectStore& store) {
     }
 
     std::array<uint8_t, 32> hash = hasher.finalize();
-    store.write_object_from_file(hash, tmp_path);
-    guard.active = false;
-    std::error_code rm_ec;
-    std::filesystem::remove(tmp_path, rm_ec);
 
-    if (log_progress && processed != last_logged_bytes) {
-      log_progress_line(path, processed, total_size, start_time);
+    guard.active = false;
+
+    {
+      std::lock_guard<std::mutex> lock(upload_mutex);
+
+      pending_uploads.push_back(
+          pool.enqueue([this, hash, tmp_path]() {
+
+              std::cout << "[UPLOAD START] "
+                        << tmp_path.filename().string()
+                        << " | thread: "
+                        << std::this_thread::get_id()
+                        << std::endl;
+
+              store.write_object_from_file(hash, tmp_path);
+
+              std::cout << "[UPLOAD DONE ] "
+                        << tmp_path.filename().string()
+                        << " | thread: "
+                        << std::this_thread::get_id()
+                        << std::endl;
+
+              std::error_code ec;
+              std::filesystem::remove(tmp_path, ec);
+          })
+      );
     }
 
     return hash;
@@ -655,3 +676,16 @@ Config VaultEngine::ensure_store_config(ObjectStore& store) {
 
     return store_tree_object(tree);
   }
+
+  void VaultEngine::wait_for_uploads() {
+    std::vector<std::future<void>> uploads;
+
+    {
+        std::lock_guard<std::mutex> lock(upload_mutex);
+        uploads.swap(pending_uploads);
+    }
+
+    for (auto& f : uploads) {
+        f.get();   // 예외 전파 + 완료 대기
+    }
+}

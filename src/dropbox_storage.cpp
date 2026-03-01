@@ -61,25 +61,15 @@ namespace {
     }
   }
 
-DropboxStorage::DropboxStorage()
-    : api_client_("api.dropboxapi.com", 443),
-      content_client_("content.dropboxapi.com", 443) {
-  api_client_.set_keep_alive(true);
-  content_client_.set_keep_alive(true);
-  api_client_.set_connection_timeout(5, 0);
-  api_client_.set_read_timeout(30, 0);
-  api_client_.set_write_timeout(30, 0);
-  content_client_.set_connection_timeout(5, 0);
-  content_client_.set_read_timeout(60, 0);
-  content_client_.set_write_timeout(60, 0);
-}
-
 // 현재 클라우드에 해당 root 폴더가 생성되어 있는 지 확인 
 void DropboxStorage::fetch(std::string access_token, std::string root_path) {
   if (fetched) {
     return;
   }
   
+  httplib::SSLClient client("api.dropboxapi.com", 443);
+  client.set_keep_alive(false);
+
   access_token_ = access_token;
   root_path_ = root_path;
 
@@ -89,7 +79,7 @@ void DropboxStorage::fetch(std::string access_token, std::string root_path) {
   require_root_path(root_path_);
 
   {
-    auto res = api_client_.Post("/2/users/get_current_account",
+    auto res = client.Post("/2/users/get_current_account",
                                 {{"Authorization", "Bearer " + access_token_}},
                                 "null",
                                 "application/json");
@@ -97,7 +87,7 @@ void DropboxStorage::fetch(std::string access_token, std::string root_path) {
   }
 
   auto check_folder_exists = [&](const std::string& path, const std::string& name) {
-    auto res = api_client_.Post("/2/files/get_metadata",
+    auto res = client.Post("/2/files/get_metadata",
                                 {{"Authorization", "Bearer " + access_token_}},
                                 json{{"path", path}}.dump(),
                                 "application/json");
@@ -137,6 +127,9 @@ void DropboxStorage::init(std::string access_token, std::string root_path) {
     return;
   }
 
+  httplib::SSLClient client("api.dropboxapi.com", 443);
+  client.set_keep_alive(false);
+
   access_token_ = access_token;
   root_path_ = root_path;
 
@@ -146,7 +139,7 @@ void DropboxStorage::init(std::string access_token, std::string root_path) {
   require_root_path(root_path_);
 
   {
-    auto res = api_client_.Post("/2/users/get_current_account",
+    auto res = client.Post("/2/users/get_current_account",
                                 {{"Authorization", "Bearer " + access_token}},
                                 "null",
                                 "application/json");
@@ -154,7 +147,7 @@ void DropboxStorage::init(std::string access_token, std::string root_path) {
   }
 
   {
-    auto res = api_client_.Post("/2/files/create_folder_v2",
+    auto res = client.Post("/2/files/create_folder_v2",
                                 {{"Authorization", "Bearer " + access_token}},
                                 json{{"path", root_path}, {"autorename", false}}.dump(),
                                 "application/json");
@@ -168,7 +161,7 @@ void DropboxStorage::init(std::string access_token, std::string root_path) {
   }
 
   {
-    auto res = api_client_.Post("/2/files/create_folder_v2",
+    auto res = client.Post("/2/files/create_folder_v2",
                                 {{"Authorization", "Bearer " + access_token}},
                                 json{{"path", root_path + "/objects"}, {"autorename", false}}.dump(),
                                 "application/json");
@@ -188,6 +181,9 @@ void DropboxStorage::init(std::string access_token, std::string root_path) {
 void DropboxStorage::put(std::string_view path, const ByteVec& data, bool overwrite) const {
   require_initialized("put()");
 
+  httplib::SSLClient client("content.dropboxapi.com", 443);
+  client.set_keep_alive(false);
+
   httplib::Headers headers = {
       {"Authorization", "Bearer " + access_token_},
       {"Dropbox-API-Arg",
@@ -200,7 +196,7 @@ void DropboxStorage::put(std::string_view path, const ByteVec& data, bool overwr
   };
 
   const char* body = data.empty() ? "" : reinterpret_cast<const char*>(data.data());
-  auto res = content_client_.Post("/2/files/upload", headers, body, data.size(), "application/octet-stream");
+  auto res = client.Post("/2/files/upload", headers, body, data.size(), "application/octet-stream");
   check(res, 200, "Upload /2/files/upload");
 }
 
@@ -208,12 +204,15 @@ void DropboxStorage::put(std::string_view path, const ByteVec& data, bool overwr
 ByteVec DropboxStorage::get(std::string_view path) const {
   require_initialized("get()");
 
+  httplib::SSLClient client("content.dropboxapi.com", 443);
+  client.set_keep_alive(false);
+
   httplib::Headers headers = {
       {"Authorization", "Bearer " + access_token_},
       {"Dropbox-API-Arg", json{{"path", build_dropbox_path(path)}}.dump()},
   };
 
-  auto res = content_client_.Post("/2/files/download", headers);
+  auto res = client.Post("/2/files/download", headers);
   check(res, 200, "Download /2/files/download");
 
   const auto* bytes = reinterpret_cast<const uint8_t*>(res->body.data());
@@ -224,7 +223,10 @@ ByteVec DropboxStorage::get(std::string_view path) const {
 bool DropboxStorage::exists(std::string_view path) const {
   require_initialized("exists()");
 
-  auto res = api_client_.Post("/2/files/get_metadata",
+  httplib::SSLClient client("api.dropboxapi.com", 443);
+  client.set_keep_alive(false);
+
+  auto res = client.Post("/2/files/get_metadata",
                               {{"Authorization", "Bearer " + access_token_}},
                               json{{"path", build_dropbox_path(path)}}.dump(),
                               "application/json");
@@ -252,7 +254,10 @@ bool DropboxStorage::exists(std::string_view path) const {
 bool DropboxStorage::remove(std::string_view path) const {
   require_initialized("remove()");
 
-  auto res = api_client_.Post("/2/files/delete_v2",
+  httplib::SSLClient client("api.dropboxapi.com", 443);
+  client.set_keep_alive(false);
+  
+  auto res = client.Post("/2/files/delete_v2",
                               {{"Authorization", "Bearer " + access_token_}},
                               json{{"path", build_dropbox_path(path)}}.dump(),
                               "application/json");

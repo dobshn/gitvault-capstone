@@ -148,7 +148,7 @@ void Vault::execute(Command& cmd) {
             throw std::runtime_error("lock requires <plain_dir> <vault_name>");
         }
         std::filesystem::path plain_dir = cmd.positional[0];
-        obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
+        obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[1]));
         VaultEngine vault_engine(obj_store, read_password(cmd));
         auto commit_hash = vault_engine.lock_vault(plain_dir);
         std::cout << "commit=" << to_hex(commit_hash) << "\n";

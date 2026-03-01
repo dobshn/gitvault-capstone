@@ -22,13 +22,9 @@ private:
 
     std::string access_token_;
     std::string root_path_;
-    mutable httplib::SSLClient api_client_;
-    mutable httplib::SSLClient content_client_;
     bool fetched = false;
 
 public:
-    DropboxStorage();
-
     void init(std::string access_token, std::string root_path) override;
     void fetch(std::string access_token, std::string root_path) override;
     void put(std::string_view path, const ByteVec& data, bool overwrite = true) const override;
