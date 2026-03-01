@@ -82,7 +82,7 @@ string DropboxLoginHandler::login(const std::string& token) {
 		throw std::runtime_error("TLS request failed");
 	}
 	if (res->status != 200) {
-		throw std::runtime_error("Failed to refresh access token. Please \"login\" first.");
+		throw std::runtime_error("Failed to get access token. Please \"login\" first.");
 	}
 	// 응답 JSON 파싱
 	auto response_json = json::parse(res->body);

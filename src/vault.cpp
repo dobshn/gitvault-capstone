@@ -1,746 +1,225 @@
-#include "vault.h"
-
-#include <algorithm>
-#include <chrono>
 #include <fstream>
-#include <iomanip>
-#include <iostream>
-#include <ostream>
-#include <sstream>
-#include <stdexcept>
-#include <system_error>
 
-#include "crypto/ctr.h"
-#include "crypto/hmac.h"
-#include "crypto/pbkdf2.h"
-#include "crypto/sha256.h"
+#include "vault.h"
+#include "object_store.h"
+#include "vault_engine.h"
 #include "util.h"
+#include "format.h"
+#include "LoginHandler/DropboxLoginHandler.h"
+
 
 namespace {
-constexpr size_t kIvSize = 16;
-constexpr size_t kHeadCipherSize = 32;
-constexpr size_t kHeadTagSize = 32;
-constexpr size_t kChunkSize = 1 << 20;
-constexpr uint64_t kProgressThresholdBytes = 16ull * 1024 * 1024;
-constexpr uint64_t kProgressIntervalBytes = 64ull * 1024 * 1024;
+    const std::string APP_KEY = "iopaczar4klxa1i";
 
-struct EncryptedObject {
-  ByteVec data;
-  std::array<uint8_t, 32> hash;
-};
-
-struct TempFileGuard {
-  std::filesystem::path path;
-  bool active = true;
-
-  ~TempFileGuard() {
-    if (!active || path.empty()) {
-      return;
-    }
-    std::error_code ec;
-    std::filesystem::remove(path, ec);
-  }
-};
-
-EncryptedObject encrypt_object(const ByteVec& enc_key, const ByteVec& plaintext) {
-  ByteVec iv = random_bytes(kIvSize);
-  ByteVec ciphertext = aes256_ctr_crypt(enc_key, iv, plaintext);
-  ByteVec combined;
-  combined.reserve(iv.size() + ciphertext.size());
-  append_bytes(combined, iv.data(), iv.size());
-  append_bytes(combined, ciphertext.data(), ciphertext.size());
-  auto hash = Sha256::hash(combined);
-  return {combined, hash};
-}
-
-void log_progress_line(const std::filesystem::path& path,
-                       uint64_t processed,
-                       uint64_t total,
-                       const std::chrono::steady_clock::time_point& start) {
-  double pct = total > 0 ? (static_cast<double>(processed) * 100.0 / static_cast<double>(total)) : 100.0;
-  double elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
-  double mbps = (elapsed > 0.0) ? (static_cast<double>(processed) / (1024.0 * 1024.0)) / elapsed : 0.0;
-  std::ostringstream oss;
-  oss << "Encrypting " << path.string() << ": " << processed << "/" << total << " bytes (";
-  oss << std::fixed << std::setprecision(1) << pct << "%, " << mbps << " MB/s)";
-  std::cerr << oss.str() << "\n";
-}
-
-ByteVec decrypt_object_checked(const ObjectStore& store,
-                              const ByteVec& enc_key,
-                              const std::array<uint8_t, 32>& expected_hash) {
-  ByteVec data = store.read_object(expected_hash);
-  auto actual_hash = Sha256::hash(data);
-  if (!constant_time_equal(actual_hash, expected_hash)) {
-    throw std::runtime_error("object hash mismatch: " + to_hex(expected_hash));
-  }
-  if (data.size() < kIvSize) {
-    throw std::runtime_error("object too small: " + to_hex(expected_hash));
-  }
-  ByteVec iv(data.begin(), data.begin() + kIvSize);
-  ByteVec ciphertext(data.begin() + kIvSize, data.end());
-  return aes256_ctr_crypt(enc_key, iv, ciphertext);
-}
-
-void write_head(const ObjectStore& store, const Keys& keys, const std::array<uint8_t, 32>& commit_hash) {
-  ByteVec iv = random_bytes(kIvSize);
-  ByteVec plain(commit_hash.begin(), commit_hash.end());
-  ByteVec cipher = aes256_ctr_crypt(keys.enc_key, iv, plain);
-  ByteVec mac_input;
-  mac_input.reserve(iv.size() + cipher.size());
-  append_bytes(mac_input, iv.data(), iv.size());
-  append_bytes(mac_input, cipher.data(), cipher.size());
-  auto tag = hmac_sha256(keys.mac_key, mac_input);
-
-  ByteVec out;
-  out.reserve(iv.size() + cipher.size() + tag.size());
-  append_bytes(out, iv.data(), iv.size());
-  append_bytes(out, cipher.data(), cipher.size());
-  append_bytes(out, tag.data(), tag.size());
-
-  store.write_head(out);
-}
-
-std::array<uint8_t, 32> read_head(const ObjectStore& store, const Keys& keys) {
-  ByteVec data = store.read_head();
-  if (data.size() != kIvSize + kHeadCipherSize + kHeadTagSize) {
-    throw std::runtime_error("invalid HEAD size");
-  }
-  ByteVec iv(data.begin(), data.begin() + kIvSize);
-  ByteVec cipher(data.begin() + kIvSize, data.begin() + kIvSize + kHeadCipherSize);
-  ByteVec tag(data.begin() + kIvSize + kHeadCipherSize, data.end());
-
-  ByteVec mac_input;
-  mac_input.reserve(iv.size() + cipher.size());
-  append_bytes(mac_input, iv.data(), iv.size());
-  append_bytes(mac_input, cipher.data(), cipher.size());
-  auto expected = hmac_sha256(keys.mac_key, mac_input);
-
-  ByteVec expected_vec(expected.begin(), expected.end());
-  if (!constant_time_equal(expected_vec, tag)) {
-    throw std::runtime_error("HEAD HMAC verification failed");
-  }
-
-  ByteVec plain = aes256_ctr_crypt(keys.enc_key, iv, cipher);
-  if (plain.size() != 32) {
-    throw std::runtime_error("invalid HEAD plaintext size");
-  }
-  std::array<uint8_t, 32> out{};
-  std::copy(plain.begin(), plain.end(), out.begin());
-  return out;
-}
-
-uint64_t unix_time_seconds() {
-  return static_cast<uint64_t>(
-      std::chrono::duration_cast<std::chrono::seconds>(
-          std::chrono::system_clock::now().time_since_epoch())
-          .count());
-}
-
-std::array<uint8_t, 32> store_commit(const ObjectStore& store,
-                                     const Keys& keys,
-                                     const std::array<uint8_t, 32>& root_hash,
-                                     uint64_t commit_time) {
-  Commit commit;
-  commit.commit_time = commit_time;
-  commit.root_hash = root_hash;
-
-  ByteVec serialized = serialize_commit(commit);
-  EncryptedObject obj = encrypt_object(keys.enc_key, serialized);
-  store.write_object(obj.hash, obj.data);
-  write_head(store, keys, obj.hash);
-  return obj.hash;
-}
-
-std::array<uint8_t, 32> store_tree_object(const ObjectStore& store,
-                                          const Keys& keys,
-                                          const Tree& tree) {
-  ByteVec serialized = serialize_tree(tree);
-  EncryptedObject obj = encrypt_object(keys.enc_key, serialized);
-  store.write_object(obj.hash, obj.data);
-  return obj.hash;
-}
-
-std::array<uint8_t, 32> resolve_commit_hash(const ObjectStore& store,
-                                            const Keys& keys) {
-  return read_head(store, keys);
-}
-
-Commit load_commit_checked(const ObjectStore& store,
-                           const Keys& keys,
-                           const std::array<uint8_t, 32>& commit_hash) {
-  ByteVec plaintext = decrypt_object_checked(store, keys.enc_key, commit_hash);
-  return deserialize_commit(plaintext);
-}
-
-Tree load_tree_checked(const ObjectStore& store,
-                       const Keys& keys,
-                       const std::array<uint8_t, 32>& tree_hash) {
-  ByteVec plaintext = decrypt_object_checked(store, keys.enc_key, tree_hash);
-  return deserialize_tree(plaintext);
-}
-
-std::array<uint8_t, 32> store_blob(const std::filesystem::path& path,
-                                  const ObjectStore& store,
-                                  const Keys& keys) {
-  std::ifstream input(path, std::ios::binary);
-  if (!input) {
-    throw std::runtime_error("failed to open file for reading: " + path.string());
-  }
-
-  std::error_code ec;
-  uint64_t total_size = std::filesystem::file_size(path, ec);
-  if (ec) {
-    total_size = 0;
-  }
-
-  bool log_progress = total_size >= kProgressThresholdBytes;
-  auto start_time = std::chrono::steady_clock::now();
-  auto last_log = start_time;
-  uint64_t last_logged_bytes = 0;
-  const auto log_interval = std::chrono::seconds(5);
-
-  ByteVec iv = random_bytes(kIvSize);
-  Sha256 hasher;
-  hasher.update(iv.data(), iv.size());
-
-  std::filesystem::path tmp_dir = std::filesystem::temp_directory_path() / "gitvault";
-  std::filesystem::create_directories(tmp_dir);
-  std::filesystem::path tmp_path = tmp_dir / ("obj_" + to_hex(random_bytes(8)) + ".tmp");
-  TempFileGuard guard;
-  guard.path = tmp_path;
-
-  std::ofstream output(tmp_path, std::ios::binary | std::ios::trunc);
-  if (!output) {
-    throw std::runtime_error("failed to open temp object for writing: " + tmp_path.string());
-  }
-  output.write(reinterpret_cast<const char*>(iv.data()), static_cast<std::streamsize>(iv.size()));
-  if (!output) {
-    throw std::runtime_error("failed to write temp object header: " + tmp_path.string());
-  }
-
-  Aes256CtrStream stream(keys.enc_key, iv);
-  ByteVec in_buf(kChunkSize);
-  ByteVec out_buf(kChunkSize);
-  uint64_t processed = 0;
-
-  if (log_progress) {
-    log_progress_line(path, 0, total_size, start_time);
-  }
-
-  while (input) {
-    input.read(reinterpret_cast<char*>(in_buf.data()), static_cast<std::streamsize>(in_buf.size()));
-    std::streamsize read = input.gcount();
-    if (read <= 0) {
-      break;
+    std::string read_password(const Command& cmd) {
+        if (cmd.password.has_value()) {
+            return cmd.password.value();
+        }
+        std::string password;
+        std::cerr << "Password: ";
+        std::getline(std::cin, password);
+        return password;
     }
 
-    stream.crypt(in_buf.data(), static_cast<size_t>(read), out_buf.data());
-    output.write(reinterpret_cast<const char*>(out_buf.data()), read);
-    if (!output) {
-      throw std::runtime_error("failed to write temp object: " + tmp_path.string());
+    std::string normalize_vault_name(std::string vault_name) {
+        if (vault_name.empty()) {
+            throw std::runtime_error("vault_name required");
+        }
+        while (vault_name.size() > 1 && vault_name.back() == '/') {
+            vault_name.pop_back();
+        }
+        if (!vault_name.empty() && vault_name.front() == '/') {
+            vault_name.erase(vault_name.begin());
+        }
+        if (vault_name.empty() || vault_name.find('/') != std::string::npos ||
+            vault_name.find('\\') != std::string::npos) {
+            throw std::runtime_error("vault_name must not contain '/' or '\\\\'");
+        }
+        return vault_name;
     }
 
-    hasher.update(out_buf.data(), static_cast<size_t>(read));
-    processed += static_cast<uint64_t>(read);
+    std::string getTokenPath() {
+		return getHomeDirectory() + "/.gitvault/.gitvault_refresh_token";
+	}
 
-    if (log_progress) {
-      auto now = std::chrono::steady_clock::now();
-      bool time_due = (now - last_log) >= log_interval;
-      bool bytes_due = (processed - last_logged_bytes) >= kProgressIntervalBytes;
-      if (time_due || bytes_due) {
-        log_progress_line(path, processed, total_size, start_time);
-        last_log = now;
-        last_logged_bytes = processed;
+    void removeRefreshToken() {
+        namespace fs = std::filesystem;
+        fs::path tokenPath = getTokenPath();
+
+        if (!fs::exists(tokenPath)) {
+            throw std::runtime_error("Already logged out.");
+            return;
+        }
+
+        std::error_code ec;
+        fs::remove(tokenPath, ec);
+        if (ec) {
+            throw std::runtime_error("Failed to remove refresh token file");
+        }
+    }
+
+	void saveRefreshToken(const std::string& token) {
+		namespace fs = std::filesystem;
+
+		fs::path tokenPath = getTokenPath();
+		fs::path dir = tokenPath.parent_path();
+
+		// 디렉터리 없으면 생성
+		if (!fs::exists(dir)) {
+			fs::create_directories(dir);
+		}
+
+		std::ofstream ofs(getTokenPath(), std::ios::trunc);
+		if (!ofs.is_open()) {
+			std::cerr << "Failed to open token file: " << getTokenPath() << "\n";
+		}
+
+		ofs << token;
+	}
+
+	std::string loadRefreshToken() {
+		std::ifstream ifs(getTokenPath());
+		if (!ifs.is_open()) return "";
+		std::string token;
+		std::getline(ifs, token);
+		return token;
+	}
+
+    void print_usage() {
+        std::cout << "gitvault <command> [args] [--password <pw>]\n";
+        std::cout << "\nCommands:\n";
+        std::cout << "  init <vault_name>\n";
+        std::cout << "  lock <plain_dir> <vault_name>\n";
+        std::cout << "  add <vault_name> <local_path> <cloud_path>\n";
+        std::cout << "  remove <vault_name> <cloud_path>\n";
+        std::cout << "  list <vault_name> [path]\n";
+        std::cout << "  tree <vault_name> [path]\n";
+        std::cout << "  cat <vault_name> <path>\n";
+        std::cout << "  quick-scan <vault_name>\n";
+        std::cout << "  deep-scan <vault_name>\n";
+        std::cout << "\nvault_name can be my_vault or /my_vault.\n";
+    }
+}
+
+Vault::Vault() {
+    lh = new DropboxLoginHandler(APP_KEY);
+}
+
+Vault::~Vault() {
+    delete lh;
+}
+
+void Vault::execute(Command& cmd) {
+    if (cmd.command == "help") {
+        print_usage();
+        return;
+    } else if (cmd.command == "login") {
+        if (loadRefreshToken() != "") {
+            throw std::runtime_error("Already logged in");
+        }
+        std::string refreshToken = lh->getRefreshToken();
+        saveRefreshToken(refreshToken);
+        std::cout << "Login finished. Token is saved on your local." << std::endl;
+
+        std::cout << "=============================================" << std::endl;
+        print_usage();
+        return;
+    } else if (cmd.command == "logout") {
+        removeRefreshToken();      
+        std::cout << "Logged out.\n";
+        return;
+    }
+
+    // refresh token으로 accesstoken 획득, 실패 시 예외 던짐
+    const std::string dropbox_token = lh->login(loadRefreshToken());
+    ObjectStore obj_store;
+
+    if (cmd.command == "init") {
+        if (cmd.positional.size() != 1) {
+            throw std::runtime_error("init requires <vault_name>");
+        }
+        obj_store.init(dropbox_token, normalize_vault_name(cmd.positional[0]));
+        VaultEngine vault_engine(obj_store, read_password(cmd));
+        std::cout << "initializing store at " << obj_store.root() << "...\n";
+        auto commit_hash = vault_engine.init_vault();
+        std::cout << "commit=" << to_hex(commit_hash) << "\n";
+    } else if (cmd.command == "lock") {
+        if (cmd.positional.size() != 2) {
+            throw std::runtime_error("lock requires <plain_dir> <vault_name>");
+        }
+        std::filesystem::path plain_dir = cmd.positional[0];
+        obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
+        VaultEngine vault_engine(obj_store, read_password(cmd));
+        auto commit_hash = vault_engine.lock_vault(plain_dir);
+        std::cout << "commit=" << to_hex(commit_hash) << "\n";
+    } else if (cmd.command == "add") {
+        if (cmd.positional.size() != 3) {
+            throw std::runtime_error("add requires <vault_name> <local_path> <cloud_path>");
+        }
+        obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
+        VaultEngine vault_engine(obj_store, read_password(cmd));
+        auto commit_hash = vault_engine.add(std::filesystem::path(cmd.positional[1]), cmd.positional[2]);
+        std::cout << "commit=" << to_hex(commit_hash) << "\n";
+    } else if (cmd.command == "remove") {
+      if (cmd.positional.size() != 2) {
+        throw std::runtime_error("remove requires <vault_name> <cloud_path>");
       }
-    }
-  }
-
-  if (!input.eof()) {
-    throw std::runtime_error("failed to read file: " + path.string());
-  }
-  output.flush();
-  output.close();
-  if (!output) {
-    throw std::runtime_error("failed to finalize temp object: " + tmp_path.string());
-  }
-
-  std::array<uint8_t, 32> hash = hasher.finalize();
-  store.write_object_from_file(hash, tmp_path);
-  guard.active = false;
-  std::error_code rm_ec;
-  std::filesystem::remove(tmp_path, rm_ec);
-
-  if (log_progress && processed != last_logged_bytes) {
-    log_progress_line(path, processed, total_size, start_time);
-  }
-
-  return hash;
-}
-
-std::array<uint8_t, 32> store_tree(const std::filesystem::path& dir,
-                                  const ObjectStore& store,
-                                  const Keys& keys) {
-  Tree tree;
-  std::vector<Entry> entries;
-
-  for (const auto& entry : std::filesystem::directory_iterator(dir)) {
-    const auto& path = entry.path();
-
-    if (entry.is_symlink()) {
-      continue;
-    }
-
-    Entry out;
-    out.name = path.filename().string();
-
-    if (entry.is_directory()) {
-      out.type = 1;
-      out.flags = 0x02;
-      out.mtime = file_mtime_seconds(path);
-      out.hash = store_tree(path, store, keys);
-      entries.push_back(out);
-      continue;
-    }
-
-    if (!entry.is_regular_file()) {
-      continue;
-    }
-
-    out.type = 0;
-    out.flags = 0x03;
-    out.size = static_cast<uint64_t>(entry.file_size());
-    out.mtime = file_mtime_seconds(path);
-    out.hash = store_blob(path, store, keys);
-    entries.push_back(out);
-  }
-
-  std::sort(entries.begin(), entries.end(), [](const Entry& a, const Entry& b) {
-    return a.name < b.name;
-  });
-
-  tree.entries = std::move(entries);
-  return store_tree_object(store, keys, tree);
-}
-
-struct PathResult {
-  bool is_directory = false;
-  Tree tree;
-  Entry entry;
-};
-
-PathResult resolve_path(const ObjectStore& store,
-                        const Keys& keys,
-                        const std::string& path) {
-  auto commit_hash = resolve_commit_hash(store, keys);
-  Commit commit = load_commit_checked(store, keys, commit_hash);
-  std::array<uint8_t, 32> current_hash = commit.root_hash;
-
-  if (path.empty()) {
-    PathResult result;
-    result.is_directory = true;
-    result.tree = load_tree_checked(store, keys, current_hash);
-    return result;
-  }
-
-  std::vector<std::string> parts = split_path(path);
-  for (size_t i = 0; i < parts.size(); ++i) {
-    Tree tree = load_tree_checked(store, keys, current_hash);
-    auto it = std::find_if(tree.entries.begin(), tree.entries.end(),
-                           [&](const Entry& e) { return e.name == parts[i]; });
-    if (it == tree.entries.end()) {
-      throw std::runtime_error("path not found: " + path);
-    }
-
-    bool is_last = (i + 1 == parts.size());
-    if (is_last) {
-      PathResult result;
-      result.is_directory = (it->type == 1);
-      if (result.is_directory) {
-        result.tree = load_tree_checked(store, keys, it->hash);
-      } else {
-        result.entry = *it;
+      obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
+      VaultEngine vault_engine(obj_store, read_password(cmd));
+      auto commit_hash = vault_engine.remove(cmd.positional[1]);
+      std::cout << "commit=" << to_hex(commit_hash) << "\n";
+    } else if (cmd.command == "list") {
+      if (cmd.positional.size() < 1 || cmd.positional.size() > 2) {
+        throw std::runtime_error("list requires <vault_name> [path]");
       }
-      return result;
-    }
-
-    if (it->type != 1) {
-      throw std::runtime_error("path is not a directory: " + parts[i]);
-    }
-    current_hash = it->hash;
-  }
-
-  throw std::runtime_error("path resolution failed");
-}
-
-void scan_tree(const ObjectStore& store,
-               const Keys& keys,
-               const std::array<uint8_t, 32>& tree_hash,
-               bool deep,
-               ScanStats& stats) {
-  Tree tree = load_tree_checked(store, keys, tree_hash);
-  stats.trees_checked++;
-
-  for (const auto& entry : tree.entries) {
-    if (entry.type == 1) {
-      scan_tree(store, keys, entry.hash, deep, stats);
-      continue;
-    }
-
-    stats.blobs_checked++;
-    if (!store.object_exists(entry.hash)) {
-      stats.blobs_missing++;
-      continue;
-    }
-
-    if (deep) {
-      ByteVec data = store.read_object(entry.hash);
-      auto actual_hash = Sha256::hash(data);
-      if (!constant_time_equal(actual_hash, entry.hash)) {
-        throw std::runtime_error("blob hash mismatch: " + to_hex(entry.hash));
+      obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
+      VaultEngine vault_engine(obj_store, read_password(cmd));
+      std::string path = (cmd.positional.size() == 2) ? cmd.positional[1] : "";
+      Tree tree = vault_engine.list_directory(path);
+      for (const auto& entry : tree.entries) {
+        char type = (entry.type == 1) ? 'd' : 'f';
+        std::cout << type << " " << entry.name;
+        if (entry.size.has_value()) {
+          std::cout << " " << entry.size.value();
+        }
+        if (entry.mtime.has_value()) {
+          std::cout << " " << entry.mtime.value();
+        }
+        std::cout << "\n";
       }
-      stats.blobs_hashed++;
-    }
-  }
-}
-
-void print_tree_recursive(const ObjectStore& store,
-                          const Keys& keys,
-                          const Tree& tree,
-                          const std::string& prefix,
-                          std::ostream& out) {
-  std::vector<Entry> entries = tree.entries;
-  std::sort(entries.begin(), entries.end(), [](const Entry& a, const Entry& b) {
-    return a.name < b.name;
-  });
-
-  for (size_t i = 0; i < entries.size(); ++i) {
-    const Entry& entry = entries[i];
-    bool last = (i + 1 == entries.size());
-    out << prefix << (last ? "`-- " : "|-- ") << entry.name;
-    if (entry.type == 1) {
-      out << "/";
-    }
-    out << "\n";
-
-    if (entry.type == 1) {
-      Tree child = load_tree_checked(store, keys, entry.hash);
-      std::string next_prefix = prefix + (last ? "    " : "|   ");
-      print_tree_recursive(store, keys, child, next_prefix, out);
-    }
-  }
-}
-
-std::array<uint8_t, 32> upsert_blob_to_tree(const ObjectStore& store,
-                                            const Keys& keys,
-                                            const std::array<uint8_t, 32>& tree_hash,
-                                            const std::vector<std::string>& dirs,
-                                            size_t depth,
-                                            const Entry& blob_entry,
-                                            uint64_t touch_time,
-                                            std::vector<std::array<uint8_t, 32>>& old_tree_hashes) {
-  old_tree_hashes.push_back(tree_hash);
-  Tree tree = load_tree_checked(store, keys, tree_hash);
-
-  if (depth == dirs.size()) {
-    auto it = std::find_if(tree.entries.begin(), tree.entries.end(),
-                           [&](const Entry& e) { return e.name == blob_entry.name; });
-    if (it == tree.entries.end()) {
-      tree.entries.push_back(blob_entry);
+    } else if (cmd.command == "tree") {
+      if (cmd.positional.size() < 1 || cmd.positional.size() > 2) {
+        throw std::runtime_error("tree requires <vault_name> [path]");
+      }
+      obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
+      VaultEngine vault_engine(obj_store, read_password(cmd));
+      std::string path = (cmd.positional.size() == 2) ? cmd.positional[1] : "";
+      vault_engine.print_tree(path, std::cout);
+    } else if (cmd.command == "cat") {
+      if (cmd.positional.size() != 2) {
+        throw std::runtime_error("cat requires <vault_name> <path>");
+      }
+      obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
+      VaultEngine vault_engine(obj_store, read_password(cmd));
+      ByteVec data = vault_engine.read_file_from_vault(cmd.positional[1]);
+      if (!data.empty()) {
+        std::cout.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
+      }
+    } else if (cmd.command == "quick-scan" || cmd.command == "deep-scan") {
+      if (cmd.positional.size() != 1) {
+        throw std::runtime_error(cmd.command + " requires <vault_name>");
+      }
+      obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
+      VaultEngine vault_engine(obj_store, read_password(cmd));
+      ScanStats stats = (cmd.command == "quick-scan")
+                            ? vault_engine.quick_scan()
+                            : vault_engine.deep_scan();
+      std::cout << "trees=" << stats.trees_checked << " blobs=" << stats.blobs_checked
+                << " missing=" << stats.blobs_missing << " hashed=" << stats.blobs_hashed
+                << "\n";
     } else {
-      if (it->type == 1) {
-        throw std::runtime_error("cloud_path points to existing directory: " + blob_entry.name);
-      }
-      *it = blob_entry;
-    }
-  } else {
-    const std::string& dir_name = dirs[depth];
-    auto it = std::find_if(tree.entries.begin(), tree.entries.end(),
-                           [&](const Entry& e) { return e.name == dir_name; });
-    if (it == tree.entries.end()) {
-      throw std::runtime_error("path not found: " + dir_name);
-    }
-    if (it->type != 1) {
-      throw std::runtime_error("not a directory: " + dir_name);
+        print_usage();
     }
 
-    it->hash = upsert_blob_to_tree(store, keys, it->hash, dirs, depth + 1, blob_entry, touch_time, old_tree_hashes);
-    it->flags |= 0x02;
-    it->mtime = touch_time;
-  }
-
-  std::sort(tree.entries.begin(), tree.entries.end(), [](const Entry& a, const Entry& b) {
-    return a.name < b.name;
-  });
-
-  return store_tree_object(store, keys, tree);
-}
-
-std::array<uint8_t, 32> remove_blob_from_tree(const ObjectStore& store,
-                                              const Keys& keys,
-                                              const std::array<uint8_t, 32>& tree_hash,
-                                              const std::vector<std::string>& dirs,
-                                              size_t depth,
-                                              const std::string& blob_name,
-                                              uint64_t touch_time,
-                                              std::vector<std::array<uint8_t, 32>>& old_tree_hashes) {
-  old_tree_hashes.push_back(tree_hash);
-  Tree tree = load_tree_checked(store, keys, tree_hash);
-
-  if (depth == dirs.size()) {
-    auto it = std::find_if(tree.entries.begin(), tree.entries.end(),
-                           [&](const Entry& e) { return e.name == blob_name; });
-    if (it == tree.entries.end()) {
-      throw std::runtime_error("path not found: " + blob_name);
-    }
-    if (it->type == 1) {
-      throw std::runtime_error("cloud_path points to existing directory: " + blob_name);
-    }
-    tree.entries.erase(it);
-  } else {
-    const std::string& dir_name = dirs[depth];
-    auto it = std::find_if(tree.entries.begin(), tree.entries.end(),
-                           [&](const Entry& e) { return e.name == dir_name; });
-    if (it == tree.entries.end()) {
-      throw std::runtime_error("path not found: " + dir_name);
-    }
-    if (it->type != 1) {
-      throw std::runtime_error("not a directory: " + dir_name);
-    }
-
-    it->hash = remove_blob_from_tree(store, keys, it->hash, dirs, depth + 1, blob_name, touch_time, old_tree_hashes);
-    it->flags |= 0x02;
-    it->mtime = touch_time;
-  }
-
-  std::sort(tree.entries.begin(), tree.entries.end(), [](const Entry& a, const Entry& b) {
-    return a.name < b.name;
-  });
-
-  return store_tree_object(store, keys, tree);
-}
-}  // namespace
-
-Config ensure_store_config(ObjectStore& store) {
-  if (store.config_exists()) {
-    return store.load_config();
-  }
-  Config cfg;
-  cfg.salt = random_bytes(16);
-  cfg.iterations = 100000;
-  store.save_config(cfg);
-  return cfg;
-}
-
-Keys derive_keys(const Config& config, const std::string& password) {
-  ByteVec key_material = pbkdf2_hmac_sha256(password, config.salt, config.iterations, 64);
-  Keys keys;
-  keys.enc_key.assign(key_material.begin(), key_material.begin() + 32);
-  keys.mac_key.assign(key_material.begin() + 32, key_material.end());
-  return keys;
-}
-
-std::array<uint8_t, 32> init_vault(ObjectStore& store,
-                                   const Keys& keys) {
-  Tree empty_tree;
-  std::array<uint8_t, 32> root_hash = store_tree_object(store, keys, empty_tree);
-  return store_commit(store, keys, root_hash, unix_time_seconds());
-}
-
-std::array<uint8_t, 32> lock_vault(const std::filesystem::path& plain_dir,
-                                   ObjectStore& store,
-                                   const Keys& keys) {
-  if (!std::filesystem::exists(plain_dir) || !std::filesystem::is_directory(plain_dir)) {
-    throw std::runtime_error("plain_dir must be a directory");
-  }
-
-  std::array<uint8_t, 32> root_hash = store_tree(plain_dir, store, keys);
-  return store_commit(store, keys, root_hash, unix_time_seconds());
-}
-
-Tree list_directory(const ObjectStore& store,
-                    const Keys& keys,
-                    const std::string& path) {
-  PathResult result = resolve_path(store, keys, path);
-  if (!result.is_directory) {
-    throw std::runtime_error("path is not a directory: " + path);
-  }
-  return result.tree;
-}
-
-Entry resolve_entry(const ObjectStore& store,
-                    const Keys& keys,
-                    const std::string& path,
-                    bool require_directory) {
-  if (path.empty()) {
-    throw std::runtime_error("path required");
-  }
-  PathResult result = resolve_path(store, keys, path);
-  if (require_directory && !result.is_directory) {
-    throw std::runtime_error("path is not a directory: " + path);
-  }
-  if (result.is_directory) {
-    Entry entry;
-    entry.type = 1;
-    entry.name = path;
-    return entry;
-  }
-  return result.entry;
-}
-
-ByteVec read_file_from_vault(const ObjectStore& store,
-                             const Keys& keys,
-                             const std::string& path) {
-  Entry entry = resolve_entry(store, keys, path, false);
-  if (entry.type != 0) {
-    throw std::runtime_error("path is not a file: " + path);
-  }
-  ByteVec plaintext = decrypt_object_checked(store, keys.enc_key, entry.hash);
-  return plaintext;
-}
-
-ScanStats quick_scan(const ObjectStore& store,
-                     const Keys& keys) {
-  auto commit_hash = resolve_commit_hash(store, keys);
-  Commit commit = load_commit_checked(store, keys, commit_hash);
-  ScanStats stats;
-  scan_tree(store, keys, commit.root_hash, false, stats);
-  return stats;
-}
-
-ScanStats deep_scan(const ObjectStore& store,
-                    const Keys& keys) {
-  auto commit_hash = resolve_commit_hash(store, keys);
-  Commit commit = load_commit_checked(store, keys, commit_hash);
-  ScanStats stats;
-  scan_tree(store, keys, commit.root_hash, true, stats);
-  return stats;
-}
-
-void print_tree(const ObjectStore& store,
-                const Keys& keys,
-                const std::string& path,
-                std::ostream& out) {
-  PathResult result = resolve_path(store, keys, path);
-  std::string label = path.empty() ? "." : path;
-  out << label;
-  if (result.is_directory && (label.empty() || label.back() != '/')) {
-    out << "/";
-  }
-  out << "\n";
-  if (result.is_directory) {
-    print_tree_recursive(store, keys, result.tree, "", out);
-  }
-}
-
-std::array<uint8_t, 32> add(const ObjectStore& store,
-                            const Keys& keys,
-                            const std::filesystem::path& local_path,
-                            const std::string& cloud_path) {
-  if (local_path.empty()) {
-    throw std::runtime_error("local_path required");
-  }
-  if (cloud_path.empty()) {
-    throw std::runtime_error("cloud_path required");
-  }
-  if (!std::filesystem::exists(local_path) || !std::filesystem::is_regular_file(local_path)) {
-    throw std::runtime_error("local_path must be a regular file: " + local_path.string());
-  }
-
-  std::array<uint8_t, 32> uploaded_object_id = store_blob(local_path, store, keys);
-  std::vector<std::string> parts = split_path(cloud_path);
-  if (parts.empty()) {
-    throw std::runtime_error("invalid cloud_path: " + cloud_path);
-  }
-
-  const std::string file_name = parts.back();
-  parts.pop_back();
-
-  auto old_commit_hash = resolve_commit_hash(store, keys);
-  Commit old_commit = load_commit_checked(store, keys, old_commit_hash);
-
-  std::error_code ec;
-  uint64_t file_size = std::filesystem::file_size(local_path, ec);
-  if (ec) {
-    throw std::runtime_error("failed to get local file size: " + local_path.string());
-  }
-
-  uint64_t now_sec = unix_time_seconds();
-
-  Entry file_entry;
-  file_entry.type = 0;
-  file_entry.flags = 0x03;
-  file_entry.name = file_name;
-  file_entry.hash = uploaded_object_id;
-  file_entry.size = file_size;
-  file_entry.mtime = file_mtime_seconds(local_path);
-
-  std::vector<std::array<uint8_t, 32>> old_tree_hashes;
-  std::array<uint8_t, 32> new_root_hash =
-      upsert_blob_to_tree(store, keys, old_commit.root_hash, parts, 0, file_entry, now_sec, old_tree_hashes);
-  std::array<uint8_t, 32> new_commit_hash = store_commit(store, keys, new_root_hash, now_sec);
-
-  if (!store.remove_object(old_commit_hash)) {
-    throw std::runtime_error("failed to delete old commit object: " + to_hex(old_commit_hash));
-  }
-
-  for (const auto& old_hash : old_tree_hashes) {
-    try {
-      store.remove_object(old_hash);
-    } catch (const std::exception& ex) {
-      std::cerr << "warning: failed to delete old tree object " << to_hex(old_hash)
-                << ": " << ex.what() << "\n";
-    }
-  }
-
-  return new_commit_hash;
-}
-
-std::array<uint8_t, 32> remove(const ObjectStore& store,
-                               const Keys& keys,
-                               const std::string& cloud_path) {
-  if (cloud_path.empty()) {
-    throw std::runtime_error("cloud_path required");
-  }
-
-  Entry removed_entry = resolve_entry(store, keys, cloud_path, false);
-  if (removed_entry.type != 0) {
-    throw std::runtime_error("path is not a file: " + cloud_path);
-  }
-  std::array<uint8_t, 32> removed_blob_hash = removed_entry.hash;
-
-  std::vector<std::string> parts = split_path(cloud_path);
-  if (parts.empty()) {
-    throw std::runtime_error("invalid cloud_path: " + cloud_path);
-  }
-  const std::string file_name = parts.back();
-  parts.pop_back();
-
-  auto old_commit_hash = resolve_commit_hash(store, keys);
-  Commit old_commit = load_commit_checked(store, keys, old_commit_hash);
-
-  uint64_t now_sec = unix_time_seconds();
-  std::vector<std::array<uint8_t, 32>> old_tree_hashes;
-  std::array<uint8_t, 32> new_root_hash =
-      remove_blob_from_tree(store, keys, old_commit.root_hash, parts, 0, file_name, now_sec, old_tree_hashes);
-  std::array<uint8_t, 32> new_commit_hash = store_commit(store, keys, new_root_hash, now_sec);
-
-  if (!store.remove_object(old_commit_hash)) {
-    throw std::runtime_error("failed to delete old commit object: " + to_hex(old_commit_hash));
-  }
-
-  for (const auto& old_hash : old_tree_hashes) {
-    try {
-      store.remove_object(old_hash);
-    } catch (const std::exception& ex) {
-      std::cerr << "warning: failed to delete old tree object " << to_hex(old_hash)
-                << ": " << ex.what() << "\n";
-    }
-  }
-
-  if (!store.remove_object(removed_blob_hash)) {
-    throw std::runtime_error("failed to delete old blob object: " + to_hex(removed_blob_hash));
-  }
-
-  return new_commit_hash;
+    return;
 }

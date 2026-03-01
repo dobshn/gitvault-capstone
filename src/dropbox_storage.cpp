@@ -6,65 +6,63 @@
 #include <utility>
 
 namespace {
-using nlohmann::json;
+  using nlohmann::json;
 }
 
-void DropboxStorage::check(const httplib::Result& res, int expected, std::string_view ctx) {
-  if (!res) {
-    throw std::runtime_error(std::string(ctx) + " request failed (network/TLS)");
-  }
-  if (res->status == expected) {
-    return;
+  void DropboxStorage::check(const httplib::Result& res, int expected, std::string_view ctx) {
+    if (!res) {
+      throw std::runtime_error(std::string(ctx) + " request failed (network/TLS)");
+    }
+    if (res->status == expected) {
+      return;
+    }
+
+    std::string body = res->body;
+    if (body.size() > 4096) {
+      body.resize(4096);
+      body += "...";
+    }
+    throw std::runtime_error(std::string(ctx) + " failed. HTTP " + std::to_string(res->status) + ": " + body);
   }
 
-  std::string body = res->body;
-  if (body.size() > 4096) {
-    body.resize(4096);
-    body += "...";
+  void DropboxStorage::require_relative_path(std::string_view path) {
+    if (path.empty() || path.front() == '/') {
+      throw std::runtime_error("invalid path: must be relative (e.g. \"a/b.txt\")");
+    }
+    if (path.find('\\') != std::string_view::npos) {
+      throw std::runtime_error("invalid path: '\\\\' not allowed");
+    }
+    if (path.find("//") != std::string_view::npos) {
+      throw std::runtime_error("invalid path: '//' not allowed");
+    }
+    if (path == "." || path == ".." || path.find("/./") != std::string_view::npos ||
+        path.find("/../") != std::string_view::npos ||
+        (path.size() >= 2 && path.substr(path.size() - 2) == "/.") ||
+        (path.size() >= 3 && path.substr(path.size() - 3) == "/..")) {
+      throw std::runtime_error("invalid path: '.' and '..' not allowed");
+    }
   }
-  throw std::runtime_error(std::string(ctx) + " failed. HTTP " + std::to_string(res->status) + ": " + body);
-}
 
-void DropboxStorage::require_relative_path(std::string_view path) {
-  if (path.empty() || path.front() == '/') {
-    throw std::runtime_error("invalid path: must be relative (e.g. \"a/b.txt\")");
+  void DropboxStorage::require_root_path(std::string_view path) {
+    if (path.size() < 2 || path.front() != '/' || path.back() == '/') {
+      throw std::runtime_error("invalid root path: use format like \"/my_root\"");
+    }
+    require_relative_path(path.substr(1));
   }
-  if (path.find('\\') != std::string_view::npos) {
-    throw std::runtime_error("invalid path: '\\\\' not allowed");
-  }
-  if (path.find("//") != std::string_view::npos) {
-    throw std::runtime_error("invalid path: '//' not allowed");
-  }
-  if (path == "." || path == ".." || path.find("/./") != std::string_view::npos ||
-      path.find("/../") != std::string_view::npos ||
-      (path.size() >= 2 && path.substr(path.size() - 2) == "/.") ||
-      (path.size() >= 3 && path.substr(path.size() - 3) == "/..")) {
-    throw std::runtime_error("invalid path: '.' and '..' not allowed");
-  }
-}
 
-void DropboxStorage::require_root_path(std::string_view path) {
-  if (path.size() < 2 || path.front() != '/' || path.back() == '/') {
-    throw std::runtime_error("invalid root path: use format like \"/my_root\"");
+  std::string DropboxStorage::build_dropbox_path(std::string_view path) const {
+    require_relative_path(path);
+    return root_path_ + "/" + std::string(path);
   }
-  require_relative_path(path.substr(1));
-}
 
-std::string DropboxStorage::build_dropbox_path(std::string_view path) const {
-  require_relative_path(path);
-  return root_path_ + "/" + std::string(path);
-}
-
-void DropboxStorage::require_initialized(std::string_view op) const {
-  if (!initialized_) {
-    throw std::runtime_error(std::string(op) + " requires init() first");
+  void DropboxStorage::require_initialized(std::string_view op) const {
+    if (!fetched) {
+      throw std::runtime_error(std::string(op) + " requires init() first");
+    }
   }
-}
 
-DropboxStorage::DropboxStorage(std::string access_token, std::string root_path)
-    : access_token_(std::move(access_token)),
-      root_path_(std::move(root_path)),
-      api_client_("api.dropboxapi.com", 443),
+DropboxStorage::DropboxStorage()
+    : api_client_("api.dropboxapi.com", 443),
       content_client_("content.dropboxapi.com", 443) {
   api_client_.set_keep_alive(true);
   content_client_.set_keep_alive(true);
@@ -74,17 +72,21 @@ DropboxStorage::DropboxStorage(std::string access_token, std::string root_path)
   content_client_.set_connection_timeout(5, 0);
   content_client_.set_read_timeout(60, 0);
   content_client_.set_write_timeout(60, 0);
+}
+
+// 현재 클라우드에 해당 root 폴더가 생성되어 있는 지 확인 
+void DropboxStorage::fetch(std::string access_token, std::string root_path) {
+  if (fetched) {
+    return;
+  }
+  
+  access_token_ = access_token;
+  root_path_ = root_path;
 
   if (access_token_.empty()) {
     throw std::runtime_error("dropbox access token is empty");
   }
   require_root_path(root_path_);
-}
-
-void DropboxStorage::init() {
-  if (initialized_) {
-    return;
-  }
 
   {
     auto res = api_client_.Post("/2/users/get_current_account",
@@ -94,15 +96,72 @@ void DropboxStorage::init() {
     check(res, 200, "Token validation");
   }
 
+  auto check_folder_exists = [&](const std::string& path, const std::string& name) {
+    auto res = api_client_.Post("/2/files/get_metadata",
+                                {{"Authorization", "Bearer " + access_token_}},
+                                json{{"path", path}}.dump(),
+                                "application/json");
+
+    if (!res) {
+      throw std::runtime_error(name + " metadata request failed (network/TLS)");
+    }
+
+    if (res->status == 409) {
+      throw std::runtime_error(name + " does not exist in cloud.");
+    }
+
+    if (res->status != 200) {
+      throw std::runtime_error(name + " metadata failed. HTTP " +
+                               std::to_string(res->status) + ": " + res->body);
+    }
+
+    // 타입 검증 (folder인지 확인)
+    auto body = json::parse(res->body);
+    if (body[".tag"] != "folder") {
+      throw std::runtime_error(name + " exists but is not a folder.");
+    }
+  };
+
+  // root 폴더 존재 확인
+  check_folder_exists(root_path_, "Root folder");
+
+  // objects 폴더 존재 확인
+  check_folder_exists(root_path_ + "/objects", "Objects folder");
+
+  fetched = true;
+}
+
+// 현재 클라우드에 전달받은 root 폴더를 생성. 이미 있는 경우 예외 던짐.
+void DropboxStorage::init(std::string access_token, std::string root_path) {
+  if (fetched) {
+    return;
+  }
+
+  access_token_ = access_token;
+  root_path_ = root_path;
+
+  if (access_token_.empty()) {
+    throw std::runtime_error("dropbox access token is empty");
+  }
+  require_root_path(root_path_);
+
+  {
+    auto res = api_client_.Post("/2/users/get_current_account",
+                                {{"Authorization", "Bearer " + access_token}},
+                                "null",
+                                "application/json");
+    check(res, 200, "Token validation");
+  }
+
   {
     auto res = api_client_.Post("/2/files/create_folder_v2",
-                                {{"Authorization", "Bearer " + access_token_}},
-                                json{{"path", root_path_}, {"autorename", false}}.dump(),
+                                {{"Authorization", "Bearer " + access_token}},
+                                json{{"path", root_path}, {"autorename", false}}.dump(),
                                 "application/json");
     if (!res) {
       throw std::runtime_error("Create root folder request failed (network/TLS)");
     }
-    if (res->status != 409 && res->status != 200) {
+    if (res->status != 200) {
       throw std::runtime_error("Create root folder failed. HTTP " + std::to_string(res->status) + ": " +
                                res->body);
     }
@@ -110,21 +169,22 @@ void DropboxStorage::init() {
 
   {
     auto res = api_client_.Post("/2/files/create_folder_v2",
-                                {{"Authorization", "Bearer " + access_token_}},
-                                json{{"path", root_path_ + "/objects"}, {"autorename", false}}.dump(),
+                                {{"Authorization", "Bearer " + access_token}},
+                                json{{"path", root_path + "/objects"}, {"autorename", false}}.dump(),
                                 "application/json");
     if (!res) {
       throw std::runtime_error("Create objects folder request failed (network/TLS)");
     }
-    if (res->status != 200 && res->status != 409) {
+    if (res->status != 200) {
       throw std::runtime_error("Create objects folder failed. HTTP " + std::to_string(res->status) + ": " +
                                res->body);
     }
   }
 
-  initialized_ = true;
+  fetched = true;
 }
 
+// path에 data를 overwrite 유무에 맞추어 업로드 (150MB 제한)
 void DropboxStorage::put(std::string_view path, const ByteVec& data, bool overwrite) const {
   require_initialized("put()");
 
@@ -144,6 +204,7 @@ void DropboxStorage::put(std::string_view path, const ByteVec& data, bool overwr
   check(res, 200, "Upload /2/files/upload");
 }
 
+// path에 있는 파일을 다운 받아옴
 ByteVec DropboxStorage::get(std::string_view path) const {
   require_initialized("get()");
 
@@ -159,6 +220,7 @@ ByteVec DropboxStorage::get(std::string_view path) const {
   return ByteVec(bytes, bytes + res->body.size());
 }
 
+// path 경로의 파일이 존재하는지 확인. 있으면 true, 없으면 false
 bool DropboxStorage::exists(std::string_view path) const {
   require_initialized("exists()");
 
