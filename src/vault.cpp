@@ -89,7 +89,7 @@ namespace {
         std::cout << "gitvault <command> [args] [--password <pw>]\n";
         std::cout << "\nCommands:\n";
         std::cout << "  init <vault_name>\n";
-        std::cout << "  lock <plain_dir> <vault_name>\n";
+        std::cout << "  lock <vault_name> <plain_dir>\n";
         std::cout << "  add <vault_name> <local_path> <cloud_path>\n";
         std::cout << "  remove <vault_name> <cloud_path>\n";
         std::cout << "  list <vault_name> [path]\n";
@@ -145,11 +145,11 @@ void Vault::execute(Command& cmd) {
         std::cout << "commit=" << to_hex(commit_hash) << "\n";
     } else if (cmd.command == "lock") {
         if (cmd.positional.size() != 2) {
-            throw std::runtime_error("lock requires <plain_dir> <vault_name>");
+            throw std::runtime_error("lock requires <vault_name> <plain_dir>");
         }
-        std::filesystem::path plain_dir = cmd.positional[0];
-        obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[1]));
+        obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
         VaultEngine vault_engine(obj_store, read_password(cmd));
+        std::filesystem::path plain_dir = cmd.positional[1];
         auto commit_hash = vault_engine.lock_vault(plain_dir);
         std::cout << "commit=" << to_hex(commit_hash) << "\n";
     } else if (cmd.command == "add") {
