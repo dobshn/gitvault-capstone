@@ -67,8 +67,8 @@ void DropboxStorage::fetch(std::string access_token, std::string root_path) {
     return;
   }
   
-  httplib::SSLClient client("api.dropboxapi.com", 443);
-  client.set_keep_alive(false);
+  thread_local httplib::SSLClient client("api.dropboxapi.com", 443);
+  client.set_keep_alive(true);
 
   access_token_ = access_token;
   root_path_ = root_path;
@@ -127,8 +127,8 @@ void DropboxStorage::init(std::string access_token, std::string root_path) {
     return;
   }
 
-  httplib::SSLClient client("api.dropboxapi.com", 443);
-  client.set_keep_alive(false);
+  thread_local httplib::SSLClient client("api.dropboxapi.com", 443);
+  client.set_keep_alive(true);
 
   access_token_ = access_token;
   root_path_ = root_path;
@@ -181,31 +181,77 @@ void DropboxStorage::init(std::string access_token, std::string root_path) {
 void DropboxStorage::put(std::string_view path, const ByteVec& data, bool overwrite) const {
   require_initialized("put()");
 
-  httplib::SSLClient client("content.dropboxapi.com", 443);
-  client.set_keep_alive(false);
+  const int max_attempts = 3;
+  int attempt = 0;
 
-  httplib::Headers headers = {
-      {"Authorization", "Bearer " + access_token_},
-      {"Dropbox-API-Arg",
-       json{
-           {"path", build_dropbox_path(path)},
-           {"mode", overwrite ? "overwrite" : "add"},
-           {"autorename", !overwrite},
-       }
-           .dump()},
-  };
+  while (true) {
+    ++attempt;
+    thread_local httplib::SSLClient client("content.dropboxapi.com", 443);
+    client.set_keep_alive(true);
 
-  const char* body = data.empty() ? "" : reinterpret_cast<const char*>(data.data());
-  auto res = client.Post("/2/files/upload", headers, body, data.size(), "application/octet-stream");
-  check(res, 200, "Upload /2/files/upload");
+    httplib::Headers headers = {
+        {"Authorization", "Bearer " + access_token_},
+        {"Dropbox-API-Arg",
+            json{
+                {"path", build_dropbox_path(path)},
+                {"mode", overwrite ? "overwrite" : "add"},
+                {"autorename", !overwrite},
+            }.dump()},
+    };
+
+    const char* body = data.empty() ? "" : reinterpret_cast<const char*>(data.data());
+    auto res = client.Post("/2/files/upload",
+                            headers,
+                            body,
+                            data.size(),
+                            "application/octet-stream");
+    if (!res) {
+        throw std::runtime_error(
+            "Upload failed (network/TLS)");
+    }
+    else if (res->status == 200) {
+        return;
+    }
+    else if (res->status == 429) {
+      int retry;
+
+      auto j = json::parse(res->body);
+      // error 객체 존재 확인
+      if (!j.contains("error") || !j["error"].is_object()) retry = 1;
+      auto& err = j["error"];
+      // retry_after 존재 확인
+      if (err.contains("retry_after") && err["retry_after"].is_number_integer()) {
+        retry = err["retry_after"].get<int>();
+      }
+
+      if (retry <= 0) // 만약을 위한 처리
+          retry = 1;
+      // optional: 간단한 exponential backoff
+      retry = std::max(retry, attempt);
+      std::cerr << "429 received. Attempt "
+                << attempt
+                << ", sleeping "
+                << retry
+                << " seconds...\n";
+
+      if (attempt >= max_attempts) {
+          throw std::runtime_error("Upload failed after too many retries (429)");
+      }
+      std::this_thread::sleep_for(std::chrono::seconds(retry)); //
+      continue;
+    }
+    else {
+      throw std::runtime_error("Upload /2/files/upload failed. HTTP " + std::to_string(res->status) + ": " + res->body);
+    }
+  }
 }
 
 // path에 있는 파일을 다운 받아옴
 ByteVec DropboxStorage::get(std::string_view path) const {
   require_initialized("get()");
 
-  httplib::SSLClient client("content.dropboxapi.com", 443);
-  client.set_keep_alive(false);
+  thread_local httplib::SSLClient client("content.dropboxapi.com", 443);
+  client.set_keep_alive(true);
 
   httplib::Headers headers = {
       {"Authorization", "Bearer " + access_token_},
@@ -223,8 +269,8 @@ ByteVec DropboxStorage::get(std::string_view path) const {
 bool DropboxStorage::exists(std::string_view path) const {
   require_initialized("exists()");
 
-  httplib::SSLClient client("api.dropboxapi.com", 443);
-  client.set_keep_alive(false);
+  thread_local httplib::SSLClient client("api.dropboxapi.com", 443);
+  client.set_keep_alive(true);
 
   auto res = client.Post("/2/files/get_metadata",
                               {{"Authorization", "Bearer " + access_token_}},
@@ -254,8 +300,8 @@ bool DropboxStorage::exists(std::string_view path) const {
 bool DropboxStorage::remove(std::string_view path) const {
   require_initialized("remove()");
 
-  httplib::SSLClient client("api.dropboxapi.com", 443);
-  client.set_keep_alive(false);
+  thread_local httplib::SSLClient client("api.dropboxapi.com", 443);
+  client.set_keep_alive(true);
   
   auto res = client.Post("/2/files/delete_v2",
                               {{"Authorization", "Bearer " + access_token_}},

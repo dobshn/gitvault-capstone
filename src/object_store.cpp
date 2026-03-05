@@ -184,9 +184,9 @@ void ObjectStore::write_object(const std::array<uint8_t, 32>& hash, const ByteVe
 void ObjectStore::write_object_from_file(const std::array<uint8_t, 32>& hash,
                                          const std::filesystem::path& path) const {
   std::string key = object_key(hash);
-  if (CloudAPI->exists(key)) {
-    return;
-  }
+//  if (CloudAPI->exists(key)) {
+//    return;
+//  }
 
   ByteVec data = read_file_bytes(path);
   CloudAPI->put(key, data, true);
