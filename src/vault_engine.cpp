@@ -22,7 +22,7 @@ namespace {
     constexpr uint64_t kProgressIntervalBytes = 64ull * 1024 * 1024;
 }
 
-VaultEngine::VaultEngine(ObjectStore& s, std::string password) : store(s), pool(3) {
+VaultEngine::VaultEngine(ObjectStore& s, std::string password) : store(s), pool(3), total_uploads(0), finished_uploads(0) {
     crypto = new CryptoImpl();
     cfg = ensure_store_config(store);
     keys = crypto->derive_keys(cfg.salt, cfg.iterations, password);
@@ -317,7 +317,16 @@ Config VaultEngine::ensure_store_config(ObjectStore& store) {
   std::array<uint8_t, 32> VaultEngine::store_tree_object(const Tree& tree) {
     ByteVec serialized = serialize_tree(tree);
     EncryptedObject obj = crypto->encrypt_object(keys.enc_key, serialized);
+
+    // 트리 업로드 로그
+    std::cerr << "\n" << "Uploading Tree objects... "
+              << "hash=" << to_hex(obj.hash)
+              << " | size: " << serialized.size() << " bytes"
+              << std::endl;
+
+    // 싱글 스레드 업로드
     store.write_object(obj.hash, obj.data);
+
     return obj.hash;
   }
 
@@ -338,6 +347,8 @@ Config VaultEngine::ensure_store_config(ObjectStore& store) {
   }
 
   std::array<uint8_t, 32> VaultEngine::store_blob(const std::filesystem::path& path) {
+    total_uploads.fetch_add(1, std::memory_order_relaxed);
+
     std::ifstream input(path, std::ios::binary);
     if (!input) {
       throw std::runtime_error("failed to open file for reading: " + path.string());
@@ -429,23 +440,24 @@ Config VaultEngine::ensure_store_config(ObjectStore& store) {
 
       pending_uploads.push_back(
           pool.enqueue([this, hash, tmp_path]() {
+            store.write_object_from_file(hash, tmp_path);
 
-              std::cout << "[UPLOAD START] "
-                        << tmp_path.filename().string()
-                        << " | thread: "
-                        << std::this_thread::get_id()
-                        << std::endl;
+            auto done = finished_uploads.fetch_add(1) + 1;
+            auto total = total_uploads.load(std::memory_order_relaxed);
 
-              store.write_object_from_file(hash, tmp_path);
-
-              std::cout << "[UPLOAD DONE ] "
-                        << tmp_path.filename().string()
-                        << " | thread: "
-                        << std::this_thread::get_id()
-                        << std::endl;
-
-              std::error_code ec;
-              std::filesystem::remove(tmp_path, ec);
+            double pct = (double)done / (double)total * 100.0;
+            {
+                std::lock_guard<std::mutex> lock(upload_progress_mutex);
+                std::cout << "\rUploading Blob objects: "
+                          << done << "/" << total
+                          << " ("
+                          << std::fixed << std::setprecision(1)
+                          << pct << "%)"
+                          << std::flush;
+                      
+            }
+            std::error_code ec;
+            std::filesystem::remove(tmp_path, ec);
           })
       );
     }

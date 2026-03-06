@@ -181,7 +181,7 @@ void DropboxStorage::init(std::string access_token, std::string root_path) {
 void DropboxStorage::put(std::string_view path, const ByteVec& data, bool overwrite) const {
   require_initialized("put()");
 
-  const int max_attempts = 3;
+  const int max_attempts = 5;
   int attempt = 0;
 
   while (true) {
@@ -228,11 +228,10 @@ void DropboxStorage::put(std::string_view path, const ByteVec& data, bool overwr
           retry = 1;
       // optional: 간단한 exponential backoff
       retry = std::max(retry, attempt);
-      std::cerr << "429 received. Attempt "
-                << attempt
-                << ", sleeping "
-                << retry
-                << " seconds...\n";
+      std::cerr << "\r429 retry: attempt " << attempt
+                << ", sleeping " << retry << "s"
+                << "           "  // 이전 내용 지우기
+                << std::flush;
 
       if (attempt >= max_attempts) {
           throw std::runtime_error("Upload failed after too many retries (429)");

@@ -57,6 +57,9 @@ private:
     ThreadPool pool;
     std::mutex upload_mutex;
     std::vector<std::future<void>> pending_uploads;
+    std::atomic<uint64_t> total_uploads;
+    std::atomic<uint64_t> finished_uploads;
+    std::mutex upload_progress_mutex;
 
     Config ensure_store_config(ObjectStore& store);
     uint64_t unix_time_seconds();

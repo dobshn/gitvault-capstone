@@ -175,9 +175,9 @@ bool ObjectStore::remove_object(const std::array<uint8_t, 32>& hash) const {
 
 void ObjectStore::write_object(const std::array<uint8_t, 32>& hash, const ByteVec& data) const {
   std::string key = object_key(hash);
-  if (CloudAPI->exists(key)) {
-    return;
-  }
+//  if (CloudAPI->exists(key)) {
+//    return;
+//  }
   CloudAPI->put(key, data, true);
 }
 
