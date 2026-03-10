@@ -759,15 +759,25 @@ Config VaultEngine::ensure_store_config(ObjectStore& store) {
       auto it = std::find_if(tree.entries.begin(), tree.entries.end(),
                             [&](const Entry& e) { return e.name == dir_name; });
       if (it == tree.entries.end()) {
-        throw std::runtime_error("path not found: " + dir_name);
-      }
-      if (it->type != 1) {
-        throw std::runtime_error("not a directory: " + dir_name);
-      }
+        Tree empty_tree;
+        std::array<uint8_t, 32> empty_tree_hash = store_tree_object(empty_tree);
 
-      it->hash = upsert_blob_to_tree(it->hash, dirs, depth + 1, blob_entry, touch_time, old_tree_hashes);
-      it->flags |= 0x02;
-      it->mtime = touch_time;
+        Entry new_dir;
+        new_dir.type = 1;
+        new_dir.flags = 0x02;
+        new_dir.name = dir_name;
+        new_dir.mtime = touch_time;
+        new_dir.hash = upsert_blob_to_tree(empty_tree_hash, dirs, depth + 1, blob_entry, touch_time, old_tree_hashes);
+        tree.entries.push_back(new_dir);
+      } else {
+        if (it->type != 1) {
+          throw std::runtime_error("not a directory: " + dir_name);
+        }
+
+        it->hash = upsert_blob_to_tree(it->hash, dirs, depth + 1, blob_entry, touch_time, old_tree_hashes);
+        it->flags |= 0x02;
+        it->mtime = touch_time;
+      }
     }
 
     std::sort(tree.entries.begin(), tree.entries.end(), [](const Entry& a, const Entry& b) {
