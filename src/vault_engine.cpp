@@ -172,6 +172,53 @@ std::array<uint8_t, 32> VaultEngine::add(const std::filesystem::path& local_path
   return new_commit_hash;
 }
 
+std::array<uint8_t, 32> VaultEngine::mkdir(const std::string& cloud_dir_path) {
+  if (cloud_dir_path.empty()) {
+    throw std::runtime_error("cloud_dir_path required");
+  }
+
+  std::vector<std::string> parts = split_path(cloud_dir_path);
+  if (parts.empty()) {
+    throw std::runtime_error("invalid cloud_dir_path: " + cloud_dir_path);
+  }
+
+  const std::string dir_name = parts.back();
+  parts.pop_back();
+
+  auto old_commit_hash = read_head();
+  Commit old_commit = load_commit_checked(old_commit_hash);
+
+  uint64_t now_sec = unix_time_seconds();
+  Tree empty_tree;
+
+  Entry dir_entry;
+  dir_entry.type = 1;
+  dir_entry.flags = 0x02;
+  dir_entry.name = dir_name;
+  dir_entry.mtime = now_sec;
+  dir_entry.hash = store_tree_object(empty_tree);
+
+  std::vector<std::array<uint8_t, 32>> old_tree_hashes;
+  std::array<uint8_t, 32> new_root_hash =
+      upsert_dir_to_tree(old_commit.root_hash, parts, 0, dir_entry, now_sec, old_tree_hashes);
+  std::array<uint8_t, 32> new_commit_hash = store_commit(new_root_hash, now_sec);
+
+  if (!store.remove_object(old_commit_hash)) {
+    throw std::runtime_error("failed to delete old commit object: " + to_hex(old_commit_hash));
+  }
+
+  for (const auto& old_hash : old_tree_hashes) {
+    try {
+      store.remove_object(old_hash);
+    } catch (const std::exception& ex) {
+      std::cerr << "warning: failed to delete old tree object " << to_hex(old_hash)
+                << ": " << ex.what() << "\n";
+    }
+  }
+
+  return new_commit_hash;
+}
+
 std::array<uint8_t, 32> VaultEngine::remove(const std::string& cloud_path) {
   if (cloud_path.empty()) {
     throw std::runtime_error("cloud_path required");
@@ -214,6 +261,69 @@ std::array<uint8_t, 32> VaultEngine::remove(const std::string& cloud_path) {
 
   if (!store.remove_object(removed_blob_hash)) {
     throw std::runtime_error("failed to delete old blob object: " + to_hex(removed_blob_hash));
+  }
+
+  return new_commit_hash;
+}
+
+std::array<uint8_t, 32> VaultEngine::rmdir(const std::string& cloud_dir_path, bool recursive) {
+  if (cloud_dir_path.empty()) {
+    throw std::runtime_error("cloud_dir_path required");
+  }
+
+  std::vector<std::string> parts = split_path(cloud_dir_path);
+  if (parts.empty()) {
+    throw std::runtime_error("cannot remove root directory");
+  }
+  const std::string dir_name = parts.back();
+  parts.pop_back();
+
+  auto old_commit_hash = read_head();
+  Commit old_commit = load_commit_checked(old_commit_hash);
+
+  uint64_t now_sec = unix_time_seconds();
+  std::vector<std::array<uint8_t, 32>> old_tree_hashes;
+  std::vector<std::array<uint8_t, 32>> removed_tree_hashes;
+  std::vector<std::array<uint8_t, 32>> removed_blob_hashes;
+  std::array<uint8_t, 32> new_root_hash =
+      remove_dir_from_tree(old_commit.root_hash, parts, 0, dir_name, now_sec, recursive,
+                           old_tree_hashes, removed_tree_hashes, removed_blob_hashes);
+  std::array<uint8_t, 32> new_commit_hash = store_commit(new_root_hash, now_sec);
+
+  if (!store.remove_object(old_commit_hash)) {
+    throw std::runtime_error("failed to delete old commit object: " + to_hex(old_commit_hash));
+  }
+
+  for (const auto& old_hash : old_tree_hashes) {
+    try {
+      store.remove_object(old_hash);
+    } catch (const std::exception& ex) {
+      std::cerr << "warning: failed to delete old tree object " << to_hex(old_hash)
+                << ": " << ex.what() << "\n";
+    }
+  }
+
+  std::sort(removed_tree_hashes.begin(), removed_tree_hashes.end());
+  removed_tree_hashes.erase(std::unique(removed_tree_hashes.begin(), removed_tree_hashes.end()),
+                            removed_tree_hashes.end());
+  for (const auto& hash : removed_tree_hashes) {
+    try {
+      if (!store.remove_object(hash)) {
+        std::cerr << "warning: failed to delete removed tree object " << to_hex(hash) << "\n";
+      }
+    } catch (const std::exception& ex) {
+      std::cerr << "warning: failed to delete removed tree object " << to_hex(hash)
+                << ": " << ex.what() << "\n";
+    }
+  }
+
+  std::sort(removed_blob_hashes.begin(), removed_blob_hashes.end());
+  removed_blob_hashes.erase(std::unique(removed_blob_hashes.begin(), removed_blob_hashes.end()),
+                            removed_blob_hashes.end());
+  for (const auto& hash : removed_blob_hashes) {
+    if (!store.remove_object(hash)) {
+      throw std::runtime_error("failed to delete removed blob object: " + to_hex(hash));
+    }
   }
 
   return new_commit_hash;
@@ -542,6 +652,20 @@ Config VaultEngine::ensure_store_config(ObjectStore& store) {
     }
   }
 
+  void VaultEngine::collect_subtree_hashes(const std::array<uint8_t, 32>& tree_hash,
+                              std::vector<std::array<uint8_t, 32>>& tree_hashes,
+                              std::vector<std::array<uint8_t, 32>>& blob_hashes) {
+    tree_hashes.push_back(tree_hash);
+    Tree tree = load_tree_checked(tree_hash);
+    for (const auto& entry : tree.entries) {
+      if (entry.type == 1) {
+        collect_subtree_hashes(entry.hash, tree_hashes, blob_hashes);
+      } else {
+        blob_hashes.push_back(entry.hash);
+      }
+    }
+  }
+
   void VaultEngine::print_tree_recursive(const Tree& tree,
                             const std::string& prefix,
                             std::ostream& out) {
@@ -565,6 +689,49 @@ Config VaultEngine::ensure_store_config(ObjectStore& store) {
         print_tree_recursive(child, next_prefix, out);
       }
     }
+  }
+
+  std::array<uint8_t, 32> VaultEngine::upsert_dir_to_tree(const std::array<uint8_t, 32>& tree_hash,
+                                              const std::vector<std::string>& dirs,
+                                              size_t depth,
+                                              const Entry& dir_entry,
+                                              uint64_t touch_time,
+                                              std::vector<std::array<uint8_t, 32>>& old_tree_hashes) {
+    old_tree_hashes.push_back(tree_hash);
+    Tree tree = load_tree_checked(tree_hash);
+
+    if (depth == dirs.size()) {
+      auto it = std::find_if(tree.entries.begin(), tree.entries.end(),
+                            [&](const Entry& e) { return e.name == dir_entry.name; });
+      if (it == tree.entries.end()) {
+        tree.entries.push_back(dir_entry);
+      } else {
+        if (it->type == 1) {
+          throw std::runtime_error("directory already exists: " + dir_entry.name);
+        }
+        throw std::runtime_error("cloud_path points to existing file: " + dir_entry.name);
+      }
+    } else {
+      const std::string& dir_name = dirs[depth];
+      auto it = std::find_if(tree.entries.begin(), tree.entries.end(),
+                            [&](const Entry& e) { return e.name == dir_name; });
+      if (it == tree.entries.end()) {
+        throw std::runtime_error("path not found: " + dir_name);
+      }
+      if (it->type != 1) {
+        throw std::runtime_error("not a directory: " + dir_name);
+      }
+
+      it->hash = upsert_dir_to_tree(it->hash, dirs, depth + 1, dir_entry, touch_time, old_tree_hashes);
+      it->flags |= 0x02;
+      it->mtime = touch_time;
+    }
+
+    std::sort(tree.entries.begin(), tree.entries.end(), [](const Entry& a, const Entry& b) {
+      return a.name < b.name;
+    });
+
+    return store_tree_object(tree);
   }
 
   std::array<uint8_t, 32> VaultEngine::upsert_blob_to_tree(const std::array<uint8_t, 32>& tree_hash,
@@ -599,6 +766,59 @@ Config VaultEngine::ensure_store_config(ObjectStore& store) {
       }
 
       it->hash = upsert_blob_to_tree(it->hash, dirs, depth + 1, blob_entry, touch_time, old_tree_hashes);
+      it->flags |= 0x02;
+      it->mtime = touch_time;
+    }
+
+    std::sort(tree.entries.begin(), tree.entries.end(), [](const Entry& a, const Entry& b) {
+      return a.name < b.name;
+    });
+
+    return store_tree_object(tree);
+  }
+
+  std::array<uint8_t, 32> VaultEngine::remove_dir_from_tree(const std::array<uint8_t, 32>& tree_hash,
+                                                const std::vector<std::string>& dirs,
+                                                size_t depth,
+                                                const std::string& dir_name,
+                                                uint64_t touch_time,
+                                                bool recursive,
+                                                std::vector<std::array<uint8_t, 32>>& old_tree_hashes,
+                                                std::vector<std::array<uint8_t, 32>>& removed_tree_hashes,
+                                                std::vector<std::array<uint8_t, 32>>& removed_blob_hashes) {
+    old_tree_hashes.push_back(tree_hash);
+    Tree tree = load_tree_checked(tree_hash);
+
+    if (depth == dirs.size()) {
+      auto it = std::find_if(tree.entries.begin(), tree.entries.end(),
+                            [&](const Entry& e) { return e.name == dir_name; });
+      if (it == tree.entries.end()) {
+        throw std::runtime_error("path not found: " + dir_name);
+      }
+      if (it->type != 1) {
+        throw std::runtime_error("path is not a directory: " + dir_name);
+      }
+
+      Tree target_tree = load_tree_checked(it->hash);
+      if (!recursive && !target_tree.entries.empty()) {
+        throw std::runtime_error("directory not empty: " + dir_name);
+      }
+
+      collect_subtree_hashes(it->hash, removed_tree_hashes, removed_blob_hashes);
+      tree.entries.erase(it);
+    } else {
+      const std::string& parent_name = dirs[depth];
+      auto it = std::find_if(tree.entries.begin(), tree.entries.end(),
+                            [&](const Entry& e) { return e.name == parent_name; });
+      if (it == tree.entries.end()) {
+        throw std::runtime_error("path not found: " + parent_name);
+      }
+      if (it->type != 1) {
+        throw std::runtime_error("not a directory: " + parent_name);
+      }
+
+      it->hash = remove_dir_from_tree(it->hash, dirs, depth + 1, dir_name, touch_time, recursive,
+                                      old_tree_hashes, removed_tree_hashes, removed_blob_hashes);
       it->flags |= 0x02;
       it->mtime = touch_time;
     }

@@ -38,7 +38,9 @@ public:
     std::array<uint8_t, 32> init_vault();
     std::array<uint8_t, 32> lock_vault(const std::filesystem::path& plain_dir);
     std::array<uint8_t, 32> add(const std::filesystem::path& local_path, const std::string& cloud_path);
+    std::array<uint8_t, 32> mkdir(const std::string& cloud_dir_path);
     std::array<uint8_t, 32> remove(const std::string& cloud_path);
+    std::array<uint8_t, 32> rmdir(const std::string& cloud_dir_path, bool recursive);
     Tree list_directory(const std::string& path);
     Entry resolve_entry(const std::string& path, bool require_directory);
     ByteVec read_file_from_vault(const std::string& path);
@@ -65,13 +67,31 @@ private:
     std::array<uint8_t, 32> store_tree(const std::filesystem::path& dir);
     PathResult resolve_path(const std::string& path);
     void scan_tree(const std::array<uint8_t, 32>& tree_hash, bool deep, ScanStats& stats);
+    void collect_subtree_hashes(const std::array<uint8_t, 32>& tree_hash,
+                                std::vector<std::array<uint8_t, 32>>& tree_hashes,
+                                std::vector<std::array<uint8_t, 32>>& blob_hashes);
     void print_tree_recursive(const Tree& tree, const std::string& prefix, std::ostream& out);
+    std::array<uint8_t, 32> upsert_dir_to_tree(const std::array<uint8_t, 32>& tree_hash,
+                                              const std::vector<std::string>& dirs,
+                                              size_t depth,
+                                              const Entry& dir_entry,
+                                              uint64_t touch_time,
+                                              std::vector<std::array<uint8_t, 32>>& old_tree_hashes);
     std::array<uint8_t, 32> upsert_blob_to_tree(const std::array<uint8_t, 32>& tree_hash,
                                               const std::vector<std::string>& dirs,
                                               size_t depth,
                                               const Entry& blob_entry,
                                               uint64_t touch_time,
                                               std::vector<std::array<uint8_t, 32>>& old_tree_hashes);
+    std::array<uint8_t, 32> remove_dir_from_tree(const std::array<uint8_t, 32>& tree_hash,
+                                                const std::vector<std::string>& dirs,
+                                                size_t depth,
+                                                const std::string& dir_name,
+                                                uint64_t touch_time,
+                                                bool recursive,
+                                                std::vector<std::array<uint8_t, 32>>& old_tree_hashes,
+                                                std::vector<std::array<uint8_t, 32>>& removed_tree_hashes,
+                                                std::vector<std::array<uint8_t, 32>>& removed_blob_hashes);
     std::array<uint8_t, 32> remove_blob_from_tree(const std::array<uint8_t, 32>& tree_hash,
                                                 const std::vector<std::string>& dirs,
                                                 size_t depth,
