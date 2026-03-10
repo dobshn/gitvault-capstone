@@ -32,7 +32,7 @@ cmake --build build
 # Remove one file from an existing vault path
 ./build/gitvault remove <vault_name> <cloud_path> --dropbox-token <token>
 
-# Create one directory in an existing vault path
+# Create one directory in a vault path (missing parent directories are created automatically)
 ./build/gitvault mkdir <vault_name> <cloud_dir_path> --dropbox-token <token>
 
 # Remove one directory from an existing vault path (non-empty requires confirm)
