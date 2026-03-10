@@ -59,7 +59,6 @@ private:
     std::array<uint8_t, 32> read_head();
     std::array<uint8_t, 32> store_commit(const std::array<uint8_t, 32>& root_hash, uint64_t commit_time);
     std::array<uint8_t, 32> store_tree_object(const Tree& tree);
-    std::array<uint8_t, 32> resolve_commit_hash();
     Commit load_commit_checked(const std::array<uint8_t, 32>& commit_hash);
     Tree load_tree_checked(const std::array<uint8_t, 32>& tree_hash);
     std::array<uint8_t, 32> store_blob(const std::filesystem::path& path);

@@ -84,7 +84,7 @@ ByteVec VaultEngine::read_file_from_vault(const std::string& path) {
 }
 
 ScanStats VaultEngine::quick_scan() {
-  auto commit_hash = resolve_commit_hash();
+  auto commit_hash = read_head();
   Commit commit = load_commit_checked(commit_hash);
   ScanStats stats;
   scan_tree(commit.root_hash, false, stats);
@@ -92,7 +92,7 @@ ScanStats VaultEngine::quick_scan() {
 }
 
 ScanStats VaultEngine::deep_scan() {
-  auto commit_hash = resolve_commit_hash();
+  auto commit_hash = read_head();
   Commit commit = load_commit_checked(commit_hash);
   ScanStats stats;
   scan_tree(commit.root_hash, true, stats);
@@ -132,7 +132,7 @@ std::array<uint8_t, 32> VaultEngine::add(const std::filesystem::path& local_path
   const std::string file_name = parts.back();
   parts.pop_back();
 
-  auto old_commit_hash = resolve_commit_hash();
+  auto old_commit_hash = read_head();
   Commit old_commit = load_commit_checked(old_commit_hash);
 
   std::error_code ec;
@@ -190,7 +190,7 @@ std::array<uint8_t, 32> VaultEngine::remove(const std::string& cloud_path) {
   const std::string file_name = parts.back();
   parts.pop_back();
 
-  auto old_commit_hash = resolve_commit_hash();
+  auto old_commit_hash = read_head();
   Commit old_commit = load_commit_checked(old_commit_hash);
 
   uint64_t now_sec = unix_time_seconds();
@@ -318,10 +318,6 @@ Config VaultEngine::ensure_store_config(ObjectStore& store) {
     EncryptedObject obj = crypto->encrypt_object(keys.enc_key, serialized);
     store.write_object(obj.hash, obj.data);
     return obj.hash;
-  }
-
-  std::array<uint8_t, 32> VaultEngine::resolve_commit_hash() {
-    return read_head();
   }
 
   Commit VaultEngine::load_commit_checked(const std::array<uint8_t, 32>& commit_hash) {
@@ -476,7 +472,7 @@ Config VaultEngine::ensure_store_config(ObjectStore& store) {
   }
 
   PathResult VaultEngine::resolve_path(const std::string& path) {
-    auto commit_hash = resolve_commit_hash();
+    auto commit_hash = read_head();
     Commit commit = load_commit_checked(commit_hash);
     std::array<uint8_t, 32> current_hash = commit.root_hash;
 
