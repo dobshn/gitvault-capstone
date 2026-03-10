@@ -123,7 +123,6 @@ std::array<uint8_t, 32> VaultEngine::add(const std::filesystem::path& local_path
     throw std::runtime_error("local_path must be a regular file: " + local_path.string());
   }
 
-  std::array<uint8_t, 32> uploaded_object_id = store_blob(local_path);
   std::vector<std::string> parts = split_path(cloud_path);
   if (parts.empty()) {
     throw std::runtime_error("invalid cloud_path: " + cloud_path);
@@ -142,6 +141,7 @@ std::array<uint8_t, 32> VaultEngine::add(const std::filesystem::path& local_path
   }
 
   uint64_t now_sec = unix_time_seconds();
+  std::array<uint8_t, 32> uploaded_object_id = store_blob(local_path);
 
   Entry file_entry;
   file_entry.type = 0;
