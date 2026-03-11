@@ -154,7 +154,7 @@ void Vault::execute(Command& cmd) {
         VaultEngine vault_engine(obj_store, read_password(cmd));
         std::filesystem::path plain_dir = cmd.positional[1];
         auto commit_hash = vault_engine.lock_vault(plain_dir);
-        std::cout << "commit=" << to_hex(commit_hash) << "\n";
+        std::cout << "\ncommit=" << to_hex(commit_hash) << "\n";
     } else if (cmd.command == "add") {
         if (cmd.positional.size() != 3) {
             throw std::runtime_error("add requires <vault_name> <local_path> <cloud_path>");

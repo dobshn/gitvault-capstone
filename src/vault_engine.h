@@ -4,6 +4,9 @@
 #include "object_store.h"
 #include "crypto/CryptoImpl.h"
 #include "crypto/ICrypto.h"
+#include "thread_pool.h"
+#include <future>
+#include <mutex>
 
 struct ScanStats {
   size_t trees_checked = 0;
@@ -47,12 +50,18 @@ public:
     ScanStats quick_scan();
     ScanStats deep_scan();
     void print_tree(const std::string& path, std::ostream& out);
+
 private:
     ObjectStore& store;
     ICrypto* crypto;
     Keys keys;
     Config cfg;
-
+    ThreadPool pool;
+    std::mutex upload_mutex;
+    std::vector<std::future<void>> pending_uploads;
+    std::atomic<uint64_t> total_uploads;
+    std::atomic<uint64_t> finished_uploads;
+    std::mutex upload_progress_mutex;
 
     Config ensure_store_config(ObjectStore& store);
     uint64_t unix_time_seconds();
@@ -98,4 +107,5 @@ private:
                                                 const std::string& blob_name,
                                                 uint64_t touch_time,
                                                 std::vector<std::array<uint8_t, 32>>& old_tree_hashes);
+    void wait_for_uploads();
 };
