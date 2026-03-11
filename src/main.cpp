@@ -59,6 +59,8 @@ namespace {
     std::cout << "  lock <plain_dir> <vault_name>\n";
     std::cout << "  add <vault_name> <local_path> <cloud_path>\n";
     std::cout << "  remove <vault_name> <cloud_path>\n";
+    std::cout << "  mkdir <vault_name> <cloud_dir_path>\n";
+    std::cout << "  rmdir <vault_name> <cloud_dir_path>\n";
     std::cout << "  list <vault_name> [path]\n";
     std::cout << "  tree <vault_name> [path]\n";
     std::cout << "  cat <vault_name> <path>\n";

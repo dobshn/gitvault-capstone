@@ -1,4 +1,5 @@
 #include <fstream>
+#include <cctype>
 
 #include "vault.h"
 #include "object_store.h"
@@ -77,13 +78,13 @@ namespace {
 		ofs << token;
 	}
 
-	std::string loadRefreshToken() {
-		std::ifstream ifs(getTokenPath());
-		if (!ifs.is_open()) return "";
-		std::string token;
-		std::getline(ifs, token);
-		return token;
-	}
+		std::string loadRefreshToken() {
+			std::ifstream ifs(getTokenPath());
+			if (!ifs.is_open()) return "";
+			std::string token;
+			std::getline(ifs, token);
+			return token;
+		}
 
     void print_usage() {
         std::cout << "gitvault <command> [args] [--password <pw>]\n";
@@ -92,6 +93,8 @@ namespace {
         std::cout << "  lock <vault_name> <plain_dir>\n";
         std::cout << "  add <vault_name> <local_path> <cloud_path>\n";
         std::cout << "  remove <vault_name> <cloud_path>\n";
+        std::cout << "  mkdir <vault_name> <cloud_dir_path>\n";
+        std::cout << "  rmdir <vault_name> <cloud_dir_path>\n";
         std::cout << "  list <vault_name> [path]\n";
         std::cout << "  tree <vault_name> [path]\n";
         std::cout << "  cat <vault_name> <path>\n";
@@ -160,6 +163,14 @@ void Vault::execute(Command& cmd) {
         VaultEngine vault_engine(obj_store, read_password(cmd));
         auto commit_hash = vault_engine.add(std::filesystem::path(cmd.positional[1]), cmd.positional[2]);
         std::cout << "commit=" << to_hex(commit_hash) << "\n";
+    } else if (cmd.command == "mkdir") {
+      if (cmd.positional.size() != 2) {
+        throw std::runtime_error("mkdir requires <vault_name> <cloud_dir_path>");
+      }
+      obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
+      VaultEngine vault_engine(obj_store, read_password(cmd));
+      auto commit_hash = vault_engine.mkdir(cmd.positional[1]);
+      std::cout << "commit=" << to_hex(commit_hash) << "\n";
     } else if (cmd.command == "remove") {
       if (cmd.positional.size() != 2) {
         throw std::runtime_error("remove requires <vault_name> <cloud_path>");
@@ -168,6 +179,36 @@ void Vault::execute(Command& cmd) {
       VaultEngine vault_engine(obj_store, read_password(cmd));
       auto commit_hash = vault_engine.remove(cmd.positional[1]);
       std::cout << "commit=" << to_hex(commit_hash) << "\n";
+    } else if (cmd.command == "rmdir") {
+      if (cmd.positional.size() != 2) {
+        throw std::runtime_error("rmdir requires <vault_name> <cloud_dir_path>");
+      }
+      obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
+      VaultEngine vault_engine(obj_store, read_password(cmd));
+      const std::string cloud_dir_path = cmd.positional[1];
+
+      try {
+        auto commit_hash = vault_engine.rmdir(cloud_dir_path, false);
+        std::cout << "commit=" << to_hex(commit_hash) << "\n";
+      } catch (const std::runtime_error& ex) {
+        const std::string message = ex.what();
+        const std::string not_empty_prefix = "directory not empty:";
+        if (message.rfind(not_empty_prefix, 0) != 0) {
+          throw;
+        }
+
+        std::cout << "warning: directory '" << cloud_dir_path << "' is not empty.\n";
+        std::cout << "Delete recursively? [y/N]: ";
+        std::string answer;
+        std::getline(std::cin, answer);
+        if (answer!="y") {
+          std::cout << "aborted.\n";
+          return;
+        }
+
+        auto commit_hash = vault_engine.rmdir(cloud_dir_path, true);
+        std::cout << "commit=" << to_hex(commit_hash) << "\n";
+      }
     } else if (cmd.command == "list") {
       if (cmd.positional.size() < 1 || cmd.positional.size() > 2) {
         throw std::runtime_error("list requires <vault_name> [path]");
