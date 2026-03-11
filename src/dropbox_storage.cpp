@@ -226,13 +226,11 @@ void DropboxStorage::put(std::string_view path, const ByteVec& data, bool overwr
 
       if (retry <= 0) // 만약을 위한 처리
           retry = 1;
-      // optional: 간단한 exponential backoff
+      //간단한 exponential backoff
       retry = std::max(retry, attempt);
-      std::cerr << "\r429 retry: attempt " << attempt
-                << ", sleeping " << retry << "s"
-                << "           "  // 이전 내용 지우기
-                << std::flush;
-
+      std::cerr << "\nRetry attempt " << attempt
+                << ", sleeping " << retry << "s, Too many files"
+                << std::endl;
       if (attempt >= max_attempts) {
           throw std::runtime_error("Upload failed after too many retries (429)");
       }
