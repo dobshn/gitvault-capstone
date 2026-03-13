@@ -295,6 +295,7 @@ std::array<uint8_t, 32> VaultEngine::rmdir(const std::string& cloud_dir_path, bo
     throw std::runtime_error("failed to delete old commit object: " + to_hex(old_commit_hash));
   }
 
+
   for (const auto& old_hash : old_tree_hashes) {
     try {
       store.remove_object(old_hash);
@@ -332,13 +333,14 @@ std::array<uint8_t, 32> VaultEngine::rmdir(const std::string& cloud_dir_path, bo
 
 // 내부함수
 Config VaultEngine::ensure_store_config(ObjectStore& store) {
-  if (store.config_exists()) {
-    return store.load_config();
-  }
   Config cfg;
-  cfg.salt = random_bytes(16);
-  cfg.iterations = 100000;
-  store.save_config(cfg);
+  try {
+    return store.load_config();
+  } catch (...) {
+    cfg.salt = random_bytes(16);
+    cfg.iterations = 100000;
+    store.save_config(cfg);
+  }
   return cfg;
 }
 
