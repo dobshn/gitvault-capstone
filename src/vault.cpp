@@ -126,7 +126,13 @@ void Vault::execute(Command& cmd) {
         if (cmd.positional.size() != 1 && cmd.positional.size() != 2) {
             throw std::runtime_error("init requires <vault_name> [folder_path]");
         }
-        obj_store.init(dropbox_token, normalize_vault_name(cmd.positional[0]));
+        std::string vault_name = normalize_vault_name(cmd.positional[0]);
+        std::filesystem::path local_vault_dir = getHomeDirectory() + ".gitvault/" + vault_name;
+        if (std::filesystem::exists(local_vault_dir)) {
+            std::error_code ec;
+            std::filesystem::remove_all(local_vault_dir, ec);
+        }
+        obj_store.init(dropbox_token, vault_name);
         VaultEngine vault_engine(obj_store, read_password(cmd));
         std::cout << "initializing store at " << obj_store.root() << "...\n";
         auto commit_hash = vault_engine.init_vault();

@@ -154,6 +154,12 @@ void DropboxStorage::init(std::string access_token, std::string root_path) {
     if (!res) {
       throw std::runtime_error("Create root folder request failed (network/TLS)");
     }
+    if (res->status == 409) {
+      throw std::runtime_error(
+          "Vault root folder already exists: " + root_path + "\n" +
+          "Use `gitvault tree " + root_path + "` to inspect it."
+      );
+    }
     if (res->status != 200) {
       throw std::runtime_error("Create root folder failed. HTTP " + std::to_string(res->status) + ": " +
                                res->body);

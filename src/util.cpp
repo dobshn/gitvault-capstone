@@ -13,7 +13,7 @@
 void print_usage() {
     std::cout << "gitvault <command> [args] [--password <pw>]\n";
     std::cout << "\nCommands:\n";
-    std::cout << "  init <vault_name> [folder_path]\n";
+    std::cout << "  init <vault_name> [folder_path] (Initialize a vault and optionally upload a folder)\n";
     std::cout << "  add <vault_name> <local_path> <cloud_path>\n";
     std::cout << "  remove <vault_name> <cloud_path>\n";
     std::cout << "  mkdir <vault_name> <cloud_dir_path>\n";
