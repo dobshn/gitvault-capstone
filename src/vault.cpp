@@ -19,9 +19,14 @@ namespace {
             return cmd.password.value();
         }
         std::string password;
-        std::cerr << "Password: ";
-        std::getline(std::cin, password);
-        return password;
+        while (true) {
+          std::cerr << "Password: ";
+          std::getline(std::cin, password);
+          if (!password.empty()) {
+              return password;
+          }
+          std::cerr << "Password cannot be empty. Please try again.\n";
+        }
     }
 
     std::string normalize_vault_name(std::string vault_name) {
@@ -276,16 +281,10 @@ void Vault::execute(Command& cmd) {
         std::cout << "Sync cancelled.\n";
         return;
       }
-
-      std::string vault_name = normalize_vault_name(cmd.positional[0]);
-      std::filesystem::path local_vault_dir = getHomeDirectory() + "/.gitvault/" + vault_name;
-      if (std::filesystem::exists(local_vault_dir)) {
-          std::error_code ec;
-          std::filesystem::remove_all(local_vault_dir, ec);
-      }
-      obj_store.fetch(dropbox_token, vault_name);
+      obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
       VaultEngine vault_engine(obj_store, "");
       vault_engine.sync();
+      std::cout << "Sync Done!" << std::endl;
     } else {
         print_usage();
     }

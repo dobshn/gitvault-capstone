@@ -24,8 +24,10 @@ namespace {
 
 VaultEngine::VaultEngine(ObjectStore& s, std::string password) : store(s), pool(3), total_uploads(0), finished_uploads(0) {
     crypto = new CryptoImpl();
-    cfg = ensure_store_config(store);
-    keys = crypto->derive_keys(cfg.salt, cfg.iterations, password);
+    if (!password.empty()) {
+      cfg = ensure_store_config(store);
+      keys = crypto->derive_keys(cfg.salt, cfg.iterations, password);
+    }
 }
 
 VaultEngine::~VaultEngine() {
