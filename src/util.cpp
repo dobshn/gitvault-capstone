@@ -23,6 +23,7 @@ void print_usage() {
     std::cout << "  cat <vault_name> <path>\n";
     std::cout << "  quick-scan <vault_name>\n";
     std::cout << "  deep-scan <vault_name>\n";
+    std::cout << "  sync <vault_name> (Please read the Warning msg)\n";
     std::cout << "\nvault_name can be my_vault or /my_vault.\n";
 }
 
