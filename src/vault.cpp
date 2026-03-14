@@ -85,23 +85,6 @@ namespace {
 			std::getline(ifs, token);
 			return token;
 		}
-
-    void print_usage() {
-        std::cout << "gitvault <command> [args] [--password <pw>]\n";
-        std::cout << "\nCommands:\n";
-        std::cout << "  init <vault_name>\n";
-        std::cout << "  lock <vault_name> <plain_dir>\n";
-        std::cout << "  add <vault_name> <local_path> <cloud_path>\n";
-        std::cout << "  remove <vault_name> <cloud_path>\n";
-        std::cout << "  mkdir <vault_name> <cloud_dir_path>\n";
-        std::cout << "  rmdir <vault_name> <cloud_dir_path>\n";
-        std::cout << "  list <vault_name> [path]\n";
-        std::cout << "  tree <vault_name> [path]\n";
-        std::cout << "  cat <vault_name> <path>\n";
-        std::cout << "  quick-scan <vault_name>\n";
-        std::cout << "  deep-scan <vault_name>\n";
-        std::cout << "\nvault_name can be my_vault or /my_vault.\n";
-    }
 }
 
 Vault::Vault() {
@@ -138,22 +121,17 @@ void Vault::execute(Command& cmd) {
     ObjectStore obj_store;
 
     if (cmd.command == "init") {
-        if (cmd.positional.size() != 1) {
-            throw std::runtime_error("init requires <vault_name>");
+        if (cmd.positional.size() != 1 && cmd.positional.size() != 2) {
+            throw std::runtime_error("init requires <vault_name> [folder_path]");
         }
         obj_store.init(dropbox_token, normalize_vault_name(cmd.positional[0]));
         VaultEngine vault_engine(obj_store, read_password(cmd));
         std::cout << "initializing store at " << obj_store.root() << "...\n";
         auto commit_hash = vault_engine.init_vault();
-        std::cout << "commit=" << to_hex(commit_hash) << "\n";
-    } else if (cmd.command == "lock") {
-        if (cmd.positional.size() != 2) {
-            throw std::runtime_error("lock requires <vault_name> <plain_dir>");
+        if (cmd.positional.size() == 2) {
+          std::filesystem::path plain_dir = cmd.positional[1];
+          commit_hash = vault_engine.lock_vault(plain_dir);
         }
-        obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
-        VaultEngine vault_engine(obj_store, read_password(cmd));
-        std::filesystem::path plain_dir = cmd.positional[1];
-        auto commit_hash = vault_engine.lock_vault(plain_dir);
         std::cout << "\ncommit=" << to_hex(commit_hash) << "\n";
     } else if (cmd.command == "add") {
         if (cmd.positional.size() != 3) {
@@ -219,12 +197,16 @@ void Vault::execute(Command& cmd) {
       Tree tree = vault_engine.list_directory(path);
       for (const auto& entry : tree.entries) {
         char type = (entry.type == 1) ? 'd' : 'f';
-        std::cout << type << " " << entry.name;
+        std::cout << std::left
+                  << std::setw(2) << type
+                  << std::setw(20) << entry.name;
         if (entry.size.has_value()) {
-          std::cout << " " << entry.size.value();
+          std::cout << std::setw(12) << entry.size.value();
+        } else {
+          std::cout << std::setw(12) << "-";
         }
         if (entry.mtime.has_value()) {
-          std::cout << " " << entry.mtime.value();
+          std::cout << entry.mtime.value();
         }
         std::cout << "\n";
       }
