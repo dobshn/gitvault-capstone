@@ -1,6 +1,7 @@
 #include "util.h"
 
 #include <algorithm>
+#include <iostream>
 #include <chrono>
 #include <cstdlib>
 #include <fstream>

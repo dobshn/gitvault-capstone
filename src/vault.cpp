@@ -1,4 +1,6 @@
 #include <fstream>
+#include <iostream>
+#include <iomanip>
 #include <cctype>
 
 #include "vault.h"
@@ -195,18 +197,29 @@ void Vault::execute(Command& cmd) {
       VaultEngine vault_engine(obj_store, read_password(cmd));
       std::string path = (cmd.positional.size() == 2) ? cmd.positional[1] : "";
       Tree tree = vault_engine.list_directory(path);
+
+      std::cout << std::left
+                << std::setw(25) << "NAME"
+                << std::setw(12) << "SIZE"
+                << "Modification Time\n";
+      std::cout << std::string(57, '-') << "\n";
       for (const auto& entry : tree.entries) {
-        char type = (entry.type == 1) ? 'd' : 'f';
-        std::cout << std::left
-                  << std::setw(2) << type
-                  << std::setw(20) << entry.name;
-        if (entry.size.has_value()) {
-          std::cout << std::setw(12) << entry.size.value();
-        } else {
-          std::cout << std::setw(12) << "-";
+        std::string name = entry.name;
+        if (entry.type == 1) { // 디렉터리인 경우 / 붙이기. type=1 은 tree를 의미.
+          name += "/";
         }
+        std::cout << std::left
+                  << std::setw(25) << name;
+        if (entry.size.has_value())
+          std::cout << std::setw(12) << entry.size.value();
+        else
+          std::cout << std::setw(12) << "-";
         if (entry.mtime.has_value()) {
-          std::cout << entry.mtime.value();
+          std::time_t t = entry.mtime.value();
+          std::tm* tm = std::localtime(&t);
+          char buf[20];
+          std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M", tm);
+          std::cout << buf;
         }
         std::cout << "\n";
       }
