@@ -942,7 +942,7 @@ Config VaultEngine::ensure_store_config(ObjectStore& store) {
 }
 
 void VaultEngine::sync() {
-  if (store.remote_vault_exists()) {
+  if (!store.remote_vault_exists()) {
     throw std::runtime_error("remote vault not found");
   }
   

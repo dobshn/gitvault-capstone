@@ -243,5 +243,6 @@ void ObjectStore::fetch_config_from_cloud() const {
 }
 
 bool ObjectStore::remote_vault_exists() const {
-  return (!CloudAPI->exists("config") || !CloudAPI->exists(kHeadKey));
+  bool result = (CloudAPI->exists("config") && CloudAPI->exists(kHeadKey));
+  return result;
 }
