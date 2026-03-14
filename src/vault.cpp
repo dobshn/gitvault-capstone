@@ -127,7 +127,7 @@ void Vault::execute(Command& cmd) {
             throw std::runtime_error("init requires <vault_name> [folder_path]");
         }
         std::string vault_name = normalize_vault_name(cmd.positional[0]);
-        std::filesystem::path local_vault_dir = getHomeDirectory() + "/.gitvault/" + vault_name;
+        std::filesystem::path local_vault_dir = getHomeDirectory() + ".gitvault/" + vault_name;
         if (std::filesystem::exists(local_vault_dir)) {
             std::error_code ec;
             std::filesystem::remove_all(local_vault_dir, ec);
@@ -259,6 +259,33 @@ void Vault::execute(Command& cmd) {
       std::cout << "trees=" << stats.trees_checked << " blobs=" << stats.blobs_checked
                 << " missing=" << stats.blobs_missing << " hashed=" << stats.blobs_hashed
                 << "\n";
+    } else if (cmd.command == "sync") {
+      if (cmd.positional.size() != 1) {
+        throw std::runtime_error(cmd.command + " requires <vault_name>");
+      }
+      std::cout <<
+      "Warning: 'sync' will fetch the vault config and HEAD from the cloud.\n"
+      "This resets local state and prevents detection of rollback attacks\n"
+      "performed on the remote storage.\n"
+      "Confidentiality and integrity will still be preserved.\n\n"
+      "Proceed? (y/N): ";
+
+      std::string answer;
+      std::getline(std::cin, answer);
+      if (!(answer == "y" || answer == "Y")) {
+        std::cout << "Sync cancelled.\n";
+        return;
+      }
+
+      std::string vault_name = normalize_vault_name(cmd.positional[0]);
+      std::filesystem::path local_vault_dir = getHomeDirectory() + ".gitvault/" + vault_name;
+      if (std::filesystem::exists(local_vault_dir)) {
+          std::error_code ec;
+          std::filesystem::remove_all(local_vault_dir, ec);
+      }
+      obj_store.fetch(dropbox_token, vault_name);
+      VaultEngine vault_engine(obj_store, read_password(cmd));
+      vault_engine.sync();
     } else {
         print_usage();
     }

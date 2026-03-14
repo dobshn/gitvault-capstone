@@ -940,3 +940,12 @@ Config VaultEngine::ensure_store_config(ObjectStore& store) {
         f.get();   // 예외 전파 + 완료 대기
     }
 }
+
+void VaultEngine::sync() {
+  if (store.remote_vault_exists()) {
+    throw std::runtime_error("remote vault not found");
+  }
+  
+  store.fetch_config_from_cloud();
+  store.fetch_head_from_cloud();
+}
