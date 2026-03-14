@@ -20,6 +20,35 @@ namespace {
     constexpr size_t kChunkSize = 1 << 20;
     constexpr uint64_t kProgressThresholdBytes = 16ull * 1024 * 1024;
     constexpr uint64_t kProgressIntervalBytes = 64ull * 1024 * 1024;
+    constexpr const char* kScanPendingIcon = u8"⏳";
+    constexpr const char* kScanSuccessIcon = u8"✅";
+    constexpr const char* kScanWarningIcon = u8"⚠️";
+
+    std::string make_tree_scan_line(const std::string& prefix,
+                                    bool last,
+                                    const std::string& name,
+                                    bool is_directory) {
+      std::string line = prefix + (last ? "`-- " : "|-- ") + name;
+      if (is_directory) {
+        line += "/";
+      }
+      return line;
+    }
+
+    void print_scan_pending(std::ostream& out, const std::string& line) {
+      out << line << " " << kScanPendingIcon << std::flush;
+    }
+
+    void print_scan_result(std::ostream& out,
+                           const std::string& line,
+                           const char* icon,
+                           const char* detail = nullptr) {
+      out << "\r\033[2K" << line << " " << icon;
+      if (detail != nullptr) {
+        out << " " << detail;
+      }
+      out << "\n";
+    }
 }
 
 VaultEngine::VaultEngine(ObjectStore& s, std::string password) : store(s), pool(3), total_uploads(0), finished_uploads(0) {
@@ -90,7 +119,7 @@ ScanStats VaultEngine::quick_scan() {
   auto commit_hash = read_head();
   Commit commit = load_commit_checked(commit_hash);
   ScanStats stats;
-  scan_tree(commit.root_hash, false, stats);
+  scan_tree(commit.root_hash, "./", "", false, stats, std::cout);
   return stats;
 }
 
@@ -98,7 +127,7 @@ ScanStats VaultEngine::deep_scan() {
   auto commit_hash = read_head();
   Commit commit = load_commit_checked(commit_hash);
   ScanStats stats;
-  scan_tree(commit.root_hash, true, stats);
+  scan_tree(commit.root_hash, "./", "", true, stats, std::cout);
   return stats;
 }
 
@@ -661,30 +690,71 @@ Config VaultEngine::ensure_store_config(ObjectStore& store) {
   }
 
   void VaultEngine::scan_tree(const std::array<uint8_t, 32>& tree_hash,
-                bool deep,
-                ScanStats& stats) {
-    Tree tree = load_tree_checked(tree_hash);
-    stats.trees_checked++;
+                              const std::string& line,
+                              const std::string& child_prefix,
+                              bool deep,
+                              ScanStats& stats,
+                              std::ostream& out) {
+    print_scan_pending(out, line);
 
-    for (const auto& entry : tree.entries) {
+    Tree tree;
+    try {
+      tree = load_tree_checked(tree_hash);
+      stats.trees_checked++;
+      print_scan_result(out, line, kScanSuccessIcon);
+    } catch (const std::exception& ex) {
+      stats.errors++;
+      print_scan_result(out, line, kScanWarningIcon);
+      out << child_prefix << "[error] " << ex.what() << "\n";
+      return;
+    }
+
+    std::vector<Entry> entries = tree.entries;
+    std::sort(entries.begin(), entries.end(), [](const Entry& a, const Entry& b) {
+      return a.name < b.name;
+    });
+
+    for (size_t i = 0; i < entries.size(); ++i) {
+      const Entry& entry = entries[i];
+      bool last = (i + 1 == entries.size());
+      std::string entry_line = make_tree_scan_line(child_prefix, last, entry.name, entry.type == 1);
+
       if (entry.type == 1) {
-        scan_tree(entry.hash, deep, stats);
+        std::string next_prefix = child_prefix + (last ? "    " : "|   ");
+        scan_tree(entry.hash, entry_line, next_prefix, deep, stats, out);
         continue;
       }
 
-      stats.blobs_checked++;
-      if (!store.object_exists(entry.hash)) {
-        stats.blobs_missing++;
-        continue;
-      }
+      print_scan_pending(out, entry_line);
 
-      if (deep) {
-        ByteVec data = store.read_object(entry.hash);
-        auto actual_hash = Sha256::hash(data);
-        if (!constant_time_equal(actual_hash, entry.hash)) {
-          throw std::runtime_error("blob hash mismatch: " + to_hex(entry.hash));
+      bool warning_printed = false;
+      try {
+        stats.blobs_checked++;
+        if (!store.object_exists(entry.hash)) {
+          stats.blobs_missing++;
+          print_scan_result(out, entry_line, kScanWarningIcon, "[missing]");
+          continue;
         }
-        stats.blobs_hashed++;
+
+        if (deep) {
+          ByteVec data = store.read_object(entry.hash);
+          auto actual_hash = Sha256::hash(data);
+          if (!constant_time_equal(actual_hash, entry.hash)) {
+            stats.errors++;
+            print_scan_result(out, entry_line, kScanWarningIcon, "[hash mismatch]");
+            continue;
+          }
+          stats.blobs_hashed++;
+        }
+
+        print_scan_result(out, entry_line, kScanSuccessIcon);
+      } catch (const std::exception& ex) {
+        stats.errors++;
+        if (!warning_printed) {
+          print_scan_result(out, entry_line, kScanWarningIcon);
+        }
+        std::string detail_prefix = child_prefix + (last ? "    " : "|   ");
+        out << detail_prefix << "[error] " << ex.what() << "\n";
       }
     }
   }

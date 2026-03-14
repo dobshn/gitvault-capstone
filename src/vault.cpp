@@ -263,7 +263,7 @@ void Vault::execute(Command& cmd) {
                             : vault_engine.deep_scan();
       std::cout << "trees=" << stats.trees_checked << " blobs=" << stats.blobs_checked
                 << " missing=" << stats.blobs_missing << " hashed=" << stats.blobs_hashed
-                << "\n";
+                << " errors=" << stats.errors << "\n";
     } else if (cmd.command == "sync") {
       if (cmd.positional.size() != 1) {
         throw std::runtime_error(cmd.command + " requires <vault_name>");
