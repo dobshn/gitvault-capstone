@@ -45,4 +45,8 @@ public:
   void write_object(const std::array<uint8_t, 32>& hash, const ByteVec& data) const;
   void write_object_from_file(const std::array<uint8_t, 32>& hash, const std::filesystem::path& path) const;
   ByteVec read_object(const std::array<uint8_t, 32>& hash) const;
+
+  bool remote_vault_exists() const;
+  void fetch_head_from_cloud() const;
+  void fetch_config_from_cloud() const;
 };

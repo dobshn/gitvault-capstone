@@ -38,6 +38,7 @@ class VaultEngine {
 public:
     VaultEngine(ObjectStore& s, std::string);
     ~VaultEngine();
+    void sync();
     std::array<uint8_t, 32> init_vault();
     std::array<uint8_t, 32> lock_vault(const std::filesystem::path& plain_dir);
     std::array<uint8_t, 32> add(const std::filesystem::path& local_path, const std::string& cloud_path);

@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "vault.h"
+#include "util.h"
 
 namespace {
     Command parse_options(int argc, char** argv, int start) {
@@ -50,23 +51,6 @@ namespace {
             throw std::runtime_error("vault_name must not contain '/' or '\\\\'");
         }
         return vault_name;
-    }
-
-    void print_usage() {
-    std::cout << "gitvault <command> [args] [--password <pw>] \n";
-    std::cout << "\nCommands:\n";
-    std::cout << "  init <vault_name>\n";
-    std::cout << "  lock <plain_dir> <vault_name>\n";
-    std::cout << "  add <vault_name> <local_path> <cloud_path>\n";
-    std::cout << "  remove <vault_name> <cloud_path>\n";
-    std::cout << "  mkdir <vault_name> <cloud_dir_path>\n";
-    std::cout << "  rmdir <vault_name> <cloud_dir_path>\n";
-    std::cout << "  list <vault_name> [path]\n";
-    std::cout << "  tree <vault_name> [path]\n";
-    std::cout << "  cat <vault_name> <path>\n";
-    std::cout << "  quick-scan <vault_name>\n";
-    std::cout << "  deep-scan <vault_name>\n";
-    std::cout << "\nvault_name can be my_vault or /my_vault.\n";
     }
 }  // namespace
 

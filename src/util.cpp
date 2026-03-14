@@ -1,6 +1,7 @@
 #include "util.h"
 
 #include <algorithm>
+#include <iostream>
 #include <chrono>
 #include <cstdlib>
 #include <fstream>
@@ -8,6 +9,23 @@
 #include <sstream>
 #include <stdexcept>
 #include <system_error>
+
+void print_usage() {
+    std::cout << "gitvault <command> [args] [--password <pw>]\n";
+    std::cout << "\nCommands:\n";
+    std::cout << "  init <vault_name> [folder_path] (Initialize a vault and optionally upload a folder)\n";
+    std::cout << "  add <vault_name> <local_path> <cloud_path>\n";
+    std::cout << "  remove <vault_name> <cloud_path>\n";
+    std::cout << "  mkdir <vault_name> <cloud_dir_path>\n";
+    std::cout << "  rmdir <vault_name> <cloud_dir_path>\n";
+    std::cout << "  list <vault_name> [path]\n";
+    std::cout << "  tree <vault_name> [path]\n";
+    std::cout << "  cat <vault_name> <path>\n";
+    std::cout << "  quick-scan <vault_name>\n";
+    std::cout << "  deep-scan <vault_name>\n";
+    std::cout << "  sync <vault_name> (Please read the Warning msg)\n";
+    std::cout << "\nvault_name can be my_vault or /my_vault.\n";
+}
 
 std::string getHomeDirectory() {
 #if defined(_WIN32) || defined(_WIN64)

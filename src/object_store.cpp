@@ -73,6 +73,15 @@ bool ObjectStore::config_exists() const {
 }
 
 Config ObjectStore::load_config() const {
+  if (!std::filesystem::exists(config_path())) {
+      try {
+          ByteVec data = CloudAPI->get("config");
+          write_file_bytes(config_path(), data);  // <- 여기
+          std::cout << "Local config not found. Using cloud config file." << std::endl;
+      } catch (...) {
+          throw std::runtime_error("config not found locally or in cloud");
+      }
+  }
   std::ifstream file(config_path());
   if (!file) {
     throw std::runtime_error("config not found: " + config_path().string());
@@ -125,6 +134,12 @@ void ObjectStore::save_config(const Config& config) const {
   file << "kdf_iter=" << config.iterations << "\n";
   file << "kdf_salt=" << to_hex(config.salt) << "\n";
   file << "enc=aes-256-ctr\n";
+
+  file.close();  // 중요: flush
+
+  // 파일 읽어서 클라우드 업로드
+  ByteVec data = read_file_bytes(path);
+  CloudAPI->put("config", data, true);
 }
 
 void ObjectStore::write_head(const ByteVec& data) const {
@@ -136,25 +151,33 @@ void ObjectStore::write_head(const ByteVec& data) const {
 }
 
 ByteVec ObjectStore::read_head() const {
-  const std::filesystem::path local_head = head_path();
-  if (std::filesystem::exists(local_head)) {
-    return read_file_bytes(local_head);
-  }
+    const auto local_head = head_path();
 
-  if (CloudAPI->exists(kHeadKey)) {
-    std::cerr << "warning: local HEAD not found at " << local_head.string()
-              << ", falling back to cloud HEAD\n";
-    ByteVec cloud_head = CloudAPI->get(kHeadKey);
-    try {
-      write_file_bytes(local_head, cloud_head);
-    } catch (const std::exception& ex) {
-      std::cerr << "warning: failed to cache HEAD locally at " << local_head.string()
-                << ": " << ex.what() << "\n";
+    //먼저 로컬 확인
+    if (std::filesystem::exists(local_head)) {
+        return read_file_bytes(local_head);
     }
-    return cloud_head;
-  }
 
-  throw std::runtime_error("HEAD not found in local or cloud");
+    //로컬 없으면 클라우드 확인
+    if (CloudAPI->exists(kHeadKey)) {
+        std::cerr << "Local HEAD not found at " << local_head.string()
+                  << ", falling back to cloud HEAD\n";
+
+        ByteVec cloud_head = CloudAPI->get(kHeadKey);
+        std::cerr << "Downloaded HEAD size: " << cloud_head.size() << "\n";
+
+        //로컬 캐싱 시도
+        try {
+            write_file_bytes(local_head, cloud_head);
+        } catch (const std::exception& ex) {
+            std::cerr << "Warning: failed to cache HEAD locally at "
+                      << local_head.string() << ": " << ex.what() << "\n";
+        }
+
+        return cloud_head;
+    }
+
+    throw std::runtime_error("HEAD not found in local or cloud");
 }
 
 std::string ObjectStore::object_key(const std::array<uint8_t, 32>& hash) const {
@@ -195,7 +218,31 @@ void ObjectStore::write_object_from_file(const std::array<uint8_t, 32>& hash,
 ByteVec ObjectStore::read_object(const std::array<uint8_t, 32>& hash) const {
   std::string key = object_key(hash);
   if (!CloudAPI->exists(key)) {
-    throw std::runtime_error("object not found: " + root_ + "/" + key);
+    throw std::runtime_error(    "object not found: " + root_ + "/" + key +
+    ". If this vault was initialized on another device, try \"sync\" command");
   }
   return CloudAPI->get(key);
+}
+
+void ObjectStore::fetch_head_from_cloud() const {
+  ByteVec data = CloudAPI->get(kHeadKey);
+
+  const std::filesystem::path local_head = head_path();
+  std::filesystem::create_directories(local_head.parent_path());
+
+  write_file_bytes(local_head, data);
+}
+
+void ObjectStore::fetch_config_from_cloud() const {
+  ByteVec data = CloudAPI->get("config");
+
+  const std::filesystem::path path = config_path();
+  std::filesystem::create_directories(path.parent_path());
+
+  write_file_bytes(path, data);
+}
+
+bool ObjectStore::remote_vault_exists() const {
+  bool result = (CloudAPI->exists("config") && CloudAPI->exists(kHeadKey));
+  return result;
 }

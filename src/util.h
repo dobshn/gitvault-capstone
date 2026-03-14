@@ -39,3 +39,4 @@ uint64_t file_mtime_seconds(const std::filesystem::path& path);
 std::vector<std::string> split_path(const std::string& path);
 
 bool is_descendant_path(const std::filesystem::path& base, const std::filesystem::path& target);
+void print_usage();

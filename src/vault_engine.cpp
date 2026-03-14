@@ -24,8 +24,10 @@ namespace {
 
 VaultEngine::VaultEngine(ObjectStore& s, std::string password) : store(s), pool(3), total_uploads(0), finished_uploads(0) {
     crypto = new CryptoImpl();
-    cfg = ensure_store_config(store);
-    keys = crypto->derive_keys(cfg.salt, cfg.iterations, password);
+    if (!password.empty()) {
+      cfg = ensure_store_config(store);
+      keys = crypto->derive_keys(cfg.salt, cfg.iterations, password);
+    }
 }
 
 VaultEngine::~VaultEngine() {
@@ -295,6 +297,7 @@ std::array<uint8_t, 32> VaultEngine::rmdir(const std::string& cloud_dir_path, bo
     throw std::runtime_error("failed to delete old commit object: " + to_hex(old_commit_hash));
   }
 
+
   for (const auto& old_hash : old_tree_hashes) {
     try {
       store.remove_object(old_hash);
@@ -332,13 +335,14 @@ std::array<uint8_t, 32> VaultEngine::rmdir(const std::string& cloud_dir_path, bo
 
 // 내부함수
 Config VaultEngine::ensure_store_config(ObjectStore& store) {
-  if (store.config_exists()) {
-    return store.load_config();
-  }
   Config cfg;
-  cfg.salt = random_bytes(16);
-  cfg.iterations = 100000;
-  store.save_config(cfg);
+  try {
+    return store.load_config();
+  } catch (...) {
+    cfg.salt = random_bytes(16);
+    cfg.iterations = 100000;
+    store.save_config(cfg);
+  }
   return cfg;
 }
 
@@ -937,4 +941,13 @@ Config VaultEngine::ensure_store_config(ObjectStore& store) {
     for (auto& f : uploads) {
         f.get();   // 예외 전파 + 완료 대기
     }
+}
+
+void VaultEngine::sync() {
+  if (!store.remote_vault_exists()) {
+    throw std::runtime_error("remote vault not found");
+  }
+  
+  store.fetch_config_from_cloud();
+  store.fetch_head_from_cloud();
 }

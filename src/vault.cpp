@@ -1,4 +1,6 @@
 #include <fstream>
+#include <iostream>
+#include <iomanip>
 #include <cctype>
 
 #include "vault.h"
@@ -17,9 +19,14 @@ namespace {
             return cmd.password.value();
         }
         std::string password;
-        std::cerr << "Password: ";
-        std::getline(std::cin, password);
-        return password;
+        while (true) {
+          std::cerr << "Password: ";
+          std::getline(std::cin, password);
+          if (!password.empty()) {
+              return password;
+          }
+          std::cerr << "Password cannot be empty. Please try again.\n";
+        }
     }
 
     std::string normalize_vault_name(std::string vault_name) {
@@ -85,23 +92,6 @@ namespace {
 			std::getline(ifs, token);
 			return token;
 		}
-
-    void print_usage() {
-        std::cout << "gitvault <command> [args] [--password <pw>]\n";
-        std::cout << "\nCommands:\n";
-        std::cout << "  init <vault_name>\n";
-        std::cout << "  lock <vault_name> <plain_dir>\n";
-        std::cout << "  add <vault_name> <local_path> <cloud_path>\n";
-        std::cout << "  remove <vault_name> <cloud_path>\n";
-        std::cout << "  mkdir <vault_name> <cloud_dir_path>\n";
-        std::cout << "  rmdir <vault_name> <cloud_dir_path>\n";
-        std::cout << "  list <vault_name> [path]\n";
-        std::cout << "  tree <vault_name> [path]\n";
-        std::cout << "  cat <vault_name> <path>\n";
-        std::cout << "  quick-scan <vault_name>\n";
-        std::cout << "  deep-scan <vault_name>\n";
-        std::cout << "\nvault_name can be my_vault or /my_vault.\n";
-    }
 }
 
 Vault::Vault() {
@@ -138,22 +128,23 @@ void Vault::execute(Command& cmd) {
     ObjectStore obj_store;
 
     if (cmd.command == "init") {
-        if (cmd.positional.size() != 1) {
-            throw std::runtime_error("init requires <vault_name>");
+        if (cmd.positional.size() != 1 && cmd.positional.size() != 2) {
+            throw std::runtime_error("init requires <vault_name> [folder_path]");
         }
-        obj_store.init(dropbox_token, normalize_vault_name(cmd.positional[0]));
+        std::string vault_name = normalize_vault_name(cmd.positional[0]);
+        std::filesystem::path local_vault_dir = getHomeDirectory() + "/.gitvault/" + vault_name;
+        if (std::filesystem::exists(local_vault_dir)) {
+            std::error_code ec;
+            std::filesystem::remove_all(local_vault_dir, ec);
+        }
+        obj_store.init(dropbox_token, vault_name);
         VaultEngine vault_engine(obj_store, read_password(cmd));
         std::cout << "initializing store at " << obj_store.root() << "...\n";
         auto commit_hash = vault_engine.init_vault();
-        std::cout << "commit=" << to_hex(commit_hash) << "\n";
-    } else if (cmd.command == "lock") {
-        if (cmd.positional.size() != 2) {
-            throw std::runtime_error("lock requires <vault_name> <plain_dir>");
+        if (cmd.positional.size() == 2) {
+          std::filesystem::path plain_dir = cmd.positional[1];
+          commit_hash = vault_engine.lock_vault(plain_dir);
         }
-        obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
-        VaultEngine vault_engine(obj_store, read_password(cmd));
-        std::filesystem::path plain_dir = cmd.positional[1];
-        auto commit_hash = vault_engine.lock_vault(plain_dir);
         std::cout << "\ncommit=" << to_hex(commit_hash) << "\n";
     } else if (cmd.command == "add") {
         if (cmd.positional.size() != 3) {
@@ -217,14 +208,29 @@ void Vault::execute(Command& cmd) {
       VaultEngine vault_engine(obj_store, read_password(cmd));
       std::string path = (cmd.positional.size() == 2) ? cmd.positional[1] : "";
       Tree tree = vault_engine.list_directory(path);
+
+      std::cout << std::left
+                << std::setw(25) << "NAME"
+                << std::setw(12) << "SIZE"
+                << "Modification Time\n";
+      std::cout << std::string(57, '-') << "\n";
       for (const auto& entry : tree.entries) {
-        char type = (entry.type == 1) ? 'd' : 'f';
-        std::cout << type << " " << entry.name;
-        if (entry.size.has_value()) {
-          std::cout << " " << entry.size.value();
+        std::string name = entry.name;
+        if (entry.type == 1) { // 디렉터리인 경우 / 붙이기. type=1 은 tree를 의미.
+          name += "/";
         }
+        std::cout << std::left
+                  << std::setw(25) << name;
+        if (entry.size.has_value())
+          std::cout << std::setw(12) << entry.size.value();
+        else
+          std::cout << std::setw(12) << "-";
         if (entry.mtime.has_value()) {
-          std::cout << " " << entry.mtime.value();
+          std::time_t t = entry.mtime.value();
+          std::tm* tm = std::localtime(&t);
+          char buf[20];
+          std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M", tm);
+          std::cout << buf;
         }
         std::cout << "\n";
       }
@@ -258,6 +264,27 @@ void Vault::execute(Command& cmd) {
       std::cout << "trees=" << stats.trees_checked << " blobs=" << stats.blobs_checked
                 << " missing=" << stats.blobs_missing << " hashed=" << stats.blobs_hashed
                 << "\n";
+    } else if (cmd.command == "sync") {
+      if (cmd.positional.size() != 1) {
+        throw std::runtime_error(cmd.command + " requires <vault_name>");
+      }
+      std::cout <<
+      "Warning: 'sync' will fetch the vault config and HEAD from the cloud.\n"
+      "This resets local state and prevents detection of rollback attacks\n"
+      "performed on the remote storage.\n"
+      "Confidentiality and integrity will still be preserved.\n\n"
+      "Proceed? (y/N): ";
+
+      std::string answer;
+      std::getline(std::cin, answer);
+      if (!(answer == "y" || answer == "Y")) {
+        std::cout << "Sync cancelled.\n";
+        return;
+      }
+      obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
+      VaultEngine vault_engine(obj_store, "");
+      vault_engine.sync();
+      std::cout << "Sync Done!" << std::endl;
     } else {
         print_usage();
     }
