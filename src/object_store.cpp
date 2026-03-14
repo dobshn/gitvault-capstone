@@ -64,8 +64,27 @@ void ObjectStore::init(std::string access_token, std::string root_path) {
   CloudAPI->init(access_token, root_);
 }
 
+bool ObjectStore::destroy(std::string access_token, std::string root_path) {
+  root_ = normalize_root_path(std::move(root_path));
+  return CloudAPI->destroy(access_token, root_);
+}
+
 const std::string& ObjectStore::root() const {
   return root_;
+}
+
+bool ObjectStore::remove_local_metadata() const {
+  const std::filesystem::path path = metadata_dir();
+  if (!std::filesystem::exists(path)) {
+    return false;
+  }
+
+  std::error_code ec;
+  const auto removed = std::filesystem::remove_all(path, ec);
+  if (ec) {
+    throw std::runtime_error("failed to remove local metadata: " + path.string());
+  }
+  return removed > 0;
 }
 
 bool ObjectStore::config_exists() const {

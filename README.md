@@ -29,6 +29,9 @@ cmake --build build
 # Initialize a vault in Dropbox and optionally upload a local folder
 ./build/gitvault init <vault_name> [folder_path]
 
+# Destroy a vault completely (local metadata + Dropbox folder)
+./build/gitvault destroy <vault_name>
+
 # Add one local file into a vault path (missing parent directories are created automatically)
 ./build/gitvault add <vault_name> <local_path> <cloud_path>
 
@@ -85,6 +88,8 @@ Provide the vault password via:
 
 If password is not provided, the tool prompts on stdin.
 `vault_name` can be `my_vault` or `/my_vault`.
+
+`destroy` removes both `~/.gitvault/<vault_name>/` and the Dropbox folder `/<vault_name>` after a confirmation prompt.
 
 ### Local metadata
 
