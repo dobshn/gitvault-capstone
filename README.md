@@ -10,7 +10,7 @@ Requires:
   - `httplib.h`
   - `json.hpp`
 
-On macOS you may need `brew install openssl` and set `OPENSSL_ROOT_DIR`.
+On macOS you may need `brew install openssl@3` and set `OPENSSL_ROOT_DIR`.
 
 ```
 cmake -S . -B build
@@ -20,64 +20,84 @@ cmake --build build
 ## Usage
 
 ```
-# Initialize an empty object store in Dropbox
-./build/gitvault init <vault_name> --dropbox-token <token>
+# Log in to Dropbox via browser-based OAuth and save a local refresh token
+./build/gitvault login
 
-# Encrypt a plaintext directory into Dropbox
-./build/gitvault lock <plain_dir> <vault_name> --dropbox-token <token>
+# Remove the saved refresh token
+./build/gitvault logout
+
+# Initialize a vault in Dropbox and optionally upload a local folder
+./build/gitvault init <vault_name> [folder_path]
 
 # Add one local file into a vault path (missing parent directories are created automatically)
-./build/gitvault add <vault_name> <local_path> <cloud_path> --dropbox-token <token>
+./build/gitvault add <vault_name> <local_path> <cloud_path>
 
 # Remove one file from an existing vault path
-./build/gitvault remove <vault_name> <cloud_path> --dropbox-token <token>
+./build/gitvault remove <vault_name> <cloud_path>
 
 # Create one directory in a vault path (missing parent directories are created automatically)
-./build/gitvault mkdir <vault_name> <cloud_dir_path> --dropbox-token <token>
+./build/gitvault mkdir <vault_name> <cloud_dir_path>
 
 # Remove one directory from an existing vault path (non-empty requires confirm)
-./build/gitvault rmdir <vault_name> <cloud_dir_path> --dropbox-token <token>
+./build/gitvault rmdir <vault_name> <cloud_dir_path>
 
 # List a directory inside the vault (lazy load)
-./build/gitvault list <vault_name> [path] --dropbox-token <token>
+./build/gitvault list <vault_name> [path]
 
 # Print the directory structure as a tree
-./build/gitvault tree <vault_name> [path] --dropbox-token <token>
+./build/gitvault tree <vault_name> [path]
 
 # Print a file from the vault
-./build/gitvault cat <vault_name> <path> --dropbox-token <token>
+./build/gitvault cat <vault_name> <path>
 
 # Quick scan: verify commit/tree links and blob existence
-./build/gitvault quick-scan <vault_name> --dropbox-token <token>
+./build/gitvault quick-scan <vault_name>
 
 # Deep scan: verify commit/tree and re-hash all blobs
-./build/gitvault deep-scan <vault_name> --dropbox-token <token>
+./build/gitvault deep-scan <vault_name>
 ```
+
+### Dropbox login
+
+Run this once before using vault commands:
+
+```bash
+./build/gitvault login
+```
+
+`login` starts a local OAuth callback server on `127.0.0.1` using a free port in the `8080-8100` range, opens the Dropbox authorization URL in your browser when possible, and stores the Dropbox refresh token locally at `~/.gitvault/.gitvault_refresh_token`.
+
+If the browser cannot be opened automatically, GitVault prints the URL so you can open it manually. To remove the saved refresh token later:
+
+```bash
+./build/gitvault logout
+```
+
+All other commands automatically exchange the saved refresh token for a short-lived Dropbox access token. If you are not logged in, commands will fail and ask you to run `login` first.
 
 ### Password input
 
-Provide secrets via:
+Provide the vault password via:
 
 ```
---dropbox-token <token>
 --password <text>
---password-file <path>
 ```
 
-If `--dropbox-token` is omitted, the tool uses `GITVAULT_DROPBOX_TOKEN` or `DROPBOX_ACCESS_TOKEN`.
 If password is not provided, the tool prompts on stdin.
 `vault_name` can be `my_vault` or `/my_vault`.
 
 ### Local metadata
 
-Vault metadata is stored locally at:
+GitVault stores local state at:
 
 ```
+~/.gitvault/.gitvault_refresh_token
 ~/.gitvault/<vault_name>/
   config
   HEAD
 ```
 
+The refresh token file is created by `login`.
 `HEAD` is read from local storage first. If the local `HEAD` file is missing, GitVault falls back to the cloud `HEAD` and prints a warning.
 
 ### Remote store layout
@@ -97,17 +117,18 @@ The `HEAD` file contains the encrypted commit hash plus an HMAC for integrity.
 # 1) 빌드
 cmake -S . -B build && cmake --build build -j4
 
-# 2) 토큰/테스트 데이터 준비
-export GITVAULT_DROPBOX_TOKEN="<YOUR_DROPBOX_TOKEN>"
+# 2) Dropbox 로그인 (브라우저 인증 필요, 한 번만 하면 됨)
+./build/gitvault login
+
+# 3) 테스트 데이터 준비
 VAULT_NAME="gitvault-smoke-$(date +%s)"
 WORK="$(mktemp -d)"
 mkdir -p "$WORK/plain/sub"
 echo "hello vault" > "$WORK/plain/a.txt"
 echo '{"ok":true}' > "$WORK/plain/sub/b.json"
 
-# 3) Dropbox vault 동작 확인
-./build/gitvault init "$VAULT_NAME"
-./build/gitvault lock "$WORK/plain" "$VAULT_NAME" --password test123
+# 4) Dropbox vault 동작 확인
+./build/gitvault init "$VAULT_NAME" "$WORK/plain" --password test123
 ./build/gitvault list "$VAULT_NAME" --password test123
 ./build/gitvault tree "$VAULT_NAME" --password test123
 ./build/gitvault cat "$VAULT_NAME" a.txt --password test123
