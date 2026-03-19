@@ -146,6 +146,42 @@ void Vault::execute(Command& cmd) {
           commit_hash = vault_engine.lock_vault(plain_dir);
         }
         std::cout << "\ncommit=" << to_hex(commit_hash) << "\n";
+    } else if (cmd.command == "destroy") {
+        if (cmd.positional.size() != 1) {
+            throw std::runtime_error("destroy requires <vault_name>");
+        }
+
+        const std::string vault_name = normalize_vault_name(cmd.positional[0]);
+        const std::filesystem::path local_vault_dir =
+            std::filesystem::path(getHomeDirectory()) / ".gitvault" / vault_name;
+
+        std::cout
+            << "Warning: 'destroy' will permanently remove:\n"
+            << "  local metadata: " << local_vault_dir.string() << "\n"
+            << "  remote Dropbox folder: /" << vault_name << "\n\n"
+            << "Proceed? (y/N): ";
+
+        std::string answer;
+        std::getline(std::cin, answer);
+        if (!(answer == "y" || answer == "Y")) {
+            std::cout << "Destroy cancelled.\n";
+            return;
+        }
+
+        const bool remote_deleted = obj_store.destroy(dropbox_token, vault_name);
+        const bool local_deleted = obj_store.remove_local_metadata();
+
+        if (remote_deleted) {
+            std::cout << "Remote vault folder deleted.\n";
+        } else {
+            std::cout << "Remote vault folder not found.\n";
+        }
+
+        if (local_deleted) {
+            std::cout << "Local vault metadata deleted.\n";
+        } else {
+            std::cout << "Local vault metadata not found.\n";
+        }
     } else if (cmd.command == "add") {
         if (cmd.positional.size() != 3) {
             throw std::runtime_error("add requires <vault_name> <local_path> <cloud_path>");
@@ -263,7 +299,7 @@ void Vault::execute(Command& cmd) {
                             : vault_engine.deep_scan();
       std::cout << "trees=" << stats.trees_checked << " blobs=" << stats.blobs_checked
                 << " missing=" << stats.blobs_missing << " hashed=" << stats.blobs_hashed
-                << "\n";
+                << " errors=" << stats.errors << "\n";
     } else if (cmd.command == "sync") {
       if (cmd.positional.size() != 1) {
         throw std::runtime_error(cmd.command + " requires <vault_name>");

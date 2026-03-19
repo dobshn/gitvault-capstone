@@ -27,6 +27,7 @@ private:
 public:
     void init(std::string access_token, std::string root_path) override;
     void fetch(std::string access_token, std::string root_path) override;
+    bool destroy(std::string access_token, std::string root_path) override;
     void put(std::string_view path, const ByteVec& data, bool overwrite = true) const override;
     ByteVec get(std::string_view path) const override;
     bool exists(std::string_view path) const override;

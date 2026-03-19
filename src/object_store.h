@@ -29,8 +29,10 @@ public:
   ~ObjectStore();
   void init(std::string access_token, std::string root_path);
   void fetch(std::string access_token, std::string root_path);
+  bool destroy(std::string access_token, std::string root_path);
 
   const std::string& root() const;
+  bool remove_local_metadata() const;
 
   bool config_exists() const;
   Config load_config() const;

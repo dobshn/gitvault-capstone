@@ -183,6 +183,49 @@ void DropboxStorage::init(std::string access_token, std::string root_path) {
   fetched = true;
 }
 
+bool DropboxStorage::destroy(std::string access_token, std::string root_path) {
+  thread_local httplib::SSLClient client("api.dropboxapi.com", 443);
+  client.set_keep_alive(true);
+
+  access_token_ = std::move(access_token);
+  root_path_ = std::move(root_path);
+  fetched = false;
+
+  if (access_token_.empty()) {
+    throw std::runtime_error("dropbox access token is empty");
+  }
+  require_root_path(root_path_);
+
+  {
+    auto res = client.Post("/2/users/get_current_account",
+                                {{"Authorization", "Bearer " + access_token_}},
+                                "null",
+                                "application/json");
+    check(res, 200, "Token validation");
+  }
+
+  auto res = client.Post("/2/files/delete_v2",
+                              {{"Authorization", "Bearer " + access_token_}},
+                              json{{"path", root_path_}}.dump(),
+                              "application/json");
+  if (!res) {
+    throw std::runtime_error("Delete vault request failed (network/TLS)");
+  }
+  if (res->status == 200) {
+    return true;
+  }
+  if (res->status == 409) {
+    return false;
+  }
+
+  std::string body = res->body;
+  if (body.size() > 4096) {
+    body.resize(4096);
+    body += "...";
+  }
+  throw std::runtime_error("Delete vault failed. HTTP " + std::to_string(res->status) + ": " + body);
+}
+
 // path에 data를 overwrite 유무에 맞추어 업로드 (150MB 제한)
 void DropboxStorage::put(std::string_view path, const ByteVec& data, bool overwrite) const {
   require_initialized("put()");

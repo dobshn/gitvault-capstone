@@ -7,12 +7,14 @@
 #include "thread_pool.h"
 #include <future>
 #include <mutex>
+#include <ostream>
 
 struct ScanStats {
   size_t trees_checked = 0;
   size_t blobs_checked = 0;
   size_t blobs_missing = 0;
   size_t blobs_hashed = 0;
+  size_t errors = 0;
 };
 
 struct PathResult {
@@ -76,7 +78,12 @@ private:
     std::array<uint8_t, 32> store_blob(const std::filesystem::path& path);
     std::array<uint8_t, 32> store_tree(const std::filesystem::path& dir);
     PathResult resolve_path(const std::string& path);
-    void scan_tree(const std::array<uint8_t, 32>& tree_hash, bool deep, ScanStats& stats);
+    void scan_tree(const std::array<uint8_t, 32>& tree_hash,
+                   const std::string& line,
+                   const std::string& child_prefix,
+                   bool deep,
+                   ScanStats& stats,
+                   std::ostream& out);
     void collect_subtree_hashes(const std::array<uint8_t, 32>& tree_hash,
                                 std::vector<std::array<uint8_t, 32>>& tree_hashes,
                                 std::vector<std::array<uint8_t, 32>>& blob_hashes);
