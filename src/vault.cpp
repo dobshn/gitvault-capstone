@@ -306,9 +306,8 @@ void Vault::execute(Command& cmd) {
       }
       std::cout <<
       "Warning: 'sync' will fetch the vault config and HEAD from the cloud.\n"
-      "This resets local state and prevents detection of rollback attacks\n"
-      "performed on the remote storage.\n"
-      "Confidentiality and integrity will still be preserved.\n\n"
+      "\033[31m" << "This resets local state and prevents detection of rollback attacks performed on the remote storage.\n" << "\033[0m"
+      "But, Confidentiality and integrity will still be preserved.\n\n"
       "Proceed? (y/N): ";
 
       std::string answer;

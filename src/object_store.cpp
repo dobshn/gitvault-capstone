@@ -177,7 +177,7 @@ ByteVec ObjectStore::read_head() const {
         return read_file_bytes(local_head);
     }
 
-    //로컬 없으면 클라우드 확인
+    /*로컬 없으면 클라우드 확인
     if (CloudAPI->exists(kHeadKey)) {
         std::cerr << "Local HEAD not found at " << local_head.string()
                   << ", falling back to cloud HEAD\n";
@@ -195,8 +195,8 @@ ByteVec ObjectStore::read_head() const {
 
         return cloud_head;
     }
-
-    throw std::runtime_error("HEAD not found in local or cloud");
+    */
+    throw std::runtime_error("If this vault was initialized on another device, try \"sync\" command");
 }
 
 std::string ObjectStore::object_key(const std::array<uint8_t, 32>& hash) const {
