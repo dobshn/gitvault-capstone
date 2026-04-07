@@ -8,7 +8,7 @@
 
 이에 GitVault는 클라우드 스토리지 서비스 제공자를 신뢰하지 않는 환경에서도 기밀성과 무결성을 보장하는 메커니즘을 제공한다. GitVault의 핵심 아이디어는 데이터의 1비트만 수정되더라도 다른 commit이 만들어지는 Git의 구조에서 착안하였다. GitVault는 사용자의 Vault를 Commit, Tree, Blob 객체로 나누어 저장한다. 이들은 Merkle Tree를 이루어 파일에 대한 접근이 일어날 때마다 디렉토리 경로에 대한 무결성이 자동으로 검증된다. 또한 Vault를 잠글 때 클라이언트 측에 Commit 객체의 hash값을 저장하고, Vault를 잠금 해제할 때 기존에 저장해두었던 hash값과 클라우드에 저장된 값을 비교하여 무결성을 검증한다.
 
-GitVault는 Vault의 전체 디렉토리 구조의 무결성을 검증하는 Quick Scan 기능과 Vault 자체의 무결성을 검증하는 Deep Scan 기능을 제공한다. Quick Scan은 Tree 객체들의 무결성 검증을 통해 디렉토리 구조가 변경되지 않았음을 검증한다. Deep Scan은 모든 Blob 객체를 검증하여 Vault 전체가 변하지 않았음을 검증한다.
+GitVault는 Vault의 전체 디렉토리 구조의 무결성을 검증하는 Quick Scan 기능과 Vault 자체의 무결성을 검증하는 Deep Scan 기능을 제공한다. Quick Scan은 Tree 객체들의 무결성 검증을 통해 디렉토리 구조가 변경되지 않았음을 검증한다. Deep Scan은 모든 Blob 객체를 다운로드해 저장된 암호화 객체의 해시를 다시 계산함으로써 Vault 전체가 변하지 않았음을 검증한다.
 
 Cryptomator는 클라이언트 측 암호화 후 클라우드 스토리지 업로드 기능을 제공하는 오픈소스 소프트웨어로, GitVault와 핵심 문제의식을 같이한다. Cryptomator는 파일을 청크 단위로 구분지어 AES-GCM으로 암호화하여 청크 단위 무결성을 제공한다. 하지만 청크가 삭제되거나 이전 버전이 제공되는 롤백 공격에 취약하다. GitVault는 Git의 Merkle Tree 구조를 사용하기 때문에 객체의 삭제나 롤백을 탐지할 수 있다.
 
