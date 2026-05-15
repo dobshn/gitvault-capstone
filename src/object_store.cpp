@@ -237,8 +237,7 @@ void ObjectStore::write_object_from_file(const std::array<uint8_t, 32>& hash,
 ByteVec ObjectStore::read_object(const std::array<uint8_t, 32>& hash) const {
   std::string key = object_key(hash);
   if (!CloudAPI->exists(key)) {
-    throw std::runtime_error(    "object not found: " + root_ + "/" + key +
-    ". If this vault was initialized on another device, try \"sync\" command");
+    throw std::runtime_error(    "object not found: " + root_ + "/" + key);
   }
   return CloudAPI->get(key);
 }
