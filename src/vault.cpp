@@ -140,8 +140,11 @@ void Vault::execute(Command& cmd) {
         obj_store.init(dropbox_token, vault_name);
         VaultEngine vault_engine(obj_store, read_password(cmd));
         std::cout << "initializing store at " << obj_store.root() << "...\n";
-        auto commit_hash = vault_engine.init_vault();
-        if (cmd.positional.size() == 2) {
+        std::array<uint8_t, 32> commit_hash;
+        if (cmd.positional.size() == 1) {
+          commit_hash = vault_engine.init_vault();
+        }
+        else if (cmd.positional.size() == 2) {
           std::filesystem::path plain_dir = cmd.positional[1];
           commit_hash = vault_engine.lock_vault(plain_dir);
         }
