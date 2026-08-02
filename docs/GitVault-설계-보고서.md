@@ -165,13 +165,21 @@ GCM을 사용하면 10~40% 정도의 성능 오버헤드와, 객체마다 16바�
 
 ### 키 관리 전략
 
-사용자 비밀번호를 입력받아 KDF를 통해 키를 생성하는 구조
-- 장점
-	- 키 저장이 따로 필요하지 않다
-	- 사용자의 다중 기기간 키 공유가 필요하지 않다
-- 단점
-	- 키 분실 우려가 있다
-	- 무작위 생성보다 보안이 약하다
+사용자 비밀번호와 Vault별 salt를 PBKDF2에 입력해 32바이트 master key 하나를 만든다. 그 master key에서 HKDF-SHA256의 용도별 label로 객체 암호화 키, HEAD MAC 키, identity wrapping 암호화 키, identity wrapping MAC 키를 각각 32바이트로 유도한다. Config V2만 이 key schedule을 사용하며 이전 Config V1은 지원하지 않는다.
+
+```text
+PBKDF2(password, vault_salt) -> K_master
+  ├─ HKDF("gitvault/object-enc/v2")         -> K_object
+  ├─ HKDF("gitvault/head-mac/v2")           -> K_head_mac
+  ├─ HKDF("gitvault/identity-wrap-enc/v2")  -> K_wrap_enc
+  └─ HKDF("gitvault/identity-wrap-mac/v2")  -> K_wrap_mac
+```
+
+외부 이벤트용 Vault 서명 비밀키는 비밀번호에서 직접 유도하지 않고 Vault 생성 시 CSPRNG로 무작위 생성한다. 공개 서명 키가 비밀번호 후보 검증 oracle이 되는 것을 피하기 위한 구분이다.
+
+무작위 서명 비밀키는 `K_wrap_enc`와 `K_wrap_mac`을 사용해 `AES-256-CTR + HMAC-SHA256`으로 감싼다. 로컬에는 `~/.gitvault/<vault>/trust/vault-identity.enc`만 저장하며 평문 서명 비밀키는 기록하지 않는다. `trust` 디렉터리는 소유자 전용 권한, identity 파일은 소유자 읽기/쓰기 권한으로 만들고 임시 파일을 최종 경로로 rename한다.
+
+현재 이 identity는 로컬 생성·복구까지만 구현되어 있다. `init` 외의 비밀번호 기반 명령은 identity가 없으면 중단한다. Config V1과 이전 identity 형식의 Vault는 현재 재초기화가 필요하고, 다른 복제본으로의 bootstrap/import는 아직 불가능하다. 공개키 계산, 이벤트 서명과 fsync 기반 crash durability도 후속 단계다.
 
 ### 클라우드에 저장되는 파일 구조
 

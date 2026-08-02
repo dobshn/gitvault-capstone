@@ -4,9 +4,12 @@
 #include "object_store.h"
 #include "crypto/CryptoImpl.h"
 #include "crypto/ICrypto.h"
+#include "vault_identity.h"
 #include "thread_pool.h"
 #include <future>
+#include <memory>
 #include <mutex>
+#include <optional>
 #include <ostream>
 
 struct ScanStats {
@@ -39,8 +42,8 @@ struct TempFileGuard {
 
 class VaultEngine {
 public:
-    VaultEngine(ObjectStore& s, std::string);
-    ~VaultEngine();
+    VaultEngine(ObjectStore& s, std::string password, bool creating_vault = false);
+    ~VaultEngine() = default;
     void sync();
     std::array<uint8_t, 32> init_vault();
     std::array<uint8_t, 32> lock_vault(const std::filesystem::path& plain_dir);
@@ -57,9 +60,10 @@ public:
 
 private:
     ObjectStore& store;
-    ICrypto* crypto;
+    std::unique_ptr<ICrypto> crypto;
     Keys keys;
     Config cfg;
+    std::optional<VaultIdentity> vault_identity;
     ThreadPool pool;
     std::mutex upload_mutex;
     std::vector<std::future<void>> pending_uploads;
@@ -67,7 +71,8 @@ private:
     std::atomic<uint64_t> finished_uploads;
     std::mutex upload_progress_mutex;
 
-    Config ensure_store_config(ObjectStore& store);
+    Config ensure_store_config(ObjectStore& store, bool creating_vault);
+    void initialize_vault_identity();
     uint64_t unix_time_seconds();
     void log_progress_line(const std::filesystem::path& path, uint64_t processed, uint64_t total, const std::chrono::steady_clock::time_point& start);
     void write_head(const std::array<uint8_t, 32>& commit_hash);

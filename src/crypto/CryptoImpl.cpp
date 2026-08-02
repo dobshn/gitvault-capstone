@@ -1,11 +1,24 @@
 #include "crypto/CryptoImpl.h"
 #include "crypto/ctr.h"
-#include "crypto/hmac.h"
+#include "crypto/hkdf.h"
 #include "crypto/pbkdf2.h"
 #include "util.h"
 
+#include <string_view>
+
 namespace {
     constexpr size_t kIvSize = 16;
+
+    ByteVec to_bytes(std::string_view text) {
+      return ByteVec(text.begin(), text.end());
+    }
+
+    ByteVec derive_subkey(const ByteVec& master_key, std::string_view label) {
+      return hkdf_sha256(master_key,
+                         to_bytes("gitvault/key-schedule/v2"),
+                         to_bytes(label),
+                         32);
+    }
 }
 
 EncryptedObject CryptoImpl::encrypt_object(const ByteVec& enc_key,
@@ -40,11 +53,13 @@ ByteVec CryptoImpl::decrypt_object_checked(const ByteVec& enc_key,
 Keys CryptoImpl::derive_keys(const std::vector<uint8_t>& salt,
                         uint32_t iterations,
                         const std::string& password) {
-    ByteVec key_material =
-        pbkdf2_hmac_sha256(password, salt, iterations, 64);
+    ByteVec master_key =
+        pbkdf2_hmac_sha256(password, salt, iterations, 32);
 
     Keys keys;
-    keys.enc_key.assign(key_material.begin(), key_material.begin() + 32);
-    keys.mac_key.assign(key_material.begin() + 32, key_material.end());
+    keys.enc_key = derive_subkey(master_key, "gitvault/object-enc/v2");
+    keys.mac_key = derive_subkey(master_key, "gitvault/head-mac/v2");
+    keys.wrap_enc_key = derive_subkey(master_key, "gitvault/identity-wrap-enc/v2");
+    keys.wrap_mac_key = derive_subkey(master_key, "gitvault/identity-wrap-mac/v2");
     return keys;
 }

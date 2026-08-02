@@ -22,5 +22,21 @@ if(BUILD_TESTING)
     src/util.cpp
   )
   target_include_directories(gitvault_format_tests PRIVATE src)
+  target_link_libraries(gitvault_format_tests PRIVATE OpenSSL::Crypto)
   add_test(NAME gitvault_format_tests COMMAND gitvault_format_tests)
+
+  add_executable(gitvault_identity_tests
+    tests/vault_identity_test.cpp
+    src/vault_identity.cpp
+    src/crypto/CryptoImpl.cpp
+    src/crypto/ctr.cpp
+    src/crypto/hkdf.cpp
+    src/crypto/hmac.cpp
+    src/crypto/pbkdf2.cpp
+    src/crypto/sha256.cpp
+    src/util.cpp
+  )
+  target_include_directories(gitvault_identity_tests PRIVATE src)
+  target_link_libraries(gitvault_identity_tests PRIVATE OpenSSL::Crypto)
+  add_test(NAME gitvault_identity_tests COMMAND gitvault_identity_tests)
 endif()

@@ -5,10 +5,12 @@
 #include <chrono>
 #include <cstdlib>
 #include <fstream>
-#include <random>
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <system_error>
+
+#include <openssl/rand.h>
 
 void print_usage() {
     std::cout << "gitvault <command> [args] [--password <pw>]\n";
@@ -126,10 +128,16 @@ std::array<uint8_t, 32> hash_from_hex(const std::string& hex) {
 }
 
 ByteVec random_bytes(size_t len) {
-  std::random_device rd;
   ByteVec out(len);
-  for (size_t i = 0; i < len; ++i) {
-    out[i] = static_cast<uint8_t>(rd());
+  size_t offset = 0;
+  while (offset < len) {
+    const size_t remaining = len - offset;
+    const int chunk = static_cast<int>(
+        std::min(remaining, static_cast<size_t>(std::numeric_limits<int>::max())));
+    if (RAND_bytes(out.data() + offset, chunk) != 1) {
+      throw std::runtime_error("cryptographic random generation failed");
+    }
+    offset += static_cast<size_t>(chunk);
   }
   return out;
 }

@@ -10,7 +10,7 @@
 #include "util.h"
 
 struct Config {
-  uint8_t version = 1;
+  uint8_t version = 2;
   ByteVec salt;
   uint32_t iterations = 100000;
 };
@@ -20,6 +20,7 @@ private:
   std::filesystem::path metadata_dir() const;
   std::filesystem::path config_path() const;
   std::filesystem::path head_path() const;
+  std::filesystem::path vault_identity_path() const;
 
   std::string root_;
   API* CloudAPI;
@@ -40,6 +41,10 @@ public:
 
   void write_head(const ByteVec& data) const;
   ByteVec read_head() const;
+
+  bool vault_identity_exists() const;
+  void save_vault_identity(const ByteVec& wrapped_identity) const;
+  ByteVec load_vault_identity() const;
 
   std::string object_key(const std::array<uint8_t, 32>& hash) const;
   bool object_exists(const std::array<uint8_t, 32>& hash) const;

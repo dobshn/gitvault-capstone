@@ -1,7 +1,9 @@
 #include "object_store.h"
+#include "vault_identity.h"
 
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
@@ -42,6 +44,10 @@ std::filesystem::path ObjectStore::config_path() const {
 
 std::filesystem::path ObjectStore::head_path() const {
   return metadata_dir() / kHeadKey;
+}
+
+std::filesystem::path ObjectStore::vault_identity_path() const {
+  return metadata_dir() / "trust" / "vault-identity.enc";
 }
 
 // 생성자
@@ -107,6 +113,8 @@ Config ObjectStore::load_config() const {
   }
 
   Config cfg;
+  cfg.version = 0;
+  cfg.iterations = 0;
   std::string line;
   while (std::getline(file, line)) {
     if (line.empty()) {
@@ -119,15 +127,26 @@ Config ObjectStore::load_config() const {
     std::string key = line.substr(0, pos);
     std::string value = line.substr(pos + 1);
     if (key == "version") {
-      cfg.version = static_cast<uint8_t>(std::stoul(value));
+      const unsigned long parsed_version = std::stoul(value);
+      if (parsed_version > 255) {
+        throw std::runtime_error("invalid config version");
+      }
+      cfg.version = static_cast<uint8_t>(parsed_version);
     } else if (key == "kdf_salt") {
       cfg.salt = from_hex(value);
     } else if (key == "kdf_iter") {
-      cfg.iterations = static_cast<uint32_t>(std::stoul(value));
+      const unsigned long parsed_iterations = std::stoul(value);
+      if (parsed_iterations > std::numeric_limits<uint32_t>::max()) {
+        throw std::runtime_error("invalid config kdf_iter");
+      }
+      cfg.iterations = static_cast<uint32_t>(parsed_iterations);
     }
   }
 
-  if (cfg.version != 1) {
+  if (cfg.version == 0) {
+    throw std::runtime_error("config missing version");
+  }
+  if (cfg.version != 2) {
     throw std::runtime_error("unsupported config version");
   }
   if (cfg.salt.empty()) {
@@ -148,10 +167,11 @@ void ObjectStore::save_config(const Config& config) const {
     throw std::runtime_error("failed to write config: " + path.string());
   }
 
-  file << "version=1\n";
+  file << "version=2\n";
   file << "kdf=pbkdf2-hmac-sha256\n";
   file << "kdf_iter=" << config.iterations << "\n";
   file << "kdf_salt=" << to_hex(config.salt) << "\n";
+  file << "key_schedule=pbkdf2-master-hkdf-sha256-v2\n";
   file << "enc=aes-256-ctr\n";
 
   file.close();  // 중요: flush
@@ -203,6 +223,18 @@ ByteVec ObjectStore::read_head() const {
     }
     */
     throw std::runtime_error("If this vault was initialized on another device, try \"sync\" command");
+}
+
+bool ObjectStore::vault_identity_exists() const {
+  return std::filesystem::exists(vault_identity_path());
+}
+
+void ObjectStore::save_vault_identity(const ByteVec& wrapped_identity) const {
+  save_wrapped_vault_identity_file(vault_identity_path(), wrapped_identity);
+}
+
+ByteVec ObjectStore::load_vault_identity() const {
+  return load_wrapped_vault_identity_file(vault_identity_path());
 }
 
 std::string ObjectStore::object_key(const std::array<uint8_t, 32>& hash) const {

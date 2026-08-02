@@ -100,10 +100,15 @@ GitVault stores local state at:
 ~/.gitvault/<vault_name>/
   config
   HEAD
+  trust/
+    vault-identity.enc
 ```
 
 The refresh token file is created by `login`.
 GitVault compares the local and cloud `HEAD` files before using the local trust anchor. A missing or mismatched local `HEAD` must be resolved explicitly with `sync`.
+Config V2 derives one 32-byte master key with PBKDF2, then uses HKDF-SHA256 labels to derive separate object-encryption, HEAD-MAC, identity-wrapping-encryption, and identity-wrapping-MAC keys.
+New vaults also generate one random secp256k1-compatible signing secret. It is encrypted and authenticated with the identity wrapping keys before being stored locally as `vault-identity.enc`; GitVault does not intentionally write the plaintext signing secret to a file.
+Password-authenticated commands reject a vault whose local identity is missing. Config V1 and vaults created before this identity format must currently be reinitialized; key-schedule migration and cross-device import are not implemented yet.
 
 ### Remote store layout
 

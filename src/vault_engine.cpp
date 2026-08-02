@@ -7,6 +7,7 @@
 #include "crypto/ICrypto.h"
 #include "object_store.h"
 #include "util.h"
+#include "vault_identity.h"
 
 #include <fstream>
 #include <algorithm>
@@ -56,19 +57,22 @@ namespace {
     }
 }
 
-VaultEngine::VaultEngine(ObjectStore& s, std::string password) : store(s), pool(3), total_uploads(0), finished_uploads(0) {
-    crypto = new CryptoImpl();
+VaultEngine::VaultEngine(ObjectStore& s, std::string password, bool creating_vault) : store(s), pool(3), total_uploads(0), finished_uploads(0) {
+    crypto = std::make_unique<CryptoImpl>();
     if (!password.empty()) {
-      cfg = ensure_store_config(store);
+      cfg = ensure_store_config(store, creating_vault);
       keys = crypto->derive_keys(cfg.salt, cfg.iterations, password);
+      if (store.vault_identity_exists()) {
+        vault_identity = unwrap_vault_identity(store.load_vault_identity(), keys);
+      } else if (!creating_vault) {
+        throw std::runtime_error(
+            "vault identity not found; initialize a new vault or import its identity");
+      }
     }
 }
 
-VaultEngine::~VaultEngine() {
-    delete crypto;
-}
-
 std::array<uint8_t, 32> VaultEngine::init_vault() {
+    initialize_vault_identity();
     Tree empty_tree;
     std::cout << "kdf_salt=" << to_hex(cfg.salt) << "\n";
     std::array<uint8_t, 32> root_hash = store_tree_object(empty_tree);
@@ -80,6 +84,7 @@ std::array<uint8_t, 32> VaultEngine::lock_vault(const std::filesystem::path& pla
     throw std::runtime_error("plain_dir must be a directory");
   }
 
+  initialize_vault_identity();
   std::array<uint8_t, 32> root_hash = store_tree(plain_dir);
   wait_for_uploads();
   return store_commit(root_hash, unix_time_seconds(), {});
@@ -356,16 +361,26 @@ std::array<uint8_t, 32> VaultEngine::rmdir(const std::string& cloud_dir_path, bo
 }
 
 // 내부함수
-Config VaultEngine::ensure_store_config(ObjectStore& store) {
-  Config cfg;
-  try {
+Config VaultEngine::ensure_store_config(ObjectStore& store, bool creating_vault) {
+  if (!creating_vault) {
     return store.load_config();
-  } catch (...) {
-    cfg.salt = random_bytes(16);
-    cfg.iterations = 100000;
-    store.save_config(cfg);
   }
+
+  Config cfg;
+  cfg.salt = random_bytes(16);
+  cfg.iterations = 100000;
+  store.save_config(cfg);
   return cfg;
+}
+
+void VaultEngine::initialize_vault_identity() {
+  if (vault_identity.has_value() || store.vault_identity_exists()) {
+    throw std::runtime_error("vault identity already initialized");
+  }
+
+  VaultIdentity identity = generate_vault_identity();
+  store.save_vault_identity(wrap_vault_identity(identity, keys));
+  vault_identity = identity;
 }
 
   uint64_t VaultEngine::unix_time_seconds() {

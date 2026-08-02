@@ -8,6 +8,8 @@ using ByteVec = std::vector<uint8_t>;
 struct Keys {
     ByteVec enc_key;
     ByteVec mac_key;
+    ByteVec wrap_enc_key;
+    ByteVec wrap_mac_key;
 };
 
 struct EncryptedObject {
