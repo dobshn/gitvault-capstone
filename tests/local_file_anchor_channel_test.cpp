@@ -90,16 +90,17 @@ void test_publish_and_fetch_through_interface() {
   const SignedNostrEvent original =
       make_event(secret, 100, 9500, "alpha", "event one");
 
-  const auto receipts = channel->publish(original);
-  expect(receipts.size() == 1, "local publish returns one endpoint receipt");
-  expect(receipts[0].event_id == original.id &&
-             receipts[0].status == AnchorPublishStatus::Accepted,
+  const auto publish_result = channel->publish(original);
+  expect(publish_result.endpoints.size() == 1,
+         "local publish returns one endpoint receipt");
+  expect(publish_result.endpoints[0].event_id == original.id &&
+             publish_result.endpoints[0].status == AnchorPublishStatus::Accepted,
          "first publish reports that the endpoint accepted the event");
 
   const auto fetched = channel->fetch();
-  expect(fetched.size() == 1 && events_equal(fetched[0], original),
+  expect(fetched.events.size() == 1 && events_equal(fetched.events[0], original),
          "another caller can fetch the stored event without modification");
-  expect(verify_nostr_event(fetched[0], schnorr_public_key(secret)),
+  expect(verify_nostr_event(fetched.events[0], schnorr_public_key(secret)),
          "the caller can verify the fetched event against its Vault key");
 }
 
@@ -112,11 +113,11 @@ void test_duplicate_publish_is_idempotent_and_conflicts_do_not_overwrite() {
 
   first_client.publish(original);
   const auto duplicate_receipts = second_client.publish(original);
-  expect(duplicate_receipts.size() == 1 &&
-             duplicate_receipts[0].status ==
+  expect(duplicate_receipts.endpoints.size() == 1 &&
+             duplicate_receipts.endpoints[0].status ==
                  AnchorPublishStatus::AlreadyPresent,
          "publishing the same event through another client is idempotent");
-  expect(first_client.fetch().size() == 1,
+  expect(first_client.fetch().events.size() == 1,
          "duplicate publish leaves one stored event");
 
   SignedNostrEvent conflicting = original;
@@ -125,8 +126,8 @@ void test_duplicate_publish_is_idempotent_and_conflicts_do_not_overwrite() {
                "different anchor event already exists",
                "same ID with different event");
   const auto after_conflict = first_client.fetch();
-  expect(after_conflict.size() == 1 &&
-             events_equal(after_conflict[0], original),
+  expect(after_conflict.events.size() == 1 &&
+             events_equal(after_conflict.events[0], original),
          "a conflicting publish cannot overwrite the original event");
 }
 
@@ -157,7 +158,7 @@ void test_concurrent_publish_installs_one_immutable_event() {
       try {
         const auto receipts = client.publish(event);
         std::lock_guard<std::mutex> lock(mutex);
-        statuses.push_back(receipts.at(0).status);
+        statuses.push_back(receipts.endpoints.at(0).status);
       } catch (const std::exception& error) {
         std::lock_guard<std::mutex> lock(mutex);
         errors.push_back(error.what());
@@ -182,7 +183,7 @@ void test_concurrent_publish_installs_one_immutable_event() {
   expect(errors.empty(), "concurrent identical publishes do not fail");
   expect(accepted == 1 && already_present == kClientCount - 1,
          "one client installs the event and the others observe the same ID");
-  expect(initializer.fetch().size() == 1,
+  expect(initializer.fetch().events.size() == 1,
          "concurrent publishing leaves exactly one immutable event file");
 }
 
@@ -207,12 +208,13 @@ void test_query_filters_and_deterministic_fetch_order() {
   query.kind = 9500;
   query.required_tags = {{"channel", "alpha"}};
   const auto filtered = channel.fetch(query);
-  expect(filtered.size() == 1 && filtered[0].content == "matching",
+  expect(filtered.events.size() == 1 &&
+             filtered.events[0].content == "matching",
          "author, kind, and exact tag filters are combined");
 
   const auto all_events = channel.fetch();
   std::vector<std::string> event_ids;
-  for (const auto& event : all_events) {
+  for (const auto& event : all_events.events) {
     event_ids.push_back(to_hex(event.id));
   }
   expect(std::is_sorted(event_ids.begin(), event_ids.end()),
@@ -235,10 +237,10 @@ void test_channel_returns_untrusted_events_for_caller_verification() {
   const SchnorrPublicKey trusted_public_key =
       schnorr_public_key(trusted_secret);
   const size_t accepted = static_cast<size_t>(std::count_if(
-      fetched.begin(), fetched.end(), [&](const SignedNostrEvent& event) {
+      fetched.events.begin(), fetched.events.end(), [&](const SignedNostrEvent& event) {
         return verify_nostr_event(event, trusted_public_key);
       }));
-  expect(fetched.size() == 2 && accepted == 1,
+  expect(fetched.events.size() == 2 && accepted == 1,
          "the channel transports an attacker event but Vault verification rejects it");
 }
 
@@ -257,8 +259,8 @@ void test_tampered_and_malformed_storage_is_observable() {
       tampered_temp.path / "events" / (to_hex(original.id) + ".json"),
       ByteVec(tampered_json.begin(), tampered_json.end()));
   const auto fetched_tampered = tampered_channel.fetch();
-  expect(fetched_tampered.size() == 1 &&
-             !verify_nostr_event(fetched_tampered[0],
+  expect(fetched_tampered.events.size() == 1 &&
+             !verify_nostr_event(fetched_tampered.events[0],
                                  schnorr_public_key(secret)),
          "well-formed storage tampering is returned and rejected by verification");
 

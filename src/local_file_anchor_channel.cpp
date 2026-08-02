@@ -68,15 +68,15 @@ LocalFileAnchorChannel::LocalFileAnchorChannel(
   ensure_event_directory();
 }
 
-std::vector<AnchorPublishReceipt> LocalFileAnchorChannel::publish(
+AnchorPublishResult LocalFileAnchorChannel::publish(
     const SignedNostrEvent& event) {
   ensure_event_directory();
   const std::filesystem::path target =
       event_directory() / (to_hex(event.id) + ".json");
 
   if (std::filesystem::exists(target)) {
-    return {{root_directory_.string(), event.id,
-             existing_event_status(target, event)}};
+    return {{{root_directory_.string(), event.id,
+              existing_event_status(target, event), {}, 0}}};
   }
 
   std::filesystem::path temporary = target;
@@ -91,12 +91,12 @@ std::vector<AnchorPublishReceipt> LocalFileAnchorChannel::publish(
     std::filesystem::remove(temporary, cleanup_error);
 
     if (!install_error) {
-      return {{root_directory_.string(), event.id,
-               AnchorPublishStatus::Accepted}};
+      return {{{root_directory_.string(), event.id,
+                AnchorPublishStatus::Accepted, {}, 0}}};
     }
     if (std::filesystem::exists(target)) {
-      return {{root_directory_.string(), event.id,
-               existing_event_status(target, event)}};
+      return {{{root_directory_.string(), event.id,
+                existing_event_status(target, event), {}, 0}}};
     }
     throw std::runtime_error("failed to install anchor event: " +
                              install_error.message());
@@ -107,7 +107,7 @@ std::vector<AnchorPublishReceipt> LocalFileAnchorChannel::publish(
   }
 }
 
-std::vector<SignedNostrEvent> LocalFileAnchorChannel::fetch(
+AnchorFetchResult LocalFileAnchorChannel::fetch(
     const AnchorChannelQuery& query) const {
   ensure_event_directory();
   std::vector<std::filesystem::path> event_paths;
@@ -134,7 +134,11 @@ std::vector<SignedNostrEvent> LocalFileAnchorChannel::fetch(
       events.push_back(std::move(event));
     }
   }
-  return events;
+  AnchorFetchResult result;
+  result.events = std::move(events);
+  result.endpoints.push_back(
+      {root_directory_.string(), AnchorFetchStatus::Synchronized, {}, 0});
+  return result;
 }
 
 const std::filesystem::path& LocalFileAnchorChannel::root_directory() const {

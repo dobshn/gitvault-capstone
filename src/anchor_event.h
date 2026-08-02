@@ -60,3 +60,12 @@ SignedNostrEvent sign_anchor_event(
     uint64_t created_at,
     const std::vector<NostrTag>& tags,
     const std::array<uint8_t, 32>& signing_secret);
+SignedNostrEvent sign_encrypted_anchor_event(
+    const AnchorEventPayload& payload,
+    uint64_t created_at,
+    const std::vector<NostrTag>& tags,
+    const std::array<uint8_t, 32>& signing_secret);
+AnchorEventPayload verify_decrypt_anchor_event(
+    const SignedNostrEvent& event,
+    const SchnorrPublicKey& trusted_public_key,
+    const std::array<uint8_t, 32>& decryption_secret);

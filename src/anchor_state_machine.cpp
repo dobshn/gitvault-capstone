@@ -17,12 +17,14 @@ struct ValidatedGraph {
   std::string detail;
   AnchorHash initial_head{};
   AnchorHash tip{};
+  AnchorHash tip_event_id{};
   std::map<AnchorHash, HeadProposalEvent> proposals;
   std::map<AnchorHash, HeadObservationEvent> observations;
   std::map<AnchorHash, AnchorHash> transition_heads;
   std::map<AnchorHash, std::set<AnchorHash>> observed_children;
   std::map<AnchorHash, AnchorHash> observed_parent;
   std::set<AnchorHash> observed_proposals;
+  std::map<AnchorHash, std::set<AnchorHash>> observation_ids_by_head;
   std::set<AnchorHash> rejected;
   std::set<AnchorHash> unresolved;
   std::set<AnchorHash> fork_heads;
@@ -51,6 +53,30 @@ bool verify_commit_parent(const AnchorStateContext& context,
   return context.verify_commit_parent(commit, parent);
 }
 
+bool is_commit_ancestor(const AnchorStateContext& context,
+                        const AnchorHash& ancestor,
+                        const AnchorHash& descendant) {
+  if (ancestor == descendant) {
+    return true;
+  }
+  if (!context.is_commit_ancestor) {
+    throw std::runtime_error("commit ancestry verifier is not configured");
+  }
+  return context.is_commit_ancestor(ancestor, descendant);
+}
+
+AnchorStateReason validation_reason(const ValidatedGraph& graph) {
+  if (graph.detail.find("missing") != std::string::npos ||
+      graph.detail.find("references") != std::string::npos) {
+    return AnchorStateReason::MissingReference;
+  }
+  if (graph.detail.find("Commit") != std::string::npos ||
+      graph.detail.find("parent") != std::string::npos) {
+    return AnchorStateReason::InvalidCommitParent;
+  }
+  return AnchorStateReason::InvalidEventGraph;
+}
+
 template <typename Container>
 std::vector<AnchorHash> to_vector(const Container& values) {
   return std::vector<AnchorHash>(values.begin(), values.end());
@@ -68,9 +94,17 @@ ValidatedGraph validate_graph(const AnchorStateContext& context,
       continue;
     }
 
+    if (context.expected_channel_tag.has_value() &&
+        event.tags != std::vector<NostrTag>{{"t", *context.expected_channel_tag}}) {
+      graph.rejected.insert(event.id);
+      continue;
+    }
+
     try {
-      AnchorEventPayload payload =
-          deserialize_anchor_event_payload(event.content);
+      AnchorEventPayload payload = context.decode_event
+                                       ? context.decode_event(event)
+                                       : deserialize_anchor_event_payload(
+                                             event.content);
       if (!common_matches_context(anchor_event_common(payload), context)) {
         graph.rejected.insert(event.id);
         continue;
@@ -119,6 +153,7 @@ ValidatedGraph validate_graph(const AnchorStateContext& context,
 
   graph.initial_head = genesis->initial_head;
   graph.tip = genesis->initial_head;
+  graph.tip_event_id = context.genesis_event_id;
   graph.transition_heads.emplace(context.genesis_event_id,
                                  genesis->initial_head);
 
@@ -205,6 +240,8 @@ ValidatedGraph validate_graph(const AnchorStateContext& context,
           continue;
         }
         graph.observations.emplace(event_id, *observation);
+        graph.observation_ids_by_head[observation->observed_cloud_head].insert(
+            event_id);
         graph.transition_heads.emplace(event_id,
                                        observation->observed_cloud_head);
         graph.observed_proposals.insert(observation->proposal_event_id);
@@ -255,6 +292,10 @@ ValidatedGraph validate_graph(const AnchorStateContext& context,
     const auto children = graph.observed_children.find(current);
     if (children == graph.observed_children.end() || children->second.empty()) {
       graph.tip = current;
+      const auto tip_observations = graph.observation_ids_by_head.find(current);
+      graph.tip_event_id = tip_observations == graph.observation_ids_by_head.end()
+                               ? context.genesis_event_id
+                               : *tip_observations->second.begin();
       reached_terminal = true;
       break;
     }
@@ -322,21 +363,39 @@ AnchorStateResult evaluate_anchor_state(
     const AnchorStateInput& input) {
   AnchorStateResult result;
   if (!input.channel_synchronized) {
+    result.reason = AnchorStateReason::IncompleteRelaySync;
+    if (input.read_only_operation && input.checkpoint_head.has_value() &&
+        input.local_head == input.cloud_head &&
+        input.local_head == *input.checkpoint_head) {
+      result.state = AnchorClientState::DegradedReadOnly;
+      result.action = AnchorStateAction::None;
+      result.verified_tip = *input.checkpoint_head;
+      result.detail =
+          "relay synchronization is incomplete; serving the last verified "
+          "checkpoint without freshness";
+      return result;
+    }
     result.state = AnchorClientState::RecoveryRequired;
+    result.action = AnchorStateAction::Stop;
     result.detail = "anchor channel synchronization is incomplete";
     return result;
   }
 
   ValidatedGraph graph = validate_graph(context, input.events);
   result.verified_tip = graph.tip;
+  result.verified_tip_event_id = graph.tip_event_id;
   copy_graph_diagnostics(graph, result);
   if (graph.forked) {
     result.state = AnchorClientState::Forked;
+    result.reason = AnchorStateReason::DivergentObservedBranches;
+    result.action = AnchorStateAction::Stop;
     result.detail = graph.detail;
     return result;
   }
   if (graph.recovery_required) {
     result.state = AnchorClientState::RecoveryRequired;
+    result.reason = validation_reason(graph);
+    result.action = AnchorStateAction::Stop;
     result.detail = graph.detail;
     return result;
   }
@@ -359,11 +418,15 @@ AnchorStateResult evaluate_anchor_state(
         if (!verify_commit_parent(context, prepared.new_head,
                                   prepared.previous_head)) {
           result.state = AnchorClientState::RecoveryRequired;
+          result.reason = AnchorStateReason::InvalidCommitParent;
+          result.action = AnchorStateAction::AbortWrite;
           result.detail = "prepared Commit is missing or has the wrong parent";
           return result;
         }
       } catch (const std::exception& error) {
         result.state = AnchorClientState::RecoveryRequired;
+        result.reason = AnchorStateReason::InvalidCommitParent;
+        result.action = AnchorStateAction::AbortWrite;
         result.detail =
             std::string("prepared Commit verification failed: ") + error.what();
         return result;
@@ -379,45 +442,72 @@ AnchorStateResult evaluate_anchor_state(
           });
       if (!matching_proposal) {
         result.state = AnchorClientState::RecoveryRequired;
+        result.reason = AnchorStateReason::MissingReference;
+        result.action = AnchorStateAction::Stop;
         result.detail = "completed prepared write has no observed Proposal";
         return result;
       }
       completed_prepared_write = true;
     } else {
       result.state = AnchorClientState::RecoveryRequired;
+      result.reason = AnchorStateReason::PreparedWriteAhead;
+      result.action = AnchorStateAction::AbortWrite;
       result.detail = "prepared write is not based on the verified channel tip";
       return result;
     }
   }
 
   const auto cloud_pending = std::find_if(
-      pending_from_tip.begin(), pending_from_tip.end(),
+      graph.proposals.begin(), graph.proposals.end(),
       [&](const auto& entry) {
-        return entry.second.new_head == input.cloud_head;
+        return graph.observed_proposals.count(entry.first) == 0 &&
+               entry.second.new_head == input.cloud_head &&
+               is_observed_ancestor(graph, entry.second.previous_head,
+                                    graph.tip);
       });
-  if (cloud_pending != pending_from_tip.end() &&
-      (input.local_head == graph.tip || input.local_head == input.cloud_head)) {
-    result.state = AnchorClientState::HeadUpdated;
+
+  if (active_prepared_write && input.cloud_head == graph.tip &&
+      input.local_head == input.prepared_write->new_head) {
+    const bool proposal_published = std::any_of(
+        pending_from_tip.begin(), pending_from_tip.end(),
+        [&](const auto& entry) {
+          return proposal_matches_prepared(entry.second,
+                                           *input.prepared_write);
+        });
+    result.state = proposal_published ? AnchorClientState::Proposed
+                                      : AnchorClientState::WritePrepared;
+    result.reason = AnchorStateReason::PreparedWriteAhead;
+    result.action = AnchorStateAction::RetryPublish;
+    result.detail =
+        "local HEAD is ahead only because it matches the prepared write";
+    return result;
+  }
+
+  if (input.cloud_head != graph.tip && cloud_pending != graph.proposals.end()) {
+    result.state = AnchorClientState::ObservationRequired;
+    result.reason = AnchorStateReason::CloudMatchesPendingProposal;
+    result.action = AnchorStateAction::PublishObservation;
+    result.proposal_to_observe = cloud_pending->first;
     result.detail = "cloud HEAD matches a Proposal that has no Observation";
-    if (input.local_head != input.cloud_head) {
-      result.local_head_to_adopt = input.cloud_head;
-    }
     return result;
   }
 
   if (input.cloud_head == graph.tip && input.local_head == graph.tip) {
     if (completed_prepared_write) {
       result.state = AnchorClientState::Announced;
+      result.action = AnchorStateAction::AdoptVerifiedTip;
       result.detail = "Observation is published; local checkpoint can be finalized";
       return result;
     }
-    if (!pending_from_tip.empty()) {
+    if (active_prepared_write && !pending_from_tip.empty()) {
       result.state = AnchorClientState::Proposed;
+      result.action = AnchorStateAction::RetryPublish;
       result.detail = "one or more Proposals await a cloud HEAD observation";
       return result;
     }
     if (active_prepared_write) {
       result.state = AnchorClientState::WritePrepared;
+      result.action = AnchorStateAction::RetryPublish;
       result.detail = "Commit is prepared but its Proposal is not published";
       return result;
     }
@@ -428,19 +518,40 @@ AnchorStateResult evaluate_anchor_state(
 
   if (input.cloud_head == graph.tip &&
       is_observed_ancestor(graph, input.local_head, graph.tip)) {
-    result.state = AnchorClientState::Announced;
+    result.state = completed_prepared_write
+                       ? AnchorClientState::Announced
+                       : AnchorClientState::LocalCatchUp;
+    result.reason = AnchorStateReason::LocalBehind;
+    result.action = AnchorStateAction::AdoptVerifiedTip;
     result.local_head_to_adopt = graph.tip;
     result.detail = "observed channel tip can advance the local HEAD";
     return result;
   }
 
-  result.state = AnchorClientState::RecoveryRequired;
   if (is_observed_ancestor(graph, input.cloud_head, graph.tip) &&
       input.cloud_head != graph.tip) {
+    result.state = AnchorClientState::RollbackDetected;
+    result.reason = AnchorStateReason::CloudBehindObservedTip;
+    result.action = AnchorStateAction::Stop;
     result.detail = "cloud HEAD is behind the verified observed tip";
-  } else {
-    result.detail = "local or cloud HEAD is not explained by the event graph";
+    return result;
   }
+
+  try {
+    if (is_commit_ancestor(context, graph.tip, input.cloud_head)) {
+      result.detail =
+          "cloud HEAD is ahead of the observed tip without a matching Proposal";
+    } else {
+      result.detail =
+          "cloud HEAD diverges from the observed tip without a matching Proposal";
+    }
+  } catch (const std::exception& error) {
+    result.detail = std::string("cloud HEAD ancestry verification failed: ") +
+                    error.what();
+  }
+  result.state = AnchorClientState::RecoveryRequired;
+  result.reason = AnchorStateReason::UnexplainedCloudHead;
+  result.action = AnchorStateAction::Stop;
   return result;
 }
 
@@ -448,18 +559,70 @@ const char* anchor_client_state_name(AnchorClientState state) {
   switch (state) {
     case AnchorClientState::Consistent:
       return "CONSISTENT";
+    case AnchorClientState::LocalCatchUp:
+      return "LOCAL_CATCH_UP";
     case AnchorClientState::WritePrepared:
       return "WRITE_PREPARED";
     case AnchorClientState::Proposed:
       return "PROPOSED";
-    case AnchorClientState::HeadUpdated:
-      return "HEAD_UPDATED";
+    case AnchorClientState::ObservationRequired:
+      return "OBSERVATION_REQUIRED";
     case AnchorClientState::Announced:
       return "ANNOUNCED";
+    case AnchorClientState::DegradedReadOnly:
+      return "DEGRADED_READ_ONLY";
+    case AnchorClientState::RollbackDetected:
+      return "ROLLBACK_DETECTED";
     case AnchorClientState::Forked:
       return "FORKED";
     case AnchorClientState::RecoveryRequired:
       return "RECOVERY_REQUIRED";
+  }
+  return "UNKNOWN";
+}
+
+const char* anchor_state_reason_name(AnchorStateReason reason) {
+  switch (reason) {
+    case AnchorStateReason::None:
+      return "NONE";
+    case AnchorStateReason::LocalBehind:
+      return "LOCAL_BEHIND";
+    case AnchorStateReason::CloudBehindObservedTip:
+      return "CLOUD_BEHIND_OBSERVED_TIP";
+    case AnchorStateReason::CloudMatchesPendingProposal:
+      return "CLOUD_MATCHES_PENDING_PROPOSAL";
+    case AnchorStateReason::UnexplainedCloudHead:
+      return "UNEXPLAINED_CLOUD_HEAD";
+    case AnchorStateReason::DivergentObservedBranches:
+      return "DIVERGENT_OBSERVED_BRANCHES";
+    case AnchorStateReason::IncompleteRelaySync:
+      return "INCOMPLETE_RELAY_SYNC";
+    case AnchorStateReason::InvalidCommitParent:
+      return "INVALID_COMMIT_PARENT";
+    case AnchorStateReason::MissingReference:
+      return "MISSING_REFERENCE";
+    case AnchorStateReason::PreparedWriteAhead:
+      return "PREPARED_WRITE_AHEAD";
+    case AnchorStateReason::InvalidEventGraph:
+      return "INVALID_EVENT_GRAPH";
+  }
+  return "UNKNOWN";
+}
+
+const char* anchor_state_action_name(AnchorStateAction action) {
+  switch (action) {
+    case AnchorStateAction::None:
+      return "NONE";
+    case AnchorStateAction::AdoptVerifiedTip:
+      return "ADOPT_VERIFIED_TIP";
+    case AnchorStateAction::PublishObservation:
+      return "PUBLISH_OBSERVATION";
+    case AnchorStateAction::RetryPublish:
+      return "RETRY_PUBLISH";
+    case AnchorStateAction::AbortWrite:
+      return "ABORT_WRITE";
+    case AnchorStateAction::Stop:
+      return "STOP";
   }
   return "UNKNOWN";
 }

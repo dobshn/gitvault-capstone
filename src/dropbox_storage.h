@@ -5,6 +5,7 @@
 #endif
 
 #include "httplib.h"
+#include "json.hpp"
 #include <string>
 #include <string_view>
 
@@ -19,6 +20,10 @@ private:
 
     std::string build_dropbox_path(std::string_view path) const;
     void require_initialized(std::string_view op) const;
+    ConditionalWriteResult upload_conditionally(
+        std::string_view path,
+        const ByteVec& data,
+        const nlohmann::json& mode) const;
 
     std::string access_token_;
     std::string root_path_;
@@ -30,6 +35,14 @@ public:
     bool destroy(std::string access_token, std::string root_path) override;
     void put(std::string_view path, const ByteVec& data, bool overwrite = true) const override;
     ByteVec get(std::string_view path) const override;
+    VersionedBytes get_versioned(std::string_view path) const override;
+    ConditionalWriteResult put_if_revision(
+        std::string_view path,
+        const ByteVec& data,
+        std::string_view expected_revision) const override;
+    ConditionalWriteResult put_if_absent(
+        std::string_view path,
+        const ByteVec& data) const override;
     bool exists(std::string_view path) const override;
     bool remove(std::string_view path) const override;
 };

@@ -154,7 +154,10 @@ void VaultEngine::print_tree(const std::string& path, std::ostream& out) {
   }
 }
 
-std::array<uint8_t, 32> VaultEngine::add(const std::filesystem::path& local_path, const std::string& cloud_path) {
+PreparedVaultWrite VaultEngine::prepare_add(
+    const std::filesystem::path& local_path,
+    const std::string& cloud_path,
+    const AnchorHash& base_head) {
   if (local_path.empty()) {
     throw std::runtime_error("local_path required");
   }
@@ -173,8 +176,7 @@ std::array<uint8_t, 32> VaultEngine::add(const std::filesystem::path& local_path
   const std::string file_name = parts.back();
   parts.pop_back();
 
-  auto old_commit_hash = read_head();
-  Commit old_commit = load_commit_checked(old_commit_hash);
+  Commit old_commit = load_commit_checked(base_head);
 
   std::error_code ec;
   uint64_t file_size = std::filesystem::file_size(local_path, ec);
@@ -196,22 +198,14 @@ std::array<uint8_t, 32> VaultEngine::add(const std::filesystem::path& local_path
   std::vector<std::array<uint8_t, 32>> old_tree_hashes;
   std::array<uint8_t, 32> new_root_hash =
       upsert_blob_to_tree(old_commit.root_hash, parts, 0, file_entry, now_sec, old_tree_hashes);
-  std::array<uint8_t, 32> new_commit_hash =
-      store_commit(new_root_hash, now_sec, old_commit_hash);
+  AnchorHash new_commit_hash =
+      store_commit_object(new_root_hash, now_sec, base_head);
 
-  for (const auto& old_hash : old_tree_hashes) {
-    try {
-      store.remove_object(old_hash);
-    } catch (const std::exception& ex) {
-      std::cerr << "warning: failed to delete old tree object " << to_hex(old_hash)
-                << ": " << ex.what() << "\n";
-    }
-  }
-
-  return new_commit_hash;
+  return make_prepared_write(base_head, new_commit_hash);
 }
-
-std::array<uint8_t, 32> VaultEngine::mkdir(const std::string& cloud_dir_path) {
+PreparedVaultWrite VaultEngine::prepare_mkdir(
+    const std::string& cloud_dir_path,
+    const AnchorHash& base_head) {
   if (cloud_dir_path.empty()) {
     throw std::runtime_error("cloud_dir_path required");
   }
@@ -224,8 +218,7 @@ std::array<uint8_t, 32> VaultEngine::mkdir(const std::string& cloud_dir_path) {
   const std::string dir_name = parts.back();
   parts.pop_back();
 
-  auto old_commit_hash = read_head();
-  Commit old_commit = load_commit_checked(old_commit_hash);
+  Commit old_commit = load_commit_checked(base_head);
 
   uint64_t now_sec = unix_time_seconds();
   Tree empty_tree;
@@ -240,32 +233,23 @@ std::array<uint8_t, 32> VaultEngine::mkdir(const std::string& cloud_dir_path) {
   std::vector<std::array<uint8_t, 32>> old_tree_hashes;
   std::array<uint8_t, 32> new_root_hash =
       upsert_dir_to_tree(old_commit.root_hash, parts, 0, dir_entry, now_sec, old_tree_hashes);
-  std::array<uint8_t, 32> new_commit_hash =
-      store_commit(new_root_hash, now_sec, old_commit_hash);
+  AnchorHash new_commit_hash =
+      store_commit_object(new_root_hash, now_sec, base_head);
 
-  for (const auto& old_hash : old_tree_hashes) {
-    try {
-      store.remove_object(old_hash);
-    } catch (const std::exception& ex) {
-      std::cerr << "warning: failed to delete old tree object " << to_hex(old_hash)
-                << ": " << ex.what() << "\n";
-    }
-  }
-
-  return new_commit_hash;
+  return make_prepared_write(base_head, new_commit_hash);
 }
 
-std::array<uint8_t, 32> VaultEngine::remove(const std::string& cloud_path) {
+PreparedVaultWrite VaultEngine::prepare_remove(
+    const std::string& cloud_path,
+    const AnchorHash& base_head) {
   if (cloud_path.empty()) {
     throw std::runtime_error("cloud_path required");
   }
 
-  Entry removed_entry = resolve_entry(cloud_path, false);
+  Entry removed_entry = resolve_entry_at(base_head, cloud_path, false);
   if (removed_entry.type != 0) {
     throw std::runtime_error("path is not a file: " + cloud_path);
   }
-  std::array<uint8_t, 32> removed_blob_hash = removed_entry.hash;
-
   std::vector<std::string> parts = split_path(cloud_path);
   if (parts.empty()) {
     throw std::runtime_error("invalid cloud_path: " + cloud_path);
@@ -273,33 +257,22 @@ std::array<uint8_t, 32> VaultEngine::remove(const std::string& cloud_path) {
   const std::string file_name = parts.back();
   parts.pop_back();
 
-  auto old_commit_hash = read_head();
-  Commit old_commit = load_commit_checked(old_commit_hash);
+  Commit old_commit = load_commit_checked(base_head);
 
   uint64_t now_sec = unix_time_seconds();
   std::vector<std::array<uint8_t, 32>> old_tree_hashes;
   std::array<uint8_t, 32> new_root_hash =
       remove_blob_from_tree(old_commit.root_hash, parts, 0, file_name, now_sec, old_tree_hashes);
-  std::array<uint8_t, 32> new_commit_hash =
-      store_commit(new_root_hash, now_sec, old_commit_hash);
+  AnchorHash new_commit_hash =
+      store_commit_object(new_root_hash, now_sec, base_head);
 
-  for (const auto& old_hash : old_tree_hashes) {
-    try {
-      store.remove_object(old_hash);
-    } catch (const std::exception& ex) {
-      std::cerr << "warning: failed to delete old tree object " << to_hex(old_hash)
-                << ": " << ex.what() << "\n";
-    }
-  }
-
-  if (!store.remove_object(removed_blob_hash)) {
-    throw std::runtime_error("failed to delete old blob object: " + to_hex(removed_blob_hash));
-  }
-
-  return new_commit_hash;
+  return make_prepared_write(base_head, new_commit_hash);
 }
 
-std::array<uint8_t, 32> VaultEngine::rmdir(const std::string& cloud_dir_path, bool recursive) {
+PreparedVaultWrite VaultEngine::prepare_rmdir(
+    const std::string& cloud_dir_path,
+    bool recursive,
+    const AnchorHash& base_head) {
   if (cloud_dir_path.empty()) {
     throw std::runtime_error("cloud_dir_path required");
   }
@@ -311,8 +284,7 @@ std::array<uint8_t, 32> VaultEngine::rmdir(const std::string& cloud_dir_path, bo
   const std::string dir_name = parts.back();
   parts.pop_back();
 
-  auto old_commit_hash = read_head();
-  Commit old_commit = load_commit_checked(old_commit_hash);
+  Commit old_commit = load_commit_checked(base_head);
 
   uint64_t now_sec = unix_time_seconds();
   std::vector<std::array<uint8_t, 32>> old_tree_hashes;
@@ -321,43 +293,10 @@ std::array<uint8_t, 32> VaultEngine::rmdir(const std::string& cloud_dir_path, bo
   std::array<uint8_t, 32> new_root_hash =
       remove_dir_from_tree(old_commit.root_hash, parts, 0, dir_name, now_sec, recursive,
                            old_tree_hashes, removed_tree_hashes, removed_blob_hashes);
-  std::array<uint8_t, 32> new_commit_hash =
-      store_commit(new_root_hash, now_sec, old_commit_hash);
+  AnchorHash new_commit_hash =
+      store_commit_object(new_root_hash, now_sec, base_head);
 
-
-  for (const auto& old_hash : old_tree_hashes) {
-    try {
-      store.remove_object(old_hash);
-    } catch (const std::exception& ex) {
-      std::cerr << "warning: failed to delete old tree object " << to_hex(old_hash)
-                << ": " << ex.what() << "\n";
-    }
-  }
-
-  std::sort(removed_tree_hashes.begin(), removed_tree_hashes.end());
-  removed_tree_hashes.erase(std::unique(removed_tree_hashes.begin(), removed_tree_hashes.end()),
-                            removed_tree_hashes.end());
-  for (const auto& hash : removed_tree_hashes) {
-    try {
-      if (!store.remove_object(hash)) {
-        std::cerr << "warning: failed to delete removed tree object " << to_hex(hash) << "\n";
-      }
-    } catch (const std::exception& ex) {
-      std::cerr << "warning: failed to delete removed tree object " << to_hex(hash)
-                << ": " << ex.what() << "\n";
-    }
-  }
-
-  std::sort(removed_blob_hashes.begin(), removed_blob_hashes.end());
-  removed_blob_hashes.erase(std::unique(removed_blob_hashes.begin(), removed_blob_hashes.end()),
-                            removed_blob_hashes.end());
-  for (const auto& hash : removed_blob_hashes) {
-    if (!store.remove_object(hash)) {
-      throw std::runtime_error("failed to delete removed blob object: " + to_hex(hash));
-    }
-  }
-
-  return new_commit_hash;
+  return make_prepared_write(base_head, new_commit_hash);
 }
 
 // 내부함수
@@ -404,7 +343,7 @@ void VaultEngine::initialize_vault_identity() {
       std::cerr << oss.str() << "\n";
   }
 
-  void VaultEngine::write_head(const std::array<uint8_t, 32>& commit_hash) {
+  ByteVec VaultEngine::encrypt_head(const AnchorHash& commit_hash) const {
       ByteVec iv = random_bytes(kIvSize);
       ByteVec plain(commit_hash.begin(), commit_hash.end());
       ByteVec cipher = aes256_ctr_crypt(keys.enc_key, iv, plain);
@@ -420,11 +359,14 @@ void VaultEngine::initialize_vault_identity() {
       append_bytes(out, cipher.data(), cipher.size());
       append_bytes(out, tag.data(), tag.size());
 
-      store.write_head(out);
+      return out;
   }
 
-  std::array<uint8_t, 32> VaultEngine::read_head() {
-        ByteVec data = store.read_head();
+  void VaultEngine::write_head(const AnchorHash& commit_hash) {
+      store.install_initial_head(encrypt_head(commit_hash));
+  }
+
+  AnchorHash VaultEngine::decrypt_head(const ByteVec& data) const {
         if (data.size() != kIvSize + kHeadCipherSize + kHeadTagSize) {
             throw std::runtime_error("invalid HEAD size");
         }
@@ -452,10 +394,36 @@ void VaultEngine::initialize_vault_identity() {
         return out;
   }
 
+  AnchorHash VaultEngine::read_head() {
+        return decrypt_head(store.read_head());
+  }
+
+  PreparedVaultWrite VaultEngine::make_prepared_write(
+      const AnchorHash& previous_head,
+      const AnchorHash& new_head) const {
+    PreparedVaultWrite prepared;
+    const ByteVec operation = random_bytes(prepared.operation_id.size());
+    std::copy(operation.begin(), operation.end(), prepared.operation_id.begin());
+    prepared.previous_head = previous_head;
+    prepared.new_head = new_head;
+    prepared.encrypted_head_bytes = encrypt_head(new_head);
+    return prepared;
+  }
+
   std::array<uint8_t, 32> VaultEngine::store_commit(
       const std::array<uint8_t, 32>& root_hash,
       uint64_t commit_time,
       const std::array<uint8_t, 32>& parent_hash) {
+    const AnchorHash commit_hash =
+        store_commit_object(root_hash, commit_time, parent_hash);
+    write_head(commit_hash);
+    return commit_hash;
+  }
+
+  AnchorHash VaultEngine::store_commit_object(
+      const AnchorHash& root_hash,
+      uint64_t commit_time,
+      const AnchorHash& parent_hash) {
     Commit commit;
     commit.commit_time = commit_time;
     commit.root_hash = root_hash;
@@ -464,7 +432,6 @@ void VaultEngine::initialize_vault_identity() {
     ByteVec serialized = serialize_commit(commit);
     EncryptedObject obj = crypto->encrypt_object(keys.enc_key, serialized);
     store.write_object(obj.hash, obj.data);
-    write_head(obj.hash);
     return obj.hash;
   }
 
@@ -488,6 +455,43 @@ void VaultEngine::initialize_vault_identity() {
     ByteVec data = store.read_object(commit_hash);
     ByteVec plaintext = crypto->decrypt_object_checked(keys.enc_key, data, commit_hash);
     return deserialize_commit(plaintext);
+  }
+
+  bool VaultEngine::verify_commit_parent(
+      const AnchorHash& commit_hash,
+      const AnchorHash& expected_parent_hash) {
+    return load_commit_checked(commit_hash).parent_hash == expected_parent_hash;
+  }
+
+  bool VaultEngine::is_commit_ancestor(const AnchorHash& ancestor,
+                                       const AnchorHash& descendant) {
+    std::set<AnchorHash> visited;
+    AnchorHash current = descendant;
+    while (visited.insert(current).second) {
+      if (current == ancestor) {
+        return true;
+      }
+      const Commit commit = load_commit_checked(current);
+      if (is_zero_hash(commit.parent_hash)) {
+        return false;
+      }
+      current = commit.parent_hash;
+    }
+    throw std::runtime_error("commit parent cycle detected: " + to_hex(current));
+  }
+
+  const VaultIdentity& VaultEngine::identity() const {
+    if (!vault_identity.has_value()) {
+      throw std::runtime_error("vault identity is not initialized");
+    }
+    return *vault_identity;
+  }
+
+  const ByteVec& VaultEngine::trust_mac_key() const {
+    if (keys.mac_key.size() != 32) {
+      throw std::runtime_error("Vault keys are not initialized");
+    }
+    return keys.mac_key;
   }
 
   Commit VaultEngine::load_commit_history_checked(
@@ -686,8 +690,31 @@ void VaultEngine::initialize_vault_identity() {
   }
 
   PathResult VaultEngine::resolve_path(const std::string& path) {
-    auto commit_hash = read_head();
-    Commit commit = load_commit_checked(commit_hash);
+    return resolve_path_at(read_head(), path);
+  }
+
+  Entry VaultEngine::resolve_entry_at(const AnchorHash& head_hash,
+                                      const std::string& path,
+                                      bool require_directory) {
+    if (path.empty()) {
+      throw std::runtime_error("path required");
+    }
+    PathResult result = resolve_path_at(head_hash, path);
+    if (require_directory && !result.is_directory) {
+      throw std::runtime_error("path is not a directory: " + path);
+    }
+    if (result.is_directory) {
+      Entry entry;
+      entry.type = 1;
+      entry.name = path;
+      return entry;
+    }
+    return result.entry;
+  }
+
+  PathResult VaultEngine::resolve_path_at(const AnchorHash& head_hash,
+                                          const std::string& path) {
+    Commit commit = load_commit_checked(head_hash);
     std::array<uint8_t, 32> current_hash = commit.root_hash;
 
     if (path.empty()) {
@@ -1049,13 +1076,4 @@ void VaultEngine::initialize_vault_identity() {
     for (auto& f : uploads) {
         f.get();   // 예외 전파 + 완료 대기
     }
-}
-
-void VaultEngine::sync() {
-  if (!store.remote_vault_exists()) {
-    throw std::runtime_error("remote vault not found");
-  }
-  
-  store.fetch_config_from_cloud();
-  store.fetch_head_from_cloud();
 }

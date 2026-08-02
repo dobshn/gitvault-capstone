@@ -2,11 +2,26 @@
 
 #include "json.hpp"
 
+#include <algorithm>
+#include <chrono>
+#include <iostream>
 #include <stdexcept>
+#include <thread>
 #include <utility>
 
 namespace {
   using nlohmann::json;
+
+  std::string require_revision(const json& metadata,
+                               std::string_view operation) {
+    if (!metadata.is_object() || !metadata.contains("rev") ||
+        !metadata.at("rev").is_string() ||
+        metadata.at("rev").get<std::string>().empty()) {
+      throw std::runtime_error(std::string(operation) +
+                               " response is missing file revision");
+    }
+    return metadata.at("rev").get<std::string>();
+  }
 }
 
   void DropboxStorage::check(const httplib::Result& res, int expected, std::string_view ctx) {
@@ -292,8 +307,69 @@ void DropboxStorage::put(std::string_view path, const ByteVec& data, bool overwr
   }
 }
 
+ConditionalWriteResult DropboxStorage::upload_conditionally(
+    std::string_view path,
+    const ByteVec& data,
+    const json& mode) const {
+  require_initialized("conditional upload");
+
+  thread_local httplib::SSLClient client("content.dropboxapi.com", 443);
+  client.set_keep_alive(true);
+  httplib::Headers headers = {
+      {"Authorization", "Bearer " + access_token_},
+      {"Dropbox-API-Arg",
+       json{{"path", build_dropbox_path(path)},
+            {"mode", mode},
+            {"autorename", false}}
+           .dump()},
+  };
+
+  const char* body = data.empty()
+                         ? ""
+                         : reinterpret_cast<const char*>(data.data());
+  auto res = client.Post("/2/files/upload", headers, body, data.size(),
+                         "application/octet-stream");
+  if (!res) {
+    throw std::runtime_error("Conditional upload failed (network/TLS)");
+  }
+  if (res->status == 409) {
+    return {ConditionalWriteStatus::Conflict, {}};
+  }
+  if (res->status != 200) {
+    throw std::runtime_error(
+        "Conditional upload /2/files/upload failed. HTTP " +
+        std::to_string(res->status) + ": " + res->body);
+  }
+  const json metadata = json::parse(res->body);
+  return {ConditionalWriteStatus::Updated,
+          require_revision(metadata, "Conditional upload")};
+}
+
+ConditionalWriteResult DropboxStorage::put_if_revision(
+    std::string_view path,
+    const ByteVec& data,
+    std::string_view expected_revision) const {
+  if (expected_revision.empty()) {
+    throw std::runtime_error("expected Dropbox revision must not be empty");
+  }
+  return upload_conditionally(
+      path, data,
+      json{{".tag", "update"},
+           {"update", std::string(expected_revision)}});
+}
+
+ConditionalWriteResult DropboxStorage::put_if_absent(
+    std::string_view path,
+    const ByteVec& data) const {
+  return upload_conditionally(path, data, "add");
+}
+
 // path에 있는 파일을 다운 받아옴
 ByteVec DropboxStorage::get(std::string_view path) const {
+  return get_versioned(path).bytes;
+}
+
+VersionedBytes DropboxStorage::get_versioned(std::string_view path) const {
   require_initialized("get()");
 
   thread_local httplib::SSLClient client("content.dropboxapi.com", 443);
@@ -307,8 +383,17 @@ ByteVec DropboxStorage::get(std::string_view path) const {
   auto res = client.Post("/2/files/download", headers);
   check(res, 200, "Download /2/files/download");
 
+  const std::string metadata_header =
+      res->get_header_value("Dropbox-API-Result");
+  if (metadata_header.empty()) {
+    throw std::runtime_error(
+        "Download response is missing Dropbox-API-Result metadata");
+  }
+  const json metadata = json::parse(metadata_header);
+
   const auto* bytes = reinterpret_cast<const uint8_t*>(res->body.data());
-  return ByteVec(bytes, bytes + res->body.size());
+  return {ByteVec(bytes, bytes + res->body.size()),
+          require_revision(metadata, "Download")};
 }
 
 // path 경로의 파일이 존재하는지 확인. 있으면 true, 없으면 false

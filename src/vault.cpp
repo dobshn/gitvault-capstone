@@ -2,12 +2,20 @@
 #include <iostream>
 #include <iomanip>
 #include <cctype>
+#include <sstream>
 
 #include "vault.h"
 #include "object_store.h"
 #include "vault_engine.h"
 #include "util.h"
 #include "format.h"
+#include "anchor_coordinator.h"
+#include "anchor_trust_store.h"
+#include "nostr_anchor_channel.h"
+#include "client_bootstrap.h"
+#include "crypto/CryptoImpl.h"
+#include "crypto/sha256.h"
+#include "vault_identity.h"
 #include "LoginHandler/DropboxLoginHandler.h"
 
 
@@ -44,6 +52,152 @@ namespace {
             throw std::runtime_error("vault_name must not contain '/' or '\\\\'");
         }
         return vault_name;
+    }
+
+    std::unique_ptr<AnchorCoordinator> make_anchor_coordinator(
+        ObjectStore& store,
+        VaultEngine& engine) {
+      AnchorTrustStore trust(store.trust_directory(), engine.trust_mac_key());
+      if (!trust.channel_exists()) {
+        throw std::runtime_error(
+            "anchor channel is not configured for this vault");
+      }
+      const AnchorChannelConfig config = trust.load_channel();
+      auto channel = std::make_unique<NostrAnchorChannel>(
+          config.relay_urls, engine.identity().signing_secret);
+      return std::make_unique<AnchorCoordinator>(
+          store, engine, std::move(channel));
+    }
+
+    const char* fetch_status_name(AnchorFetchStatus status) {
+      switch (status) {
+        case AnchorFetchStatus::Synchronized: return "EOSE";
+        case AnchorFetchStatus::Rejected: return "REJECTED";
+        case AnchorFetchStatus::Timeout: return "TIMEOUT";
+        case AnchorFetchStatus::TransportError: return "TRANSPORT_ERROR";
+      }
+      return "UNKNOWN";
+    }
+
+    void print_anchor_status(const AnchorCoordinatorStatus& status) {
+      std::cout << "L=" << to_hex(status.local_head) << "\n"
+                << "C=" << to_hex(status.cloud_head) << "\n"
+                << "N=";
+      if (status.observed_head.has_value()) {
+        std::cout << to_hex(*status.observed_head);
+      } else {
+        std::cout << "unavailable";
+      }
+      std::cout << "\n"
+                << "relation_L_C=" << status.local_cloud_relation << "\n"
+                << "relation_C_N=" << status.cloud_observed_relation << "\n"
+                << "relation_L_N=" << status.local_observed_relation << "\n"
+                << "cloud_revision=" << status.cloud_revision << "\n"
+                << "state="
+                << anchor_client_state_name(status.decision.state) << "\n"
+                << "reason="
+                << anchor_state_reason_name(status.decision.reason) << "\n"
+                << "action="
+                << anchor_state_action_name(status.decision.action) << "\n"
+                << "detail=" << status.decision.detail << "\n";
+      for (const auto& relay : status.relay_fetch.endpoints) {
+        std::cout << "relay=" << relay.endpoint << " "
+                  << fetch_status_name(relay.status)
+                  << " latency_ms=" << relay.latency_milliseconds;
+        if (!relay.message.empty()) std::cout << " " << relay.message;
+        std::cout << "\n";
+      }
+      if (status.prepared.has_value()) {
+        std::cout << "pending_operation="
+                  << to_hex(ByteVec(status.prepared->operation_id.begin(),
+                                    status.prepared->operation_id.end()))
+                  << " phase="
+                  << prepared_write_phase_name(status.prepared->phase)
+                  << "\n";
+      } else {
+        std::cout << "pending_operation=none\n";
+      }
+      for (const auto& outbox : status.pending_outbox) {
+        for (const auto& relay : status.relay_fetch.endpoints) {
+          std::cout << "outbox=" << to_hex(outbox.event.id)
+                    << " relay_ack=" << relay.endpoint << ':'
+                    << (outbox.accepted_endpoints.count(relay.endpoint) != 0
+                            ? "yes" : "no")
+                    << "\n";
+        }
+      }
+    }
+
+    void require_safe_read(AnchorCoordinator& coordinator) {
+      const AnchorCoordinatorStatus status = coordinator.preflight(true);
+      if (status.decision.state != AnchorClientState::Consistent &&
+          status.decision.state != AnchorClientState::LocalCatchUp &&
+          status.decision.state != AnchorClientState::Announced &&
+          status.decision.state != AnchorClientState::DegradedReadOnly) {
+        throw std::runtime_error(
+            std::string("read blocked by anchor state ") +
+            anchor_client_state_name(status.decision.state) + " (" +
+            anchor_state_reason_name(status.decision.reason) + "): " +
+            status.decision.detail);
+      }
+    }
+
+    Config parse_bootstrap_config(const ByteVec& bytes) {
+      Config config;
+      config.version = 0;
+      config.iterations = 0;
+      std::istringstream input(std::string(bytes.begin(), bytes.end()));
+      std::string line;
+      while (std::getline(input, line)) {
+        const auto separator = line.find('=');
+        if (separator == std::string::npos) continue;
+        const std::string key = line.substr(0, separator);
+        const std::string value = line.substr(separator + 1);
+        if (key == "version") {
+          config.version = static_cast<uint8_t>(std::stoul(value));
+        } else if (key == "kdf_iter") {
+          config.iterations = static_cast<uint32_t>(std::stoul(value));
+        } else if (key == "kdf_salt") {
+          config.salt = from_hex(value);
+        }
+      }
+      if (config.version != 2 || config.salt.size() < 16 ||
+          config.iterations == 0 || config.iterations > 10000000) {
+        throw std::runtime_error("invalid bootstrap Vault config");
+      }
+      return config;
+    }
+
+    void validate_bootstrap_identity(const ClientBootstrap& bootstrap,
+                                     const std::string& password) {
+      if (Sha256::hash(bootstrap.config_bytes) !=
+          bootstrap.channel.config_hash) {
+        throw std::runtime_error(
+            "bootstrap config does not match the Genesis config hash");
+      }
+      CryptoImpl crypto;
+      const Config config = parse_bootstrap_config(bootstrap.config_bytes);
+      const Keys keys = crypto.derive_keys(
+          config.salt, config.iterations, password);
+      const VaultIdentity identity = unwrap_vault_identity(
+          bootstrap.wrapped_identity, keys);
+      const SchnorrPublicKey public_key =
+          schnorr_public_key(identity.signing_secret);
+      if (public_key != bootstrap.channel.vault_public_key) {
+        throw std::runtime_error(
+            "bootstrap identity does not match the channel public key");
+      }
+      for (const auto& event : bootstrap.events) {
+        if (event.kind != kGitVaultAnchorEventKind ||
+            event.tags != std::vector<NostrTag>{{
+                "t", to_hex(bootstrap.channel.channel_id)}} ||
+            !verify_nostr_event(event, public_key)) {
+          throw std::runtime_error(
+              "bootstrap contains an invalid outer Nostr event");
+        }
+        (void)verify_decrypt_anchor_event(
+            event, public_key, identity.signing_secret);
+      }
     }
 
     std::string getTokenPath() {
@@ -131,11 +285,16 @@ void Vault::execute(Command& cmd) {
         if (cmd.positional.size() != 1 && cmd.positional.size() != 2) {
             throw std::runtime_error("init requires <vault_name> [folder_path]");
         }
+        if (cmd.relays.size() != 3) {
+            throw std::runtime_error(
+                "init requires exactly three --relay wss://... options");
+        }
         std::string vault_name = normalize_vault_name(cmd.positional[0]);
         std::filesystem::path local_vault_dir = getHomeDirectory() + "/.gitvault/" + vault_name;
         if (std::filesystem::exists(local_vault_dir)) {
-            std::error_code ec;
-            std::filesystem::remove_all(local_vault_dir, ec);
+            throw std::runtime_error(
+                "local vault metadata already exists: " +
+                local_vault_dir.string());
         }
         obj_store.init(dropbox_token, vault_name);
         VaultEngine vault_engine(obj_store, read_password(cmd), true);
@@ -148,7 +307,12 @@ void Vault::execute(Command& cmd) {
           std::filesystem::path plain_dir = cmd.positional[1];
           commit_hash = vault_engine.lock_vault(plain_dir);
         }
+        NostrAnchorChannel channel(
+            cmd.relays, vault_engine.identity().signing_secret);
+        const AnchorChannelConfig anchor = AnchorCoordinator::initialize(
+            obj_store, vault_engine, channel, cmd.relays);
         std::cout << "\ncommit=" << to_hex(commit_hash) << "\n";
+        std::cout << "genesis=" << to_hex(anchor.genesis_event_id) << "\n";
     } else if (cmd.command == "destroy") {
         if (cmd.positional.size() != 1) {
             throw std::runtime_error("destroy requires <vault_name>");
@@ -191,7 +355,13 @@ void Vault::execute(Command& cmd) {
         }
         obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
         VaultEngine vault_engine(obj_store, read_password(cmd));
-        auto commit_hash = vault_engine.add(std::filesystem::path(cmd.positional[1]), cmd.positional[2]);
+        auto coordinator = make_anchor_coordinator(obj_store, vault_engine);
+        auto commit_hash = coordinator->execute_write(
+            [&](const AnchorHash& base) {
+              return vault_engine.prepare_add(
+                  std::filesystem::path(cmd.positional[1]),
+                  cmd.positional[2], base);
+            }).new_head;
         std::cout << "commit=" << to_hex(commit_hash) << "\n";
     } else if (cmd.command == "mkdir") {
       if (cmd.positional.size() != 2) {
@@ -199,7 +369,11 @@ void Vault::execute(Command& cmd) {
       }
       obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
       VaultEngine vault_engine(obj_store, read_password(cmd));
-      auto commit_hash = vault_engine.mkdir(cmd.positional[1]);
+      auto coordinator = make_anchor_coordinator(obj_store, vault_engine);
+      auto commit_hash = coordinator->execute_write(
+          [&](const AnchorHash& base) {
+            return vault_engine.prepare_mkdir(cmd.positional[1], base);
+          }).new_head;
       std::cout << "commit=" << to_hex(commit_hash) << "\n";
     } else if (cmd.command == "remove") {
       if (cmd.positional.size() != 2) {
@@ -207,7 +381,11 @@ void Vault::execute(Command& cmd) {
       }
       obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
       VaultEngine vault_engine(obj_store, read_password(cmd));
-      auto commit_hash = vault_engine.remove(cmd.positional[1]);
+      auto coordinator = make_anchor_coordinator(obj_store, vault_engine);
+      auto commit_hash = coordinator->execute_write(
+          [&](const AnchorHash& base) {
+            return vault_engine.prepare_remove(cmd.positional[1], base);
+          }).new_head;
       std::cout << "commit=" << to_hex(commit_hash) << "\n";
     } else if (cmd.command == "rmdir") {
       if (cmd.positional.size() != 2) {
@@ -215,10 +393,14 @@ void Vault::execute(Command& cmd) {
       }
       obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
       VaultEngine vault_engine(obj_store, read_password(cmd));
+      auto coordinator = make_anchor_coordinator(obj_store, vault_engine);
       const std::string cloud_dir_path = cmd.positional[1];
 
       try {
-        auto commit_hash = vault_engine.rmdir(cloud_dir_path, false);
+        auto commit_hash = coordinator->execute_write(
+            [&](const AnchorHash& base) {
+              return vault_engine.prepare_rmdir(cloud_dir_path, false, base);
+            }).new_head;
         std::cout << "commit=" << to_hex(commit_hash) << "\n";
       } catch (const std::runtime_error& ex) {
         const std::string message = ex.what();
@@ -236,7 +418,10 @@ void Vault::execute(Command& cmd) {
           return;
         }
 
-        auto commit_hash = vault_engine.rmdir(cloud_dir_path, true);
+        auto commit_hash = coordinator->execute_write(
+            [&](const AnchorHash& base) {
+              return vault_engine.prepare_rmdir(cloud_dir_path, true, base);
+            }).new_head;
         std::cout << "commit=" << to_hex(commit_hash) << "\n";
       }
     } else if (cmd.command == "list") {
@@ -245,6 +430,8 @@ void Vault::execute(Command& cmd) {
       }
       obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
       VaultEngine vault_engine(obj_store, read_password(cmd));
+      auto coordinator = make_anchor_coordinator(obj_store, vault_engine);
+      require_safe_read(*coordinator);
       std::string path = (cmd.positional.size() == 2) ? cmd.positional[1] : "";
       Tree tree = vault_engine.list_directory(path);
 
@@ -279,6 +466,8 @@ void Vault::execute(Command& cmd) {
       }
       obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
       VaultEngine vault_engine(obj_store, read_password(cmd));
+      auto coordinator = make_anchor_coordinator(obj_store, vault_engine);
+      require_safe_read(*coordinator);
       std::string path = (cmd.positional.size() == 2) ? cmd.positional[1] : "";
       vault_engine.print_tree(path, std::cout);
     } else if (cmd.command == "cat") {
@@ -287,6 +476,8 @@ void Vault::execute(Command& cmd) {
       }
       obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
       VaultEngine vault_engine(obj_store, read_password(cmd));
+      auto coordinator = make_anchor_coordinator(obj_store, vault_engine);
+      require_safe_read(*coordinator);
       ByteVec data = vault_engine.read_file_from_vault(cmd.positional[1]);
       if (!data.empty()) {
         std::cout.write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
@@ -297,6 +488,8 @@ void Vault::execute(Command& cmd) {
       }
       obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
       VaultEngine vault_engine(obj_store, read_password(cmd));
+      auto coordinator = make_anchor_coordinator(obj_store, vault_engine);
+      require_safe_read(*coordinator);
       ScanStats stats = (cmd.command == "quick-scan")
                             ? vault_engine.quick_scan()
                             : vault_engine.deep_scan();
@@ -304,26 +497,122 @@ void Vault::execute(Command& cmd) {
                 << " blobs=" << stats.blobs_checked
                 << " missing=" << stats.blobs_missing << " hashed=" << stats.blobs_hashed
                 << " errors=" << stats.errors << "\n";
+    } else if (cmd.command == "export-client") {
+      if (cmd.positional.size() != 2) {
+        throw std::runtime_error(
+            "export-client requires <vault_name> <bootstrap_file>");
+      }
+      const std::string vault_name =
+          normalize_vault_name(cmd.positional[0]);
+      obj_store.fetch(dropbox_token, vault_name);
+      VaultEngine vault_engine(obj_store, read_password(cmd));
+      auto coordinator = make_anchor_coordinator(obj_store, vault_engine);
+      (void)coordinator->preflight(false);
+      const AnchorCoordinatorStatus status = coordinator->preflight(false);
+      if (status.relay_fetch.synchronized_count() <
+              coordinator->config().read_quorum ||
+          status.decision.state != AnchorClientState::Consistent) {
+        throw std::runtime_error(
+            "export-client requires R=2 and CONSISTENT state");
+      }
+      AnchorTrustStore trust(obj_store.trust_directory(),
+                             vault_engine.trust_mac_key());
+      ClientBootstrap bootstrap;
+      bootstrap.vault_name = vault_name;
+      bootstrap.config_bytes = obj_store.read_local_config_bytes();
+      bootstrap.wrapped_identity = obj_store.load_vault_identity();
+      bootstrap.channel = trust.load_channel();
+      bootstrap.checkpoint = trust.load_checkpoint();
+      bootstrap.events = trust.load_cached_events();
+      write_client_bootstrap(cmd.positional[1], bootstrap);
+      std::cout << "bootstrap=" << cmd.positional[1] << "\n";
+    } else if (cmd.command == "import-client") {
+      if (cmd.positional.size() != 1) {
+        throw std::runtime_error(
+            "import-client requires <bootstrap_file>");
+      }
+      const ClientBootstrap bootstrap =
+          read_client_bootstrap(cmd.positional[0]);
+      const std::string password = read_password(cmd);
+      validate_bootstrap_identity(bootstrap, password);
+      const std::filesystem::path local_vault_dir =
+          std::filesystem::path(getHomeDirectory()) / ".gitvault" /
+          bootstrap.vault_name;
+      if (std::filesystem::exists(local_vault_dir)) {
+        throw std::runtime_error(
+            "import destination already contains local metadata: " +
+            local_vault_dir.string());
+      }
+      obj_store.fetch(dropbox_token, bootstrap.vault_name);
+      if (!constant_time_equal(obj_store.read_cloud_config_bytes(),
+                               bootstrap.config_bytes)) {
+        throw std::runtime_error(
+            "Dropbox config differs from the bootstrap config");
+      }
+      try {
+        obj_store.write_local_config_bytes(bootstrap.config_bytes);
+        obj_store.save_vault_identity(bootstrap.wrapped_identity);
+        VaultEngine vault_engine(obj_store, password);
+        AnchorTrustStore trust(obj_store.trust_directory(),
+                               vault_engine.trust_mac_key());
+        AnchorChannelConfig local_channel = bootstrap.channel;
+        local_channel.installation_id = to_hex(random_bytes(16));
+        trust.save_channel(local_channel);
+        trust.save_checkpoint(bootstrap.checkpoint);
+        for (const auto& event : bootstrap.events) {
+          trust.cache_event(event);
+        }
+        obj_store.write_local_head(
+            vault_engine.encrypt_head(bootstrap.checkpoint.accepted_head));
+        auto channel = std::make_unique<NostrAnchorChannel>(
+            local_channel.relay_urls,
+            vault_engine.identity().signing_secret);
+        AnchorCoordinator coordinator(
+            obj_store, vault_engine, std::move(channel));
+        (void)coordinator.preflight(false);
+        const AnchorCoordinatorStatus installed =
+            coordinator.preflight(false);
+        if (installed.relay_fetch.synchronized_count() <
+                coordinator.config().read_quorum ||
+            installed.decision.state != AnchorClientState::Consistent) {
+          throw std::runtime_error(
+              "import validation did not reach R=2 CONSISTENT state");
+        }
+        std::cout << "imported=" << bootstrap.vault_name << "\n"
+                  << "installation_id="
+                  << local_channel.installation_id << "\n";
+      } catch (...) {
+        try {
+          (void)obj_store.remove_local_metadata();
+        } catch (...) {
+        }
+        throw;
+      }
     } else if (cmd.command == "sync") {
       if (cmd.positional.size() != 1) {
         throw std::runtime_error(cmd.command + " requires <vault_name>");
       }
-      std::cout <<
-      "Warning: 'sync' will fetch the vault config and HEAD from the cloud.\n"
-      "\033[31m" << "This resets local state and prevents detection of rollback attacks performed on the remote storage.\n" << "\033[0m"
-      "But, Confidentiality and integrity will still be preserved.\n\n"
-      "Proceed? (y/N): ";
-
-      std::string answer;
-      std::getline(std::cin, answer);
-      if (!(answer == "y" || answer == "Y")) {
-        std::cout << "Sync cancelled.\n";
-        return;
+      obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
+      VaultEngine vault_engine(obj_store, read_password(cmd));
+      auto coordinator = make_anchor_coordinator(obj_store, vault_engine);
+      const AnchorCoordinatorStatus status = coordinator->preflight(false);
+      print_anchor_status(status);
+      if (status.decision.state != AnchorClientState::Consistent &&
+          status.decision.state != AnchorClientState::LocalCatchUp &&
+          status.decision.state != AnchorClientState::Announced) {
+        throw std::runtime_error(
+            std::string("sync stopped in ") +
+            anchor_client_state_name(status.decision.state) + " (" +
+            anchor_state_reason_name(status.decision.reason) + ")");
+      }
+    } else if (cmd.command == "status") {
+      if (cmd.positional.size() != 1) {
+        throw std::runtime_error("status requires <vault_name>");
       }
       obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
-      VaultEngine vault_engine(obj_store, "");
-      vault_engine.sync();
-      std::cout << "Sync Done!" << std::endl;
+      VaultEngine vault_engine(obj_store, read_password(cmd));
+      auto coordinator = make_anchor_coordinator(obj_store, vault_engine);
+      print_anchor_status(coordinator->preflight(true));
     } else {
         print_usage();
     }

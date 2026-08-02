@@ -8,9 +8,9 @@ class LocalFileAnchorChannel final : public IAnchorChannel {
 public:
   explicit LocalFileAnchorChannel(std::filesystem::path root_directory);
 
-  std::vector<AnchorPublishReceipt> publish(
+  AnchorPublishResult publish(
       const SignedNostrEvent& event) override;
-  std::vector<SignedNostrEvent> fetch(
+  AnchorFetchResult fetch(
       const AnchorChannelQuery& query = {}) const override;
 
   const std::filesystem::path& root_directory() const;

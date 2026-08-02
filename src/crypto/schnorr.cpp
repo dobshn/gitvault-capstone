@@ -118,3 +118,40 @@ bool schnorr_verify_digest(
              secp_context().get(), signature.data(), digest.data(), digest.size(),
              &parsed_public_key) == 1;
 }
+
+std::array<uint8_t, 32> secp256k1_shared_x(
+    const std::array<uint8_t, 32>& private_key,
+    const SchnorrPublicKey& public_key) {
+  if (secp256k1_ec_seckey_verify(secp_context().get(), private_key.data()) != 1) {
+    throw std::runtime_error("invalid secp256k1 private key");
+  }
+
+  secp256k1_xonly_pubkey xonly;
+  if (secp256k1_xonly_pubkey_parse(secp_context().get(), &xonly,
+                                   public_key.data()) != 1) {
+    throw std::runtime_error("invalid secp256k1 public key");
+  }
+  secp256k1_pubkey full;
+  const std::array<uint8_t, 32> zero_tweak{};
+  if (secp256k1_xonly_pubkey_tweak_add(secp_context().get(), &full, &xonly,
+                                       zero_tweak.data()) != 1) {
+    throw std::runtime_error("failed to lift x-only public key");
+  }
+  if (secp256k1_ec_pubkey_tweak_mul(secp_context().get(), &full,
+                                    private_key.data()) != 1) {
+    throw std::runtime_error("secp256k1 ECDH failed");
+  }
+
+  std::array<uint8_t, 33> compressed{};
+  size_t compressed_size = compressed.size();
+  if (secp256k1_ec_pubkey_serialize(
+          secp_context().get(), compressed.data(), &compressed_size, &full,
+          SECP256K1_EC_COMPRESSED) != 1 ||
+      compressed_size != compressed.size()) {
+    throw std::runtime_error("failed to serialize ECDH point");
+  }
+  std::array<uint8_t, 32> shared_x{};
+  std::copy(compressed.begin() + 1, compressed.end(), shared_x.begin());
+  OPENSSL_cleanse(compressed.data(), compressed.size());
+  return shared_x;
+}

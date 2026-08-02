@@ -3,14 +3,68 @@
 
 #include <fstream>
 #include <iostream>
+#include <cerrno>
+#include <cstring>
 #include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
 
+#if !defined(_WIN32)
+#include <fcntl.h>
+#include <unistd.h>
+#endif
+
 namespace {
   constexpr const char* kConfigKey = "config";
   constexpr const char* kHeadKey = "HEAD";
+
+void write_local_atomic(const std::filesystem::path& path,
+                        const ByteVec& data) {
+  std::filesystem::create_directories(path.parent_path());
+  std::filesystem::path temporary = path;
+  temporary += ".tmp-" + to_hex(random_bytes(8));
+#if !defined(_WIN32)
+  const int fd = ::open(temporary.c_str(), O_WRONLY | O_CREAT | O_EXCL, 0600);
+  if (fd < 0) {
+    throw std::runtime_error("failed to create local temporary file: " +
+                             std::string(std::strerror(errno)));
+  }
+  bool open = true;
+  try {
+    size_t offset = 0;
+    while (offset < data.size()) {
+      const ssize_t written = ::write(
+          fd, data.data() + offset, data.size() - offset);
+      if (written <= 0) {
+        throw std::runtime_error("failed to write local temporary file");
+      }
+      offset += static_cast<size_t>(written);
+    }
+    if (::fsync(fd) != 0) {
+      throw std::runtime_error("failed to fsync local temporary file");
+    }
+    ::close(fd);
+    open = false;
+    std::filesystem::rename(temporary, path);
+    const int directory_fd =
+        ::open(path.parent_path().c_str(), O_RDONLY | O_DIRECTORY);
+    if (directory_fd < 0 || ::fsync(directory_fd) != 0) {
+      if (directory_fd >= 0) ::close(directory_fd);
+      throw std::runtime_error("failed to fsync local metadata directory");
+    }
+    ::close(directory_fd);
+  } catch (...) {
+    if (open) ::close(fd);
+    std::error_code ignored;
+    std::filesystem::remove(temporary, ignored);
+    throw;
+  }
+#else
+  write_file_bytes(temporary, data);
+  std::filesystem::rename(temporary, path);
+#endif
+}
 
 std::string normalize_root_path(std::string root_path) {
     if (root_path.empty()) {
@@ -34,6 +88,9 @@ std::filesystem::path ObjectStore::metadata_dir() const {
   if (vault_name.empty()) {
     throw std::runtime_error("invalid store root: " + root_);
   }
+  if (local_metadata_root_.has_value()) {
+    return *local_metadata_root_ / vault_name;
+  }
   // 로컬 메타데이터 위치: ~/.gitvault/<vault_name>/
   return std::filesystem::path(getHomeDirectory()) / ".gitvault" / vault_name;
 }
@@ -52,12 +109,23 @@ std::filesystem::path ObjectStore::vault_identity_path() const {
 
 // 생성자
 ObjectStore::ObjectStore() {
-  CloudAPI = new DropboxStorage();
+  CloudAPI = std::make_unique<DropboxStorage>();
 }
 
-// 소멸자
-ObjectStore::~ObjectStore() {
-  delete CloudAPI;
+ObjectStore::ObjectStore(std::unique_ptr<API> cloud_api)
+    : CloudAPI(std::move(cloud_api)) {
+  if (!CloudAPI) {
+    throw std::runtime_error("cloud API must not be null");
+  }
+}
+
+ObjectStore::ObjectStore(std::unique_ptr<API> cloud_api,
+                         std::filesystem::path local_metadata_root)
+    : local_metadata_root_(std::move(local_metadata_root)),
+      CloudAPI(std::move(cloud_api)) {
+  if (!CloudAPI || local_metadata_root_->empty()) {
+    throw std::runtime_error("cloud API and local metadata root are required");
+  }
 }
 
 void ObjectStore::fetch(std::string access_token, std::string root_path) {
@@ -77,6 +145,14 @@ bool ObjectStore::destroy(std::string access_token, std::string root_path) {
 
 const std::string& ObjectStore::root() const {
   return root_;
+}
+
+std::filesystem::path ObjectStore::trust_directory() const {
+  return metadata_dir() / "trust";
+}
+
+std::filesystem::path ObjectStore::local_metadata_directory() const {
+  return metadata_dir();
 }
 
 bool ObjectStore::remove_local_metadata() const {
@@ -181,12 +257,36 @@ void ObjectStore::save_config(const Config& config) const {
   CloudAPI->put("config", data, true);
 }
 
-void ObjectStore::write_head(const ByteVec& data) const {
-  const std::filesystem::path local_head = head_path();
-  std::filesystem::create_directories(local_head.parent_path());
-  write_file_bytes(local_head, data);
+ByteVec ObjectStore::read_local_config_bytes() const {
+  if (!std::filesystem::exists(config_path())) {
+    throw std::runtime_error("local config not found: " +
+                             config_path().string());
+  }
+  return read_file_bytes(config_path());
+}
 
-  CloudAPI->put(kHeadKey, data, true);
+ByteVec ObjectStore::read_cloud_config_bytes() const {
+  return CloudAPI->get(kConfigKey);
+}
+
+void ObjectStore::write_local_config_bytes(const ByteVec& bytes) const {
+  if (bytes.empty()) {
+    throw std::runtime_error("refusing to install an empty config");
+  }
+  const auto path = config_path();
+  if (std::filesystem::exists(path)) {
+    throw std::runtime_error("local config already exists: " + path.string());
+  }
+  write_local_atomic(path, bytes);
+}
+
+void ObjectStore::install_initial_head(const ByteVec& data) const {
+  const ConditionalWriteResult result = create_cloud_head(data);
+  if (result.status != ConditionalWriteStatus::Updated) {
+    throw std::runtime_error(
+        "initial cloud HEAD already exists; refusing to overwrite it");
+  }
+  write_local_head(data);
 }
 
 ByteVec ObjectStore::read_head() const {
@@ -225,6 +325,33 @@ ByteVec ObjectStore::read_head() const {
     throw std::runtime_error("If this vault was initialized on another device, try \"sync\" command");
 }
 
+ByteVec ObjectStore::read_local_head() const {
+  const std::filesystem::path local_head = head_path();
+  if (!std::filesystem::exists(local_head)) {
+    throw std::runtime_error("local HEAD not found: " + local_head.string());
+  }
+  return read_file_bytes(local_head);
+}
+
+void ObjectStore::write_local_head(const ByteVec& data) const {
+  write_local_atomic(head_path(), data);
+}
+
+VersionedBytes ObjectStore::read_cloud_head_versioned() const {
+  return CloudAPI->get_versioned(kHeadKey);
+}
+
+ConditionalWriteResult ObjectStore::compare_exchange_cloud_head(
+    const ByteVec& data,
+    std::string_view expected_revision) const {
+  return CloudAPI->put_if_revision(kHeadKey, data, expected_revision);
+}
+
+ConditionalWriteResult ObjectStore::create_cloud_head(
+    const ByteVec& data) const {
+  return CloudAPI->put_if_absent(kHeadKey, data);
+}
+
 bool ObjectStore::vault_identity_exists() const {
   return std::filesystem::exists(vault_identity_path());
 }
@@ -255,21 +382,21 @@ bool ObjectStore::remove_object(const std::array<uint8_t, 32>& hash) const {
 
 void ObjectStore::write_object(const std::array<uint8_t, 32>& hash, const ByteVec& data) const {
   std::string key = object_key(hash);
-//  if (CloudAPI->exists(key)) {
-//    return;
-//  }
-  CloudAPI->put(key, data, true);
+  const ConditionalWriteResult result = CloudAPI->put_if_absent(key, data);
+  if (result.status == ConditionalWriteStatus::Updated) {
+    return;
+  }
+  const ByteVec existing = CloudAPI->get(key);
+  if (!constant_time_equal(existing, data)) {
+    throw std::runtime_error("immutable object conflict: " + key);
+  }
 }
 
 void ObjectStore::write_object_from_file(const std::array<uint8_t, 32>& hash,
                                          const std::filesystem::path& path) const {
   std::string key = object_key(hash);
-//  if (CloudAPI->exists(key)) {
-//    return;
-//  }
-
   ByteVec data = read_file_bytes(path);
-  CloudAPI->put(key, data, true);
+  write_object(hash, data);
 }
 
 ByteVec ObjectStore::read_object(const std::array<uint8_t, 32>& hash) const {
@@ -278,27 +405,4 @@ ByteVec ObjectStore::read_object(const std::array<uint8_t, 32>& hash) const {
     throw std::runtime_error(    "object not found: " + root_ + "/" + key);
   }
   return CloudAPI->get(key);
-}
-
-void ObjectStore::fetch_head_from_cloud() const {
-  ByteVec data = CloudAPI->get(kHeadKey);
-
-  const std::filesystem::path local_head = head_path();
-  std::filesystem::create_directories(local_head.parent_path());
-
-  write_file_bytes(local_head, data);
-}
-
-void ObjectStore::fetch_config_from_cloud() const {
-  ByteVec data = CloudAPI->get("config");
-
-  const std::filesystem::path path = config_path();
-  std::filesystem::create_directories(path.parent_path());
-
-  write_file_bytes(path, data);
-}
-
-bool ObjectStore::remote_vault_exists() const {
-  bool result = (CloudAPI->exists("config") && CloudAPI->exists(kHeadKey));
-  return result;
 }

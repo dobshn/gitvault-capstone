@@ -7,6 +7,7 @@
 #include <type_traits>
 
 #include "json.hpp"
+#include "crypto/nip44.h"
 #include "util.h"
 
 namespace {
@@ -267,4 +268,38 @@ SignedNostrEvent sign_anchor_event(
   event.tags = tags;
   event.content = serialize_anchor_event_payload(payload);
   return sign_nostr_event(event, signing_secret);
+}
+
+SignedNostrEvent sign_encrypted_anchor_event(
+    const AnchorEventPayload& payload,
+    uint64_t created_at,
+    const std::vector<NostrTag>& tags,
+    const std::array<uint8_t, 32>& signing_secret) {
+  const SchnorrPublicKey public_key = schnorr_public_key(signing_secret);
+  const Nip44ConversationKey conversation_key =
+      nip44_conversation_key(signing_secret, public_key);
+  UnsignedNostrEvent event;
+  event.created_at = created_at;
+  event.kind = kGitVaultAnchorEventKind;
+  event.tags = tags;
+  event.content = nip44_encrypt(serialize_anchor_event_payload(payload),
+                                conversation_key);
+  return sign_nostr_event(event, signing_secret);
+}
+
+AnchorEventPayload verify_decrypt_anchor_event(
+    const SignedNostrEvent& event,
+    const SchnorrPublicKey& trusted_public_key,
+    const std::array<uint8_t, 32>& decryption_secret) {
+  if (event.kind != kGitVaultAnchorEventKind ||
+      !verify_nostr_event(event, trusted_public_key)) {
+    throw std::runtime_error("anchor event signature verification failed");
+  }
+  if (schnorr_public_key(decryption_secret) != trusted_public_key) {
+    throw std::runtime_error("anchor decryption key does not match Vault key");
+  }
+  const Nip44ConversationKey conversation_key =
+      nip44_conversation_key(decryption_secret, trusted_public_key);
+  return deserialize_anchor_event_payload(
+      nip44_decrypt(event.content, conversation_key));
 }

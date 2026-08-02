@@ -1,8 +1,15 @@
 #include "vault_identity.h"
 
 #include <algorithm>
+#include <cerrno>
+#include <cstring>
 #include <fstream>
 #include <stdexcept>
+
+#if !defined(_WIN32)
+#include <fcntl.h>
+#include <unistd.h>
+#endif
 
 #include "crypto/ctr.h"
 #include "crypto/hmac.h"
@@ -157,10 +164,27 @@ void save_wrapped_vault_identity_file(const std::filesystem::path& path,
       throw std::runtime_error("failed to write temporary vault identity file");
     }
 
+#if !defined(_WIN32)
+    const int file_fd = ::open(temp_path.c_str(), O_RDONLY);
+    if (file_fd < 0 || ::fsync(file_fd) != 0) {
+      if (file_fd >= 0) ::close(file_fd);
+      throw std::runtime_error("failed to fsync temporary vault identity");
+    }
+    ::close(file_fd);
+#endif
+
     std::filesystem::rename(temp_path, path, ec);
     if (ec) {
       throw std::runtime_error("failed to install vault identity file: " + ec.message());
     }
+#if !defined(_WIN32)
+    const int directory_fd = ::open(trust_dir.c_str(), O_RDONLY | O_DIRECTORY);
+    if (directory_fd < 0 || ::fsync(directory_fd) != 0) {
+      if (directory_fd >= 0) ::close(directory_fd);
+      throw std::runtime_error("failed to fsync trust metadata directory");
+    }
+    ::close(directory_fd);
+#endif
   } catch (...) {
     std::error_code cleanup_ec;
     std::filesystem::remove(temp_path, cleanup_ec);

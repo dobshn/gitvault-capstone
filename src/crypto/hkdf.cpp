@@ -5,20 +5,25 @@
 
 #include "crypto/hmac.h"
 
-ByteVec hkdf_sha256(const ByteVec& input_key_material,
-                    const ByteVec& salt,
-                    const ByteVec& info,
-                    size_t output_length) {
+ByteVec hkdf_extract_sha256(const ByteVec& input_key_material,
+                            const ByteVec& salt) {
+  constexpr size_t kHashLength = 32;
+  const ByteVec extract_salt = salt.empty() ? ByteVec(kHashLength, 0) : salt;
+  const auto pseudorandom_key_array = hmac_sha256(extract_salt, input_key_material);
+  return ByteVec(pseudorandom_key_array.begin(), pseudorandom_key_array.end());
+}
+
+ByteVec hkdf_expand_sha256(const ByteVec& pseudorandom_key,
+                           const ByteVec& info,
+                           size_t output_length) {
   constexpr size_t kHashLength = 32;
   constexpr size_t kMaxOutputLength = 255 * kHashLength;
+  if (pseudorandom_key.size() != kHashLength) {
+    throw std::runtime_error("HKDF pseudorandom key must be 32 bytes");
+  }
   if (output_length > kMaxOutputLength) {
     throw std::runtime_error("HKDF output length is too large");
   }
-
-  const ByteVec extract_salt = salt.empty() ? ByteVec(kHashLength, 0) : salt;
-  const auto pseudorandom_key_array = hmac_sha256(extract_salt, input_key_material);
-  const ByteVec pseudorandom_key(pseudorandom_key_array.begin(),
-                                 pseudorandom_key_array.end());
 
   ByteVec output;
   output.reserve(output_length);
@@ -41,4 +46,12 @@ ByteVec hkdf_sha256(const ByteVec& input_key_material,
                   previous_block.begin() + std::min(remaining, previous_block.size()));
   }
   return output;
+}
+
+ByteVec hkdf_sha256(const ByteVec& input_key_material,
+                    const ByteVec& salt,
+                    const ByteVec& info,
+                    size_t output_length) {
+  return hkdf_expand_sha256(hkdf_extract_sha256(input_key_material, salt),
+                            info, output_length);
 }

@@ -8,9 +8,13 @@ file(GLOB_RECURSE SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 
 add_executable(gitvault ${SRC})
 
-target_include_directories(gitvault PRIVATE src)
-
 find_package(OpenSSL REQUIRED COMPONENTS SSL Crypto)
+find_package(Threads REQUIRED)
+find_path(BOOST_INCLUDE_DIR boost/beast/websocket.hpp)
+if(NOT BOOST_INCLUDE_DIR)
+  message(FATAL_ERROR "Boost.Asio/Beast headers are required")
+endif()
+target_include_directories(gitvault PRIVATE src ${BOOST_INCLUDE_DIR})
 find_path(SECP256K1_INCLUDE_DIR secp256k1.h)
 find_library(SECP256K1_LIBRARY secp256k1)
 if(NOT SECP256K1_INCLUDE_DIR OR NOT SECP256K1_LIBRARY)
@@ -21,13 +25,33 @@ set_target_properties(SECP256K1::secp256k1 PROPERTIES
   IMPORTED_LOCATION "${SECP256K1_LIBRARY}"
   INTERFACE_INCLUDE_DIRECTORIES "${SECP256K1_INCLUDE_DIR}"
 )
-target_compile_definitions(gitvault PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
-target_link_libraries(gitvault PRIVATE OpenSSL::SSL OpenSSL::Crypto SECP256K1::secp256k1)
+target_compile_definitions(gitvault PRIVATE
+  CPPHTTPLIB_OPENSSL_SUPPORT
+  BOOST_ERROR_CODE_HEADER_ONLY
+)
+target_link_libraries(gitvault PRIVATE OpenSSL::SSL OpenSSL::Crypto
+  SECP256K1::secp256k1 Threads::Threads)
+
+add_executable(gitvault_anchor_history_benchmark
+  benchmarks/anchor_history_benchmark.cpp
+  src/anchor_event.cpp
+  src/anchor_state_machine.cpp
+  src/nostr_event.cpp
+  src/crypto/schnorr.cpp
+  src/crypto/nip44.cpp
+  src/crypto/hkdf.cpp
+  src/crypto/hmac.cpp
+  src/crypto/sha256.cpp
+  src/util.cpp
+)
+target_include_directories(gitvault_anchor_history_benchmark PRIVATE src)
+target_link_libraries(gitvault_anchor_history_benchmark PRIVATE
+  OpenSSL::Crypto
+  SECP256K1::secp256k1
+)
 
 include(CTest)
 if(BUILD_TESTING)
-  find_package(Threads REQUIRED)
-
   add_executable(gitvault_format_tests
     tests/format_test.cpp
     src/format.cpp
@@ -68,6 +92,7 @@ if(BUILD_TESTING)
 
   add_executable(gitvault_local_anchor_channel_tests
     tests/local_file_anchor_channel_test.cpp
+    src/anchor_channel.cpp
     src/local_file_anchor_channel.cpp
     src/nostr_event.cpp
     src/crypto/schnorr.cpp
@@ -85,11 +110,15 @@ if(BUILD_TESTING)
 
   add_executable(gitvault_anchor_state_machine_tests
     tests/anchor_state_machine_test.cpp
+    src/anchor_channel.cpp
     src/anchor_event.cpp
     src/anchor_state_machine.cpp
     src/local_file_anchor_channel.cpp
     src/nostr_event.cpp
     src/crypto/schnorr.cpp
+    src/crypto/nip44.cpp
+    src/crypto/hkdf.cpp
+    src/crypto/hmac.cpp
     src/crypto/sha256.cpp
     src/util.cpp
   )
@@ -100,4 +129,113 @@ if(BUILD_TESTING)
   )
   add_test(NAME gitvault_anchor_state_machine_tests
     COMMAND gitvault_anchor_state_machine_tests)
+
+  add_executable(gitvault_anchor_trust_store_tests
+    tests/anchor_trust_store_test.cpp
+    src/anchor_trust_store.cpp
+    src/nostr_event.cpp
+    src/crypto/hmac.cpp
+    src/crypto/schnorr.cpp
+    src/crypto/sha256.cpp
+    src/util.cpp
+  )
+  target_include_directories(gitvault_anchor_trust_store_tests PRIVATE src)
+  target_link_libraries(gitvault_anchor_trust_store_tests PRIVATE
+    OpenSSL::Crypto
+    SECP256K1::secp256k1
+  )
+  add_test(NAME gitvault_anchor_trust_store_tests
+    COMMAND gitvault_anchor_trust_store_tests)
+
+  add_executable(gitvault_nip44_tests
+    tests/nip44_test.cpp
+    src/crypto/nip44.cpp
+    src/crypto/hkdf.cpp
+    src/crypto/hmac.cpp
+    src/crypto/schnorr.cpp
+    src/crypto/sha256.cpp
+    src/util.cpp
+  )
+  target_include_directories(gitvault_nip44_tests PRIVATE src)
+  target_link_libraries(gitvault_nip44_tests PRIVATE
+    OpenSSL::Crypto
+    SECP256K1::secp256k1
+  )
+  add_test(NAME gitvault_nip44_tests COMMAND gitvault_nip44_tests)
+
+  add_executable(gitvault_anchor_coordinator_integration_tests
+    tests/anchor_coordinator_integration_test.cpp
+    src/anchor_channel.cpp
+    src/anchor_coordinator.cpp
+    src/anchor_event.cpp
+    src/anchor_state_machine.cpp
+    src/anchor_trust_store.cpp
+    src/dropbox_storage.cpp
+    src/format.cpp
+    src/nostr_event.cpp
+    src/object_store.cpp
+    src/vault_engine.cpp
+    src/vault_identity.cpp
+    src/crypto/CryptoImpl.cpp
+    src/crypto/ctr.cpp
+    src/crypto/hkdf.cpp
+    src/crypto/hmac.cpp
+    src/crypto/nip44.cpp
+    src/crypto/pbkdf2.cpp
+    src/crypto/schnorr.cpp
+    src/crypto/sha256.cpp
+    src/util.cpp
+  )
+  target_include_directories(gitvault_anchor_coordinator_integration_tests
+    PRIVATE src)
+  target_compile_definitions(gitvault_anchor_coordinator_integration_tests
+    PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
+  target_link_libraries(gitvault_anchor_coordinator_integration_tests PRIVATE
+    OpenSSL::SSL
+    OpenSSL::Crypto
+    SECP256K1::secp256k1
+    Threads::Threads
+  )
+  add_test(NAME gitvault_anchor_coordinator_integration_tests
+    COMMAND gitvault_anchor_coordinator_integration_tests)
+
+  add_executable(gitvault_nostr_anchor_channel_tests
+    tests/nostr_anchor_channel_test.cpp
+    src/anchor_channel.cpp
+    src/nostr_anchor_channel.cpp
+    src/nostr_event.cpp
+    src/crypto/schnorr.cpp
+    src/crypto/sha256.cpp
+    src/util.cpp
+  )
+  target_include_directories(gitvault_nostr_anchor_channel_tests PRIVATE
+    src ${BOOST_INCLUDE_DIR})
+  target_compile_definitions(gitvault_nostr_anchor_channel_tests PRIVATE
+    BOOST_ERROR_CODE_HEADER_ONLY)
+  target_link_libraries(gitvault_nostr_anchor_channel_tests PRIVATE
+    OpenSSL::SSL
+    OpenSSL::Crypto
+    SECP256K1::secp256k1
+    Threads::Threads
+  )
+  add_test(NAME gitvault_nostr_anchor_channel_tests
+    COMMAND gitvault_nostr_anchor_channel_tests)
+
+  add_executable(gitvault_client_bootstrap_tests
+    tests/client_bootstrap_test.cpp
+    src/client_bootstrap.cpp
+    src/anchor_trust_store.cpp
+    src/nostr_event.cpp
+    src/crypto/hmac.cpp
+    src/crypto/schnorr.cpp
+    src/crypto/sha256.cpp
+    src/util.cpp
+  )
+  target_include_directories(gitvault_client_bootstrap_tests PRIVATE src)
+  target_link_libraries(gitvault_client_bootstrap_tests PRIVATE
+    OpenSSL::Crypto
+    SECP256K1::secp256k1
+  )
+  add_test(NAME gitvault_client_bootstrap_tests
+    COMMAND gitvault_client_bootstrap_tests)
 endif()

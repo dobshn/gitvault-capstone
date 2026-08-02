@@ -19,6 +19,11 @@ namespace {
                     throw std::runtime_error("--password requires a value");
                 }
                 cmd.password = argv[++i];
+            } else if (arg == "--relay") {
+                if (i + 1 >= argc) {
+                    throw std::runtime_error("--relay requires a value");
+                }
+                cmd.relays.push_back(argv[++i]);
             } else {
                 cmd.positional.push_back(arg);
             }

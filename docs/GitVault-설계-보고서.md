@@ -179,7 +179,7 @@ PBKDF2(password, vault_salt) -> K_master
 
 무작위 서명 비밀키는 `K_wrap_enc`와 `K_wrap_mac`을 사용해 `AES-256-CTR + HMAC-SHA256`으로 감싼다. 로컬에는 `~/.gitvault/<vault>/trust/vault-identity.enc`만 저장하며 평문 서명 비밀키는 기록하지 않는다. `trust` 디렉터리는 소유자 전용 권한, identity 파일은 소유자 읽기/쓰기 권한으로 만들고 임시 파일을 최종 경로로 rename한다.
 
-현재 `init` 외의 비밀번호 기반 명령은 identity가 없으면 중단한다. Config V1과 이전 identity 형식의 Vault는 현재 재초기화가 필요하고, 다른 복제본으로의 bootstrap/import는 아직 불가능하다. fsync 기반 crash durability도 후속 단계다.
+현재 `init` 외의 비밀번호 기반 명령은 identity가 없으면 중단한다. Config V1과 이전 identity 형식은 지원하지 않는다. `export-client`/`import-client`는 이 wrapped identity와 검증된 checkpoint/event를 신뢰된 1회 채널로 전달하며, trust metadata는 HMAC 인증 후 임시 파일 작성, 파일 `fsync`, rename, 상위 디렉터리 `fsync` 순서로 설치한다.
 
 ### 외부 앵커 이벤트의 canonical 형식과 서명
 
@@ -195,11 +195,11 @@ GitVault는 외부 채널이 Nostr인지 여부와 무관하게 NIP-01 event JSO
 
 수신 시에는 먼저 필드 수와 타입, `kind`의 0~65535 범위, 비어 있지 않은 tag 배열, 고정 길이 소문자 hex를 검사한다. 그 뒤 event 공개키가 신뢰 중인 Vault 공개키와 같은지 확인하고, 수신 필드로 canonical 바이트와 `id`를 다시 계산해 저장된 `id`와 비교한 다음 Schnorr 서명을 검증한다. 따라서 공격자가 자기 키로 만든 정상 self-signed event, 정상 서명 뒤 변경한 content나 tag, 임의로 끼워 넣은 `id`를 모두 거부한다.
 
-이 단계의 `content`는 아직 opaque 문자열이다. Proposal/Observation의 의미 검증, payload 암호화, relay 게시·수신, 이벤트 계보와 fork 판정은 구현하지 않았다. 또한 `created_at`은 전송 메타데이터일 뿐 보안상의 순서나 freshness 근거로 사용하지 않는다.
+kind `9500` event의 `content`는 canonical Genesis/Proposal/Observation JSON을 NIP-44 v2로 Vault 자신에게 암호화한 값이다. 수신자는 외부 event의 공개키, ID, 서명, kind와 무작위 channel tag를 먼저 검증한 뒤에만 복호화한다. `created_at`은 전송 메타데이터일 뿐 보안상의 순서나 freshness 근거로 사용하지 않는다.
 
 ### 외부 앵커 채널 추상화
 
-`IAnchorChannel`은 서명 event의 **불변 게시와 수집**만 담당한다. `publish(event)`는 endpoint별 수락 영수증을 반환하고, `fetch(query)`는 event가 주장하는 author, kind, 정확히 일치하는 tag를 기준으로 후보를 가져온다. 이 필터는 검색 최적화일 뿐 신뢰 판정이 아니다.
+`IAnchorChannel`은 서명 event의 **불변 게시와 수집**만 담당한다. `publish(event)`는 endpoint별 `OK`/거부/timeout/transport 결과를 반환하고, `fetch(query)`는 endpoint별 `EOSE` 여부와 event 합집합을 반환한다. author, kind, 정확히 일치하는 tag 필터는 검색 최적화일 뿐 신뢰 판정이 아니다.
 
 채널에서 받은 event는 항상 불신 입력으로 취급한다. 상위 계층이 신뢰 중인 Vault 공개키, canonical ID, Schnorr 서명, Proposal/Observation 의미와 HEAD 계보를 검증해야 한다. 따라서 게시 수락 영수증은 Vault 상태를 전진시킬 근거가 아니며, `IAnchorChannel`도 fork 여부나 최신 HEAD를 결정하지 않는다.
 
@@ -213,7 +213,7 @@ GitVault는 외부 채널이 Nostr인지 여부와 무관하게 NIP-01 event JSO
 
 각 event ID에는 파일 하나만 대응한다. 같은 event를 다시 게시하면 성공한 중복으로 처리하지만 같은 ID에 다른 event를 덮어쓰지는 않는다. 여러 프로세스가 경쟁할 때 완전히 작성한 임시 파일을 hard link로 no-replace 설치하므로 하나만 승리한다. `fetch`는 재현 가능한 테스트를 위해 event ID 순으로 반환하지만, 이 순서는 보안 의미가 없고 `created_at`도 순서 판단에 쓰지 않는다.
 
-LocalFile adapter는 결정적 테스트와 공격 주입용이다. 올바른 JSON이지만 서명이 틀린 event는 그대로 반환하여 상위 검증기가 거부하게 하고, 깨진 JSON이나 파일명과 event ID가 다른 저장 상태는 채널 오류로 드러낸다. 이 adapter 자체는 네트워크 전달, relay quorum, checkpoint, 상태 머신, fork 판정 및 fsync 기반 crash durability를 제공하지 않는다. 상태 머신과 fork 판정은 다음 절의 상위 계층에서 수행한다.
+LocalFile adapter는 결정적 테스트와 공격 주입용이다. 실제 `NostrAnchorChannel`은 세 relay에 병렬 WebSocket/TLS 연결하고, 일치하는 `OK=true`와 `EOSE`만 세며 NIP-42 AUTH challenge를 Vault 키로 응답한다. event ID로 합집합을 만들고 같은 ID의 다른 바이트, 4,096개 초과 이력, frame/content 제한 초과를 오류로 드러낸다. 전송 계층은 신뢰나 fork를 판정하지 않는다.
 
 ### Proposal/Observation 이벤트 그래프와 상태 머신
 
@@ -228,28 +228,23 @@ LocalFile adapter는 결정적 테스트와 공격 주입용이다. 올바른 JS
 구조적 fork는 같은 부모 HEAD에서 서로 다른 자식으로 가는 전이가 **각각 Observation을 얻은 경우**다. Proposal만 두 개 있는 정상 동시 쓰기는 fork로 확정하지 않으며 미관측 Proposal로 남긴다. 검증된 단일 tip과 local/cloud HEAD의 관계에 따라 다음 상태를 판정한다.
 
 ```text
-CONSISTENT
-  -> WRITE_PREPARED
-  -> PROPOSED
-  -> HEAD_UPDATED
-  -> ANNOUNCED
-  -> CONSISTENT
+CONSISTENT -> WRITE_PREPARED -> PROPOSED
+           -> OBSERVATION_REQUIRED -> ANNOUNCED -> CONSISTENT
 
-분기 관측       -> FORKED
-설명 불가능 상태 -> RECOVERY_REQUIRED
+L<C=N             -> LOCAL_CATCH_UP
+C<N               -> ROLLBACK_DETECTED
+관측된 분기 둘 이상 -> FORKED
+R<2, L=C=checkpoint 읽기 -> DEGRADED_READ_ONLY
+설명 불가능 상태    -> RECOVERY_REQUIRED
 ```
 
 fault-injection 테스트는 Commit 준비 후, Proposal 게시 후, cloud HEAD 갱신 후, Observation 게시 후에 프로세스가 종료된 스냅샷을 각각 다시 평가한다. 또한 CAS 실패, 두 Proposal 중 하나만 관측된 경우, 두 분기가 모두 관측된 경우, 누락 참조, 잘못된 Commit parent, rollback, 미인증 event, relay 동기화 실패를 검사한다.
 
-현재 구현은 부작용 없는 판정 함수다. `prepared_write`와 channel sync 완료 여부는 호출자가 제공하고 Commit 검증은 주입한 callback으로 수행한다. 실제 명령의 outbox/checkpoint 영속화, Dropbox revision CAS, 자동 Proposal/Observation 게시와 Nostr payload 암호화는 후속 단계다. 현재 LocalFile 시험용 payload는 평문이므로 public relay에 게시해서는 안 된다. 또한 전체 event를 메모리에 올리고 참조가 풀릴 때까지 반복 순회하므로, 불리한 입력 순서에서는 해석 비용이 event 수의 제곱에 가까워질 수 있다. 긴 이력의 checkpoint/cursor 최적화는 아직 없다.
+`AnchorCoordinator`가 모든 read/write 명령 앞에서 이 판정기를 호출한다. 정상 쓰기는 append-only 객체 준비, `prepared.json`, Proposal W=2, Dropbox revision CAS, HEAD 재확인, Observation W=2, local HEAD/checkpoint 순서다. 중간 종료 시 authenticated outbox/journal에서 재게시·재개하고 CAS 충돌에는 Observation을 만들지 않는다. 전체 event를 메모리에 올리고 참조가 풀릴 때까지 반복 순회하므로, 긴 이력의 checkpoint/cursor 최적화는 아직 없다.
 
 ### 클라우드에 저장되는 파일 구조
 
-Git은 해시된 파일명의 맨 앞 1바이트를 기준으로 디렉토리를 생성해 분할 저장한다. 이를 샤딩(sharding)이라고 한다.
-
-1바이트는 8비트이므로, 총 256개의 디렉토리가 생성된다. SHA 알고리즘의 결과는 균등하게 분포하므로, 파일은 자동으로 256개의 디렉토리에 균등하게 분산된다.
-
-SHA-1의 출력은 160비트(20바이트)이므로, 맨 앞 1바이트는 폴더 명으로, 나머지 19바이트는 파일 명으로 사용된다. GitVault에선 SHA-256을 사용하므로, 출력은 256비트(32바이트)이다. 따라서 맨 앞 1바이트를 폴더 명으로, 나머지 31바이트를 파일 명으로 사용한다.
+현재 Dropbox 객체는 `objects/<sha256-hex>`의 평평한 namespace에 create-if-absent로 저장한다. 업데이트·CAS 실패·패배 Proposal 뒤에도 Tree/Blob/Commit을 삭제하지 않는다. sharding과 GC는 이 버전의 범위 밖이다.
 
 **Commit 객체의 해시 저장**
 
@@ -296,7 +291,7 @@ struct Commit {
 
 Commit V2의 저장 크기는 73바이트이며, 새 Commit은 생성 당시의 기존 `HEAD`를 부모로 기록한다. V1을 포함해 V2가 아닌 Commit은 지원하지 않는다. Quick/Deep Scan은 zero-parent에 도달할 때까지 V2 부모를 따라가며 Commit 객체의 존재, 저장 표현 해시와 포맷을 검증한다.
 
-부모 참조를 유지하기 위해 이전 Commit 객체는 삭제하지 않는다. 현재 구현은 이전 Tree와 Blob까지 모두 보존하지 않으므로, 이 Commit 이력은 계보 검증을 위한 것이며 과거 스냅샷 전체 복원을 보장하지 않는다.
+부모 참조와 crash/패배 Proposal 복구 가능성을 유지하기 위해 이전 Commit, Tree, Blob 객체를 삭제하지 않는다. 도달 불가능 객체 GC는 별도 후속 연구 항목이다.
 
 ---
 문제점: 파일 이름만 바뀌어도 연결이 끊길 수 있다. 그 바뀐 객체가 만일 상위 트리라면 더더욱 그 하위 파일들에 접근할 수 없어진다.

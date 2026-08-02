@@ -15,7 +15,7 @@
 void print_usage() {
     std::cout << "gitvault <command> [args] [--password <pw>]\n";
     std::cout << "\nCommands:\n";
-    std::cout << "  init <vault_name> [folder_path] (Initialize a vault and optionally upload a folder)\n";
+    std::cout << "  init <vault_name> [folder_path] --relay <wss://...> --relay <wss://...> --relay <wss://...>\n";
     std::cout << "  destroy <vault_name> (Delete the local metadata and remote vault folder)\n";
     std::cout << "  add <vault_name> <local_path> <cloud_path>\n";
     std::cout << "  remove <vault_name> <cloud_path>\n";
@@ -26,7 +26,10 @@ void print_usage() {
     std::cout << "  cat <vault_name> <path>\n";
     std::cout << "  quick-scan <vault_name>\n";
     std::cout << "  deep-scan <vault_name>\n";
-    std::cout << "  sync <vault_name> (Please read the Warning msg)\n";
+    std::cout << "  sync <vault_name>\n";
+    std::cout << "  status <vault_name>\n";
+    std::cout << "  export-client <vault_name> <bootstrap_file>\n";
+    std::cout << "  import-client <bootstrap_file>\n";
     std::cout << "\nvault_name can be my_vault or /my_vault.\n";
 }
 

@@ -7,11 +7,12 @@ A minimal C++ implementation of the GitVault design: encrypts files into Git-lik
 Requires:
 - OpenSSL (`libssl` + `libcrypto`)
 - libsecp256k1 with extrakeys and Schnorr signature modules
+- Boost.Asio/Beast headers (WebSocket/TLS Nostr transport)
 - bundled headers in `src/`:
   - `httplib.h`
   - `json.hpp`
 
-On macOS you may need `brew install openssl@3 secp256k1` and set `OPENSSL_ROOT_DIR`.
+On macOS you may need `brew install openssl@3 secp256k1 boost` and set `OPENSSL_ROOT_DIR`.
 
 ```
 cmake -S . -B build
@@ -27,8 +28,11 @@ cmake --build build
 # Remove the saved refresh token
 ./build/gitvault logout
 
-# Initialize a vault in Dropbox and optionally upload a local folder
-./build/gitvault init <vault_name> [folder_path]
+# Initialize a vault and pin three user-selected Nostr relays
+./build/gitvault init <vault_name> [folder_path] \
+  --relay wss://relay-1.example \
+  --relay wss://relay-2.example \
+  --relay wss://relay-3.example
 
 # Destroy a vault completely (local metadata + Dropbox folder)
 ./build/gitvault destroy <vault_name>
@@ -59,6 +63,16 @@ cmake --build build
 
 # Deep scan: verify commit/tree and re-hash all blobs
 ./build/gitvault deep-scan <vault_name>
+
+# Explain L/C/N, relay EOSE results, pending write and the decision
+./build/gitvault status <vault_name>
+
+# Verify relay/Dropbox state and perform only a safe catch-up/recovery
+./build/gitvault sync <vault_name>
+
+# Transfer an existing verified checkpoint to a new device
+./build/gitvault export-client <vault_name> <bootstrap_file>
+./build/gitvault import-client <bootstrap_file>
 ```
 
 ### Dropbox login
@@ -103,39 +117,44 @@ GitVault stores local state at:
   HEAD
   trust/
     vault-identity.enc
+    channel.json
+    checkpoint.json
+    prepared.json             # only while a write is pending
+    events/<event-id>.json
+    outbox/<event-id>.json
 ```
 
 The refresh token file is created by `login`.
-GitVault compares the local and cloud `HEAD` files before using the local trust anchor. A missing or mismatched local `HEAD` must be resolved explicitly with `sync`.
+`checkpoint.json` is the authenticated local trust anchor. GitVault compares its accepted local HEAD (`L`), Dropbox's revisioned HEAD (`C`), and the unique verified Observation tip (`N`) before every read or write. `sync` no longer copies Dropbox HEAD unconditionally.
 Config V2 derives one 32-byte master key with PBKDF2, then uses HKDF-SHA256 labels to derive separate object-encryption, HEAD-MAC, identity-wrapping-encryption, and identity-wrapping-MAC keys.
 New vaults also generate one random secp256k1-compatible signing secret. It is encrypted and authenticated with the identity wrapping keys before being stored locally as `vault-identity.enc`; GitVault does not intentionally write the plaintext signing secret to a file.
-Password-authenticated commands reject a vault whose local identity is missing. Config V1 and vaults created before this identity format must currently be reinitialized; key-schedule migration and cross-device import are not implemented yet.
+Password-authenticated commands reject a vault whose local identity is missing. Config V1 is unsupported. `export-client` includes exact config bytes, the wrapped Vault identity, a checkpoint, and signed evidence; it never includes a Dropbox token or plaintext password. The bootstrap file must be moved through a confidential, integrity-protected one-time channel such as a trusted USB transfer or AirDrop.
 
-### Signed anchor events
+### Encrypted signed anchor events
 
-GitVault has a channel-independent NIP-01 event envelope for future anchor-channel messages. It derives the Vault's x-only public key from the wrapped signing secret, serializes unsigned event fields exactly as `[0, pubkey, created_at, kind, tags, content]`, hashes those UTF-8 JSON bytes with SHA-256 for the event ID, and signs the ID with BIP-340 Schnorr.
+GitVault uses a channel-independent NIP-01 event envelope for anchor messages. It derives the Vault's x-only public key from the wrapped signing secret, serializes unsigned event fields exactly as `[0, pubkey, created_at, kind, tags, content]`, hashes those UTF-8 JSON bytes with SHA-256 for the event ID, and signs the ID with BIP-340 Schnorr.
 
 On input, the parser requires exactly the seven unique NIP-01 wire fields and fixed-length lowercase hexadecimal encodings. Verification first requires the event public key to match the trusted Vault public key, then recomputes the canonical event ID before verifying the signature. Thus an unrelated self-signed event and any change to the content, tags, metadata, ID, public key, or signature are rejected.
 
-This layer does not yet publish events or interpret `content` as a Proposal/Observation. Payload encryption, channel synchronization, and fork-state transitions belong to the following implementation stages.
+Public kind `9500` events contain exactly one searchable `t` tag holding a random 32-byte channel ID. Genesis, Proposal, Observation, Vault ID, operation ID, and HEAD values are canonical JSON encrypted with NIP-44 v2 self-encryption. GitVault verifies the outer public key, canonical event ID, Schnorr signature, kind, and channel tag before decrypting the content. Relays still learn the Vault public key, timestamps, event sizes, relay selection, and activity frequency.
 
 ### Anchor channel abstraction
 
-`IAnchorChannel` separates immutable event transport from Vault security decisions. `publish()` returns endpoint receipts, while `fetch()` can select events by claimed author, kind, and exact tags. A receipt or filter match does not make an event trusted: callers must still check the trusted Vault public key, canonical event ID, signature, and protocol semantics.
+`IAnchorChannel` separates immutable event transport from Vault security decisions. `publish()` reports `OK`, rejection, timeout, or transport failure per endpoint; `fetch()` reports `EOSE` or failure per endpoint and returns the event-ID union. A receipt or filter match does not make an event trusted.
 
 `LocalFileAnchorChannel` is the deterministic test adapter. It stores one JSON file per event ID under `<channel-root>/events/<event-id>.json`. Publishing the same event again is idempotent, and an existing ID is never overwritten with different bytes. Concurrent publishers install the completed event with an atomic no-replace hard link. Fetch results are sorted by event ID only for reproducible tests; that order has no security meaning.
 
-This adapter provides neither network communication nor fork detection. It intentionally returns well-formed but untrusted events for the caller to verify, and reports malformed storage instead of silently skipping it. It also does not `fsync` files or directories, so crash durability is not yet guaranteed.
+`NostrAnchorChannel` uses WebSocket/TLS, connects to all configured relays in parallel, counts only a matching `OK=true`, waits for `EOSE`, deduplicates exact event IDs, handles NIP-42 AUTH with the Vault key, and rejects same-ID/different-bytes responses. It performs no hidden retry: the authenticated outbox retries on the next command. The initial implementation fetches the full history and stops at 4,096 events or configured frame/content limits.
 
 ### Proposal/Observation state machine
 
-GitVault now has canonical semantic payloads for `VAULT_GENESIS`, `HEAD_PROPOSAL`, and `HEAD_OBSERVATION`, carried inside the signed NIP-01 event `content`. Genesis pins the config hash and initial Commit. A Proposal links a verified parent event and `previous_head -> new_head` Commit V2 transition. An Observation references one Proposal and states that its `new_head` was read back from the cloud.
+GitVault has canonical semantic payloads for `VAULT_GENESIS`, `HEAD_PROPOSAL`, and `HEAD_OBSERVATION`. Genesis pins the exact config hash and initial Commit. A Proposal links a verified parent event and `previous_head -> new_head` Commit V2 transition. An Observation references one Proposal and records the cloud HEAD and Dropbox revision read back after CAS.
 
-The state evaluator starts from the pinned Genesis event, ignores delivery order and `created_at`, verifies the Vault signature and canonical payload, resolves event references, and calls an injected Commit-parent verifier. It then compares the unique observed tip with the local and cloud HEADs and returns one of `CONSISTENT`, `WRITE_PREPARED`, `PROPOSED`, `HEAD_UPDATED`, `ANNOUNCED`, `FORKED`, or `RECOVERY_REQUIRED`.
+The state evaluator starts from pinned Genesis, ignores delivery order and `created_at`, validates Commit V2 parents, and compares `L`, `C`, and `N` by ancestry. It returns `CONSISTENT`, `LOCAL_CATCH_UP`, `WRITE_PREPARED`, `PROPOSED`, `OBSERVATION_REQUIRED`, `ANNOUNCED`, `DEGRADED_READ_ONLY`, `ROLLBACK_DETECTED`, `FORKED`, or `RECOVERY_REQUIRED`, with a separate reason and action.
 
-Two competing Proposals alone are not a fork. A fork is reported only when different children of the same HEAD both have valid Observations. Missing references, a Commit with the wrong parent, an unexplained cloud HEAD, rollback behind an observed tip, and incomplete channel synchronization fail closed as `RECOVERY_REQUIRED`.
+Two competing Proposals alone are not a fork. Different observed children are a fork; `C<N` on one lineage is a separately reported rollback. `N<C` is accepted only when an exact valid Proposal explains `C`, after which any replica can publish the missing Observation. Missing references, a bad Commit parent, a parallel local checkpoint, and an unexplained cloud HEAD fail closed.
 
-The implementation is currently a pure evaluator used with the local test channel. Prepared-write persistence, automatic event publication, Dropbox CAS, durable outbox/checkpoint updates, and Nostr payload encryption are not wired into commands yet. Semantic payloads are plaintext in this local baseline and must not be published to public relays before the encryption layer is added. The evaluator currently loads the full event set and uses a simple repeated reference resolver, so checkpoint/cursor optimization is still needed for long histories.
+Writes are single-writer and online-only: prepare append-only objects, fsync the journal, publish Proposal to `W=2`, change Dropbox HEAD by expected revision, read it back, publish Observation to `W=2`, then advance local HEAD/checkpoint. Reads require `R=2`; if relay synchronization is incomplete, only `L=C=checkpoint` may be read with a freshness warning. Querying two of three relays improves availability but can miss fork evidence held only by the omitted relay. There is no merge, offline write, object GC, key rotation, device revocation, or consensus among relays.
 
 ### Remote store layout
 
@@ -165,7 +184,11 @@ echo "hello vault" > "$WORK/plain/a.txt"
 echo '{"ok":true}' > "$WORK/plain/sub/b.json"
 
 # 4) Dropbox vault 동작 확인
-./build/gitvault init "$VAULT_NAME" "$WORK/plain" --password test123
+./build/gitvault init "$VAULT_NAME" "$WORK/plain" --password test123 \
+  --relay wss://relay-1.example \
+  --relay wss://relay-2.example \
+  --relay wss://relay-3.example
+./build/gitvault status "$VAULT_NAME" --password test123
 ./build/gitvault list "$VAULT_NAME" --password test123
 ./build/gitvault tree "$VAULT_NAME" --password test123
 ./build/gitvault cat "$VAULT_NAME" a.txt --password test123
