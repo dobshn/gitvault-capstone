@@ -127,6 +127,16 @@ This layer does not yet publish events or interpret `content` as a Proposal/Obse
 
 This adapter provides neither network communication nor fork detection. It intentionally returns well-formed but untrusted events for the caller to verify, and reports malformed storage instead of silently skipping it. It also does not `fsync` files or directories, so crash durability is not yet guaranteed.
 
+### Proposal/Observation state machine
+
+GitVault now has canonical semantic payloads for `VAULT_GENESIS`, `HEAD_PROPOSAL`, and `HEAD_OBSERVATION`, carried inside the signed NIP-01 event `content`. Genesis pins the config hash and initial Commit. A Proposal links a verified parent event and `previous_head -> new_head` Commit V2 transition. An Observation references one Proposal and states that its `new_head` was read back from the cloud.
+
+The state evaluator starts from the pinned Genesis event, ignores delivery order and `created_at`, verifies the Vault signature and canonical payload, resolves event references, and calls an injected Commit-parent verifier. It then compares the unique observed tip with the local and cloud HEADs and returns one of `CONSISTENT`, `WRITE_PREPARED`, `PROPOSED`, `HEAD_UPDATED`, `ANNOUNCED`, `FORKED`, or `RECOVERY_REQUIRED`.
+
+Two competing Proposals alone are not a fork. A fork is reported only when different children of the same HEAD both have valid Observations. Missing references, a Commit with the wrong parent, an unexplained cloud HEAD, rollback behind an observed tip, and incomplete channel synchronization fail closed as `RECOVERY_REQUIRED`.
+
+The implementation is currently a pure evaluator used with the local test channel. Prepared-write persistence, automatic event publication, Dropbox CAS, durable outbox/checkpoint updates, and Nostr payload encryption are not wired into commands yet. Semantic payloads are plaintext in this local baseline and must not be published to public relays before the encryption layer is added. The evaluator currently loads the full event set and uses a simple repeated reference resolver, so checkpoint/cursor optimization is still needed for long histories.
+
 ### Remote store layout
 
 ```

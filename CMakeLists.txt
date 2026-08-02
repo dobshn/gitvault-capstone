@@ -82,4 +82,22 @@ if(BUILD_TESTING)
   )
   add_test(NAME gitvault_local_anchor_channel_tests
     COMMAND gitvault_local_anchor_channel_tests)
+
+  add_executable(gitvault_anchor_state_machine_tests
+    tests/anchor_state_machine_test.cpp
+    src/anchor_event.cpp
+    src/anchor_state_machine.cpp
+    src/local_file_anchor_channel.cpp
+    src/nostr_event.cpp
+    src/crypto/schnorr.cpp
+    src/crypto/sha256.cpp
+    src/util.cpp
+  )
+  target_include_directories(gitvault_anchor_state_machine_tests PRIVATE src)
+  target_link_libraries(gitvault_anchor_state_machine_tests PRIVATE
+    OpenSSL::Crypto
+    SECP256K1::secp256k1
+  )
+  add_test(NAME gitvault_anchor_state_machine_tests
+    COMMAND gitvault_anchor_state_machine_tests)
 endif()

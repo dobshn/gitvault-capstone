@@ -213,7 +213,35 @@ GitVault는 외부 채널이 Nostr인지 여부와 무관하게 NIP-01 event JSO
 
 각 event ID에는 파일 하나만 대응한다. 같은 event를 다시 게시하면 성공한 중복으로 처리하지만 같은 ID에 다른 event를 덮어쓰지는 않는다. 여러 프로세스가 경쟁할 때 완전히 작성한 임시 파일을 hard link로 no-replace 설치하므로 하나만 승리한다. `fetch`는 재현 가능한 테스트를 위해 event ID 순으로 반환하지만, 이 순서는 보안 의미가 없고 `created_at`도 순서 판단에 쓰지 않는다.
 
-LocalFile adapter는 결정적 테스트와 공격 주입용이다. 올바른 JSON이지만 서명이 틀린 event는 그대로 반환하여 상위 검증기가 거부하게 하고, 깨진 JSON이나 파일명과 event ID가 다른 저장 상태는 채널 오류로 드러낸다. 네트워크 전달, relay quorum, checkpoint, 상태 머신, fork 판정 및 fsync 기반 crash durability는 아직 구현하지 않았다.
+LocalFile adapter는 결정적 테스트와 공격 주입용이다. 올바른 JSON이지만 서명이 틀린 event는 그대로 반환하여 상위 검증기가 거부하게 하고, 깨진 JSON이나 파일명과 event ID가 다른 저장 상태는 채널 오류로 드러낸다. 이 adapter 자체는 네트워크 전달, relay quorum, checkpoint, 상태 머신, fork 판정 및 fsync 기반 crash durability를 제공하지 않는다. 상태 머신과 fork 판정은 다음 절의 상위 계층에서 수행한다.
+
+### Proposal/Observation 이벤트 그래프와 상태 머신
+
+외부 HEAD 이력은 `VAULT_GENESIS`, `HEAD_PROPOSAL`, `HEAD_OBSERVATION` 세 event로 표현한다. 각 payload는 중복·추가 필드를 허용하지 않는 canonical JSON이며 NIP-01 event의 `content`에 들어가 Vault 서명의 보호를 받는다.
+
+- `VAULT_GENESIS`: Vault ID, config hash, 최초 HEAD를 결합한다. 고정된 Genesis event ID와 최초 Commit의 zero parent를 검증한다.
+- `HEAD_PROPOSAL`: 검증된 Genesis 또는 Observation event를 부모로 참조하고 `previous_head -> new_head`를 제안한다. `new_head` Commit V2가 존재하고 실제 부모가 `previous_head`인지 별도 verifier로 확인한다.
+- `HEAD_OBSERVATION`: Proposal event ID를 참조하고 실제로 읽은 cloud HEAD가 Proposal의 `new_head`와 같은지 결합한다. cloud revision은 진단 정보이며 암호학적 진실로 사용하지 않는다.
+
+검증기는 입력 배열 순서와 `created_at`을 무시하고 event ID 참조를 반복해서 해석하므로 자식 event가 부모보다 먼저 도착해도 같은 그래프를 만든다. replay된 event ID는 중복 제거한다. 외부 키의 event는 거부 목록에 남기고 무시하지만, Vault 키로 서명된 event의 부모·Proposal·Commit이 빠졌거나 서로 모순되면 `RECOVERY_REQUIRED`로 중단한다.
+
+구조적 fork는 같은 부모 HEAD에서 서로 다른 자식으로 가는 전이가 **각각 Observation을 얻은 경우**다. Proposal만 두 개 있는 정상 동시 쓰기는 fork로 확정하지 않으며 미관측 Proposal로 남긴다. 검증된 단일 tip과 local/cloud HEAD의 관계에 따라 다음 상태를 판정한다.
+
+```text
+CONSISTENT
+  -> WRITE_PREPARED
+  -> PROPOSED
+  -> HEAD_UPDATED
+  -> ANNOUNCED
+  -> CONSISTENT
+
+분기 관측       -> FORKED
+설명 불가능 상태 -> RECOVERY_REQUIRED
+```
+
+fault-injection 테스트는 Commit 준비 후, Proposal 게시 후, cloud HEAD 갱신 후, Observation 게시 후에 프로세스가 종료된 스냅샷을 각각 다시 평가한다. 또한 CAS 실패, 두 Proposal 중 하나만 관측된 경우, 두 분기가 모두 관측된 경우, 누락 참조, 잘못된 Commit parent, rollback, 미인증 event, relay 동기화 실패를 검사한다.
+
+현재 구현은 부작용 없는 판정 함수다. `prepared_write`와 channel sync 완료 여부는 호출자가 제공하고 Commit 검증은 주입한 callback으로 수행한다. 실제 명령의 outbox/checkpoint 영속화, Dropbox revision CAS, 자동 Proposal/Observation 게시와 Nostr payload 암호화는 후속 단계다. 현재 LocalFile 시험용 payload는 평문이므로 public relay에 게시해서는 안 된다. 또한 전체 event를 메모리에 올리고 참조가 풀릴 때까지 반복 순회하므로, 불리한 입력 순서에서는 해석 비용이 event 수의 제곱에 가까워질 수 있다. 긴 이력의 checkpoint/cursor 최적화는 아직 없다.
 
 ### 클라우드에 저장되는 파일 구조
 
