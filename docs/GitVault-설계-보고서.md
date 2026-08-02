@@ -179,7 +179,23 @@ PBKDF2(password, vault_salt) -> K_master
 
 무작위 서명 비밀키는 `K_wrap_enc`와 `K_wrap_mac`을 사용해 `AES-256-CTR + HMAC-SHA256`으로 감싼다. 로컬에는 `~/.gitvault/<vault>/trust/vault-identity.enc`만 저장하며 평문 서명 비밀키는 기록하지 않는다. `trust` 디렉터리는 소유자 전용 권한, identity 파일은 소유자 읽기/쓰기 권한으로 만들고 임시 파일을 최종 경로로 rename한다.
 
-현재 이 identity는 로컬 생성·복구까지만 구현되어 있다. `init` 외의 비밀번호 기반 명령은 identity가 없으면 중단한다. Config V1과 이전 identity 형식의 Vault는 현재 재초기화가 필요하고, 다른 복제본으로의 bootstrap/import는 아직 불가능하다. 공개키 계산, 이벤트 서명과 fsync 기반 crash durability도 후속 단계다.
+현재 `init` 외의 비밀번호 기반 명령은 identity가 없으면 중단한다. Config V1과 이전 identity 형식의 Vault는 현재 재초기화가 필요하고, 다른 복제본으로의 bootstrap/import는 아직 불가능하다. fsync 기반 crash durability도 후속 단계다.
+
+### 외부 앵커 이벤트의 canonical 형식과 서명
+
+GitVault는 외부 채널이 Nostr인지 여부와 무관하게 NIP-01 event JSON을 서명 envelope로 사용한다. Email 같은 다른 adapter가 추가되더라도 같은 event JSON을 운반할 수 있으므로 GitVault 내부 서명과 Nostr transport 서명을 중복하지 않는다.
+
+서명 전 event는 다음 배열을 공백 없는 UTF-8 JSON으로 직렬화한다.
+
+```text
+[0, pubkey, created_at, kind, tags, content]
+```
+
+`pubkey`는 Vault 서명 비밀키에서 계산한 secp256k1 x-only 공개키의 64자리 소문자 hex다. 이 canonical 바이트의 SHA-256을 event `id`로 정하고, `id`를 BIP-340 Schnorr로 서명한다. wire JSON은 NIP-01의 `id`, `pubkey`, `created_at`, `kind`, `tags`, `content`, `sig` 일곱 필드로 구성한다.
+
+수신 시에는 먼저 필드 수와 타입, `kind`의 0~65535 범위, 비어 있지 않은 tag 배열, 고정 길이 소문자 hex를 검사한다. 그 뒤 event 공개키가 신뢰 중인 Vault 공개키와 같은지 확인하고, 수신 필드로 canonical 바이트와 `id`를 다시 계산해 저장된 `id`와 비교한 다음 Schnorr 서명을 검증한다. 따라서 공격자가 자기 키로 만든 정상 self-signed event, 정상 서명 뒤 변경한 content나 tag, 임의로 끼워 넣은 `id`를 모두 거부한다.
+
+이 단계의 `content`는 아직 opaque 문자열이다. Proposal/Observation의 의미 검증, payload 암호화, relay 게시·수신, 이벤트 계보와 fork 판정은 구현하지 않았다. 또한 `created_at`은 전송 메타데이터일 뿐 보안상의 순서나 freshness 근거로 사용하지 않는다.
 
 ### 클라우드에 저장되는 파일 구조
 

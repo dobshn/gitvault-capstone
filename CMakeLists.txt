@@ -11,8 +11,18 @@ add_executable(gitvault ${SRC})
 target_include_directories(gitvault PRIVATE src)
 
 find_package(OpenSSL REQUIRED COMPONENTS SSL Crypto)
+find_path(SECP256K1_INCLUDE_DIR secp256k1.h)
+find_library(SECP256K1_LIBRARY secp256k1)
+if(NOT SECP256K1_INCLUDE_DIR OR NOT SECP256K1_LIBRARY)
+  message(FATAL_ERROR "libsecp256k1 with Schnorr support is required")
+endif()
+add_library(SECP256K1::secp256k1 UNKNOWN IMPORTED)
+set_target_properties(SECP256K1::secp256k1 PROPERTIES
+  IMPORTED_LOCATION "${SECP256K1_LIBRARY}"
+  INTERFACE_INCLUDE_DIRECTORIES "${SECP256K1_INCLUDE_DIR}"
+)
 target_compile_definitions(gitvault PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
-target_link_libraries(gitvault PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+target_link_libraries(gitvault PRIVATE OpenSSL::SSL OpenSSL::Crypto SECP256K1::secp256k1)
 
 include(CTest)
 if(BUILD_TESTING)
@@ -39,4 +49,18 @@ if(BUILD_TESTING)
   target_include_directories(gitvault_identity_tests PRIVATE src)
   target_link_libraries(gitvault_identity_tests PRIVATE OpenSSL::Crypto)
   add_test(NAME gitvault_identity_tests COMMAND gitvault_identity_tests)
+
+  add_executable(gitvault_nostr_event_tests
+    tests/nostr_event_test.cpp
+    src/nostr_event.cpp
+    src/crypto/schnorr.cpp
+    src/crypto/sha256.cpp
+    src/util.cpp
+  )
+  target_include_directories(gitvault_nostr_event_tests PRIVATE src)
+  target_link_libraries(gitvault_nostr_event_tests PRIVATE
+    OpenSSL::Crypto
+    SECP256K1::secp256k1
+  )
+  add_test(NAME gitvault_nostr_event_tests COMMAND gitvault_nostr_event_tests)
 endif()

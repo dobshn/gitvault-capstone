@@ -6,11 +6,12 @@ A minimal C++ implementation of the GitVault design: encrypts files into Git-lik
 
 Requires:
 - OpenSSL (`libssl` + `libcrypto`)
+- libsecp256k1 with extrakeys and Schnorr signature modules
 - bundled headers in `src/`:
   - `httplib.h`
   - `json.hpp`
 
-On macOS you may need `brew install openssl@3` and set `OPENSSL_ROOT_DIR`.
+On macOS you may need `brew install openssl@3 secp256k1` and set `OPENSSL_ROOT_DIR`.
 
 ```
 cmake -S . -B build
@@ -109,6 +110,14 @@ GitVault compares the local and cloud `HEAD` files before using the local trust 
 Config V2 derives one 32-byte master key with PBKDF2, then uses HKDF-SHA256 labels to derive separate object-encryption, HEAD-MAC, identity-wrapping-encryption, and identity-wrapping-MAC keys.
 New vaults also generate one random secp256k1-compatible signing secret. It is encrypted and authenticated with the identity wrapping keys before being stored locally as `vault-identity.enc`; GitVault does not intentionally write the plaintext signing secret to a file.
 Password-authenticated commands reject a vault whose local identity is missing. Config V1 and vaults created before this identity format must currently be reinitialized; key-schedule migration and cross-device import are not implemented yet.
+
+### Signed anchor events
+
+GitVault has a channel-independent NIP-01 event envelope for future anchor-channel messages. It derives the Vault's x-only public key from the wrapped signing secret, serializes unsigned event fields exactly as `[0, pubkey, created_at, kind, tags, content]`, hashes those UTF-8 JSON bytes with SHA-256 for the event ID, and signs the ID with BIP-340 Schnorr.
+
+On input, the parser requires exactly the seven unique NIP-01 wire fields and fixed-length lowercase hexadecimal encodings. Verification first requires the event public key to match the trusted Vault public key, then recomputes the canonical event ID before verifying the signature. Thus an unrelated self-signed event and any change to the content, tags, metadata, ID, public key, or signature are rejected.
+
+This layer does not yet publish events or interpret `content` as a Proposal/Observation. Payload encryption, channel synchronization, and fork-state transitions belong to the following implementation stages.
 
 ### Remote store layout
 
