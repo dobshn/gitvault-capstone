@@ -103,7 +103,7 @@ GitVault stores local state at:
 ```
 
 The refresh token file is created by `login`.
-`HEAD` is read from local storage first. If the local `HEAD` file is missing, GitVault falls back to the cloud `HEAD` and prints a warning.
+GitVault compares the local and cloud `HEAD` files before using the local trust anchor. A missing or mismatched local `HEAD` must be resolved explicitly with `sync`.
 
 ### Remote store layout
 

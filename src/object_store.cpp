@@ -174,7 +174,13 @@ ByteVec ObjectStore::read_head() const {
 
     //먼저 로컬 확인
     if (std::filesystem::exists(local_head)) {
-        return read_file_bytes(local_head);
+        ByteVec local_data = read_file_bytes(local_head);
+        ByteVec cloud_data = CloudAPI->get(kHeadKey);
+        if (!constant_time_equal(local_data, cloud_data)) {
+            throw std::runtime_error(
+                "local HEAD does not match cloud HEAD; possible rollback or unsynchronized state");
+        }
+        return local_data;
     }
 
     /*로컬 없으면 클라우드 확인
