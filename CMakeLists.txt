@@ -26,6 +26,8 @@ target_link_libraries(gitvault PRIVATE OpenSSL::SSL OpenSSL::Crypto SECP256K1::s
 
 include(CTest)
 if(BUILD_TESTING)
+  find_package(Threads REQUIRED)
+
   add_executable(gitvault_format_tests
     tests/format_test.cpp
     src/format.cpp
@@ -63,4 +65,21 @@ if(BUILD_TESTING)
     SECP256K1::secp256k1
   )
   add_test(NAME gitvault_nostr_event_tests COMMAND gitvault_nostr_event_tests)
+
+  add_executable(gitvault_local_anchor_channel_tests
+    tests/local_file_anchor_channel_test.cpp
+    src/local_file_anchor_channel.cpp
+    src/nostr_event.cpp
+    src/crypto/schnorr.cpp
+    src/crypto/sha256.cpp
+    src/util.cpp
+  )
+  target_include_directories(gitvault_local_anchor_channel_tests PRIVATE src)
+  target_link_libraries(gitvault_local_anchor_channel_tests PRIVATE
+    OpenSSL::Crypto
+    SECP256K1::secp256k1
+    Threads::Threads
+  )
+  add_test(NAME gitvault_local_anchor_channel_tests
+    COMMAND gitvault_local_anchor_channel_tests)
 endif()

@@ -197,6 +197,24 @@ GitVault는 외부 채널이 Nostr인지 여부와 무관하게 NIP-01 event JSO
 
 이 단계의 `content`는 아직 opaque 문자열이다. Proposal/Observation의 의미 검증, payload 암호화, relay 게시·수신, 이벤트 계보와 fork 판정은 구현하지 않았다. 또한 `created_at`은 전송 메타데이터일 뿐 보안상의 순서나 freshness 근거로 사용하지 않는다.
 
+### 외부 앵커 채널 추상화
+
+`IAnchorChannel`은 서명 event의 **불변 게시와 수집**만 담당한다. `publish(event)`는 endpoint별 수락 영수증을 반환하고, `fetch(query)`는 event가 주장하는 author, kind, 정확히 일치하는 tag를 기준으로 후보를 가져온다. 이 필터는 검색 최적화일 뿐 신뢰 판정이 아니다.
+
+채널에서 받은 event는 항상 불신 입력으로 취급한다. 상위 계층이 신뢰 중인 Vault 공개키, canonical ID, Schnorr 서명, Proposal/Observation 의미와 HEAD 계보를 검증해야 한다. 따라서 게시 수락 영수증은 Vault 상태를 전진시킬 근거가 아니며, `IAnchorChannel`도 fork 여부나 최신 HEAD를 결정하지 않는다.
+
+첫 구현체인 `LocalFileAnchorChannel`은 실제 네트워크 대신 공유 디렉터리를 하나의 relay처럼 사용한다.
+
+```text
+<channel-root>/
+  events/
+    <event-id>.json
+```
+
+각 event ID에는 파일 하나만 대응한다. 같은 event를 다시 게시하면 성공한 중복으로 처리하지만 같은 ID에 다른 event를 덮어쓰지는 않는다. 여러 프로세스가 경쟁할 때 완전히 작성한 임시 파일을 hard link로 no-replace 설치하므로 하나만 승리한다. `fetch`는 재현 가능한 테스트를 위해 event ID 순으로 반환하지만, 이 순서는 보안 의미가 없고 `created_at`도 순서 판단에 쓰지 않는다.
+
+LocalFile adapter는 결정적 테스트와 공격 주입용이다. 올바른 JSON이지만 서명이 틀린 event는 그대로 반환하여 상위 검증기가 거부하게 하고, 깨진 JSON이나 파일명과 event ID가 다른 저장 상태는 채널 오류로 드러낸다. 네트워크 전달, relay quorum, checkpoint, 상태 머신, fork 판정 및 fsync 기반 crash durability는 아직 구현하지 않았다.
+
 ### 클라우드에 저장되는 파일 구조
 
 Git은 해시된 파일명의 맨 앞 1바이트를 기준으로 디렉토리를 생성해 분할 저장한다. 이를 샤딩(sharding)이라고 한다.

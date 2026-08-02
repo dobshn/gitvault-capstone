@@ -119,6 +119,14 @@ On input, the parser requires exactly the seven unique NIP-01 wire fields and fi
 
 This layer does not yet publish events or interpret `content` as a Proposal/Observation. Payload encryption, channel synchronization, and fork-state transitions belong to the following implementation stages.
 
+### Anchor channel abstraction
+
+`IAnchorChannel` separates immutable event transport from Vault security decisions. `publish()` returns endpoint receipts, while `fetch()` can select events by claimed author, kind, and exact tags. A receipt or filter match does not make an event trusted: callers must still check the trusted Vault public key, canonical event ID, signature, and protocol semantics.
+
+`LocalFileAnchorChannel` is the deterministic test adapter. It stores one JSON file per event ID under `<channel-root>/events/<event-id>.json`. Publishing the same event again is idempotent, and an existing ID is never overwritten with different bytes. Concurrent publishers install the completed event with an atomic no-replace hard link. Fetch results are sorted by event ID only for reproducible tests; that order has no security meaning.
+
+This adapter provides neither network communication nor fork detection. It intentionally returns well-formed but untrusted events for the caller to verify, and reports malformed storage instead of silently skipping it. It also does not `fsync` files or directories, so crash durability is not yet guaranteed.
+
 ### Remote store layout
 
 ```
