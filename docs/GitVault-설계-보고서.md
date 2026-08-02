@@ -217,11 +217,16 @@ struct Entry {
 
 ```c
 struct Commit {
-    uint8  version;            // 1
-    uint64 commit_time;        // epoch (UTC)
-    uint8  root_tree_hash[32]; // SHA-256
+    uint8  version;                 // 2
+    uint64 commit_time;             // epoch (UTC)
+    uint8  root_tree_hash[32];      // SHA-256
+    uint8  parent_commit_hash[32];  // 직전 Commit의 SHA-256, 최초 Commit은 모두 0
 }
 ```
+
+Commit V2의 저장 크기는 73바이트이며, 새 Commit은 생성 당시의 기존 `HEAD`를 부모로 기록한다. V1을 포함해 V2가 아닌 Commit은 지원하지 않는다. Quick/Deep Scan은 zero-parent에 도달할 때까지 V2 부모를 따라가며 Commit 객체의 존재, 저장 표현 해시와 포맷을 검증한다.
+
+부모 참조를 유지하기 위해 이전 Commit 객체는 삭제하지 않는다. 현재 구현은 이전 Tree와 Blob까지 모두 보존하지 않으므로, 이 Commit 이력은 계보 검증을 위한 것이며 과거 스냅샷 전체 복원을 보장하지 않는다.
 
 ---
 문제점: 파일 이름만 바뀌어도 연결이 끊길 수 있다. 그 바뀐 객체가 만일 상위 트리라면 더더욱 그 하위 파일들에 접근할 수 없어진다.

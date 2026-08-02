@@ -74,24 +74,35 @@ Tree deserialize_tree(const ByteVec& data) {
 }
 
 ByteVec serialize_commit(const Commit& commit) {
+  if (commit.version != 2) {
+    throw std::runtime_error("unsupported commit version");
+  }
+
   ByteVec out;
   write_u8(out, commit.version);
   write_u64_be(out, commit.commit_time);
   append_bytes(out, commit.root_hash.data(), commit.root_hash.size());
+  append_bytes(out, commit.parent_hash.data(), commit.parent_hash.size());
   return out;
 }
 
 Commit deserialize_commit(const ByteVec& data) {
+  constexpr size_t kCommitV2Size = 1 + 8 + 32 + 32;
+
   size_t offset = 0;
   Commit commit;
   commit.version = read_u8(data, offset);
-  if (commit.version != 1) {
+  if (commit.version != 2) {
     throw std::runtime_error("unsupported commit version");
   }
-  commit.commit_time = read_u64_be(data, offset);
-  if (offset + commit.root_hash.size() > data.size()) {
-    throw std::runtime_error("commit root hash out of bounds");
+  if (data.size() != kCommitV2Size) {
+    throw std::runtime_error("invalid commit size for version 2");
   }
+
+  commit.commit_time = read_u64_be(data, offset);
   std::copy(data.begin() + offset, data.begin() + offset + commit.root_hash.size(), commit.root_hash.begin());
+  offset += commit.root_hash.size();
+  std::copy(data.begin() + offset, data.begin() + offset + commit.parent_hash.size(),
+            commit.parent_hash.begin());
   return commit;
 }

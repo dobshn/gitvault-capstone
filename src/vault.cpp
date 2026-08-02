@@ -300,7 +300,8 @@ void Vault::execute(Command& cmd) {
       ScanStats stats = (cmd.command == "quick-scan")
                             ? vault_engine.quick_scan()
                             : vault_engine.deep_scan();
-      std::cout << "trees=" << stats.trees_checked << " blobs=" << stats.blobs_checked
+      std::cout << "commits=" << stats.commits_checked << " trees=" << stats.trees_checked
+                << " blobs=" << stats.blobs_checked
                 << " missing=" << stats.blobs_missing << " hashed=" << stats.blobs_hashed
                 << " errors=" << stats.errors << "\n";
     } else if (cmd.command == "sync") {

@@ -53,7 +53,7 @@ cmake --build build
 # Print a file from the vault
 ./build/gitvault cat <vault_name> <path>
 
-# Quick scan: verify commit/tree links and blob existence
+# Quick scan: verify commit history/tree links and blob existence
 ./build/gitvault quick-scan <vault_name>
 
 # Deep scan: verify commit/tree and re-hash all blobs

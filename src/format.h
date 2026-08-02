@@ -23,9 +23,10 @@ struct Tree {
 };
 
 struct Commit {
-  uint8_t version = 1;
+  uint8_t version = 2;
   uint64_t commit_time = 0;
   std::array<uint8_t, 32> root_hash{};
+  std::array<uint8_t, 32> parent_hash{};
 };
 
 ByteVec serialize_tree(const Tree& tree);

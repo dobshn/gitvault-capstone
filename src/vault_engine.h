@@ -10,6 +10,7 @@
 #include <ostream>
 
 struct ScanStats {
+  size_t commits_checked = 0;
   size_t trees_checked = 0;
   size_t blobs_checked = 0;
   size_t blobs_missing = 0;
@@ -71,9 +72,13 @@ private:
     void log_progress_line(const std::filesystem::path& path, uint64_t processed, uint64_t total, const std::chrono::steady_clock::time_point& start);
     void write_head(const std::array<uint8_t, 32>& commit_hash);
     std::array<uint8_t, 32> read_head();
-    std::array<uint8_t, 32> store_commit(const std::array<uint8_t, 32>& root_hash, uint64_t commit_time);
+    std::array<uint8_t, 32> store_commit(const std::array<uint8_t, 32>& root_hash,
+                                        uint64_t commit_time,
+                                        const std::array<uint8_t, 32>& parent_hash);
     std::array<uint8_t, 32> store_tree_object(const Tree& tree);
     Commit load_commit_checked(const std::array<uint8_t, 32>& commit_hash);
+    Commit load_commit_history_checked(const std::array<uint8_t, 32>& head_hash,
+                                       size_t& commits_checked);
     Tree load_tree_checked(const std::array<uint8_t, 32>& tree_hash);
     std::array<uint8_t, 32> store_blob(const std::filesystem::path& path);
     std::array<uint8_t, 32> store_tree(const std::filesystem::path& dir);

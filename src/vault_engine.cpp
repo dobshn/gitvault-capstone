@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstring>
+#include <set>
 
 namespace {
     constexpr size_t kIvSize = 16;
@@ -23,6 +24,10 @@ namespace {
     constexpr const char* kScanPendingIcon = u8"⏳";
     constexpr const char* kScanSuccessIcon = u8"✅";
     constexpr const char* kScanWarningIcon = u8"⚠️";
+
+    bool is_zero_hash(const std::array<uint8_t, 32>& hash) {
+      return std::all_of(hash.begin(), hash.end(), [](uint8_t byte) { return byte == 0; });
+    }
 
     std::string make_tree_scan_line(const std::string& prefix,
                                     bool last,
@@ -67,7 +72,7 @@ std::array<uint8_t, 32> VaultEngine::init_vault() {
     Tree empty_tree;
     std::cout << "kdf_salt=" << to_hex(cfg.salt) << "\n";
     std::array<uint8_t, 32> root_hash = store_tree_object(empty_tree);
-    return store_commit(root_hash, unix_time_seconds());
+    return store_commit(root_hash, unix_time_seconds(), {});
 }
 
 std::array<uint8_t, 32> VaultEngine::lock_vault(const std::filesystem::path& plain_dir) {
@@ -77,7 +82,7 @@ std::array<uint8_t, 32> VaultEngine::lock_vault(const std::filesystem::path& pla
 
   std::array<uint8_t, 32> root_hash = store_tree(plain_dir);
   wait_for_uploads();
-  return store_commit(root_hash, unix_time_seconds());
+  return store_commit(root_hash, unix_time_seconds(), {});
 }
 
 Tree VaultEngine::list_directory(const std::string& path) {
@@ -117,16 +122,16 @@ ByteVec VaultEngine::read_file_from_vault(const std::string& path) {
 
 ScanStats VaultEngine::quick_scan() {
   auto commit_hash = read_head();
-  Commit commit = load_commit_checked(commit_hash);
   ScanStats stats;
+  Commit commit = load_commit_history_checked(commit_hash, stats.commits_checked);
   scan_tree(commit.root_hash, "./", "", false, stats, std::cout);
   return stats;
 }
 
 ScanStats VaultEngine::deep_scan() {
   auto commit_hash = read_head();
-  Commit commit = load_commit_checked(commit_hash);
   ScanStats stats;
+  Commit commit = load_commit_history_checked(commit_hash, stats.commits_checked);
   scan_tree(commit.root_hash, "./", "", true, stats, std::cout);
   return stats;
 }
@@ -186,11 +191,8 @@ std::array<uint8_t, 32> VaultEngine::add(const std::filesystem::path& local_path
   std::vector<std::array<uint8_t, 32>> old_tree_hashes;
   std::array<uint8_t, 32> new_root_hash =
       upsert_blob_to_tree(old_commit.root_hash, parts, 0, file_entry, now_sec, old_tree_hashes);
-  std::array<uint8_t, 32> new_commit_hash = store_commit(new_root_hash, now_sec);
-
-  if (!store.remove_object(old_commit_hash)) {
-    throw std::runtime_error("failed to delete old commit object: " + to_hex(old_commit_hash));
-  }
+  std::array<uint8_t, 32> new_commit_hash =
+      store_commit(new_root_hash, now_sec, old_commit_hash);
 
   for (const auto& old_hash : old_tree_hashes) {
     try {
@@ -233,11 +235,8 @@ std::array<uint8_t, 32> VaultEngine::mkdir(const std::string& cloud_dir_path) {
   std::vector<std::array<uint8_t, 32>> old_tree_hashes;
   std::array<uint8_t, 32> new_root_hash =
       upsert_dir_to_tree(old_commit.root_hash, parts, 0, dir_entry, now_sec, old_tree_hashes);
-  std::array<uint8_t, 32> new_commit_hash = store_commit(new_root_hash, now_sec);
-
-  if (!store.remove_object(old_commit_hash)) {
-    throw std::runtime_error("failed to delete old commit object: " + to_hex(old_commit_hash));
-  }
+  std::array<uint8_t, 32> new_commit_hash =
+      store_commit(new_root_hash, now_sec, old_commit_hash);
 
   for (const auto& old_hash : old_tree_hashes) {
     try {
@@ -276,11 +275,8 @@ std::array<uint8_t, 32> VaultEngine::remove(const std::string& cloud_path) {
   std::vector<std::array<uint8_t, 32>> old_tree_hashes;
   std::array<uint8_t, 32> new_root_hash =
       remove_blob_from_tree(old_commit.root_hash, parts, 0, file_name, now_sec, old_tree_hashes);
-  std::array<uint8_t, 32> new_commit_hash = store_commit(new_root_hash, now_sec);
-
-  if (!store.remove_object(old_commit_hash)) {
-    throw std::runtime_error("failed to delete old commit object: " + to_hex(old_commit_hash));
-  }
+  std::array<uint8_t, 32> new_commit_hash =
+      store_commit(new_root_hash, now_sec, old_commit_hash);
 
   for (const auto& old_hash : old_tree_hashes) {
     try {
@@ -320,11 +316,8 @@ std::array<uint8_t, 32> VaultEngine::rmdir(const std::string& cloud_dir_path, bo
   std::array<uint8_t, 32> new_root_hash =
       remove_dir_from_tree(old_commit.root_hash, parts, 0, dir_name, now_sec, recursive,
                            old_tree_hashes, removed_tree_hashes, removed_blob_hashes);
-  std::array<uint8_t, 32> new_commit_hash = store_commit(new_root_hash, now_sec);
-
-  if (!store.remove_object(old_commit_hash)) {
-    throw std::runtime_error("failed to delete old commit object: " + to_hex(old_commit_hash));
-  }
+  std::array<uint8_t, 32> new_commit_hash =
+      store_commit(new_root_hash, now_sec, old_commit_hash);
 
 
   for (const auto& old_hash : old_tree_hashes) {
@@ -444,11 +437,14 @@ Config VaultEngine::ensure_store_config(ObjectStore& store) {
         return out;
   }
 
-  std::array<uint8_t, 32> VaultEngine::store_commit(const std::array<uint8_t, 32>& root_hash,
-                                      uint64_t commit_time) {
+  std::array<uint8_t, 32> VaultEngine::store_commit(
+      const std::array<uint8_t, 32>& root_hash,
+      uint64_t commit_time,
+      const std::array<uint8_t, 32>& parent_hash) {
     Commit commit;
     commit.commit_time = commit_time;
     commit.root_hash = root_hash;
+    commit.parent_hash = parent_hash;
 
     ByteVec serialized = serialize_commit(commit);
     EncryptedObject obj = crypto->encrypt_object(keys.enc_key, serialized);
@@ -477,6 +473,33 @@ Config VaultEngine::ensure_store_config(ObjectStore& store) {
     ByteVec data = store.read_object(commit_hash);
     ByteVec plaintext = crypto->decrypt_object_checked(keys.enc_key, data, commit_hash);
     return deserialize_commit(plaintext);
+  }
+
+  Commit VaultEngine::load_commit_history_checked(
+      const std::array<uint8_t, 32>& head_hash,
+      size_t& commits_checked) {
+    std::set<std::array<uint8_t, 32>> visited;
+    std::array<uint8_t, 32> current_hash = head_hash;
+    Commit head_commit;
+    bool first = true;
+
+    while (true) {
+      if (!visited.insert(current_hash).second) {
+        throw std::runtime_error("commit parent cycle detected: " + to_hex(current_hash));
+      }
+
+      Commit current = load_commit_checked(current_hash);
+      commits_checked++;
+      if (first) {
+        head_commit = current;
+        first = false;
+      }
+
+      if (is_zero_hash(current.parent_hash)) {
+        return head_commit;
+      }
+      current_hash = current.parent_hash;
+    }
   }
 
   Tree VaultEngine::load_tree_checked(const std::array<uint8_t, 32>& tree_hash) {

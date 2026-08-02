@@ -13,3 +13,14 @@ target_include_directories(gitvault PRIVATE src)
 find_package(OpenSSL REQUIRED COMPONENTS SSL Crypto)
 target_compile_definitions(gitvault PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT)
 target_link_libraries(gitvault PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+
+include(CTest)
+if(BUILD_TESTING)
+  add_executable(gitvault_format_tests
+    tests/format_test.cpp
+    src/format.cpp
+    src/util.cpp
+  )
+  target_include_directories(gitvault_format_tests PRIVATE src)
+  add_test(NAME gitvault_format_tests COMMAND gitvault_format_tests)
+endif()
