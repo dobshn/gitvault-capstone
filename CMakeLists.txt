@@ -51,6 +51,25 @@ target_link_libraries(gitvault_anchor_history_benchmark PRIVATE
   SECP256K1::secp256k1
 )
 
+add_executable(gitvault_checkpoint_detection_benchmark
+  benchmarks/checkpoint_detection_benchmark.cpp
+  src/checkpoint_state_machine.cpp
+  src/anchor_event.cpp
+  src/vector_clock.cpp
+  src/nostr_event.cpp
+  src/crypto/schnorr.cpp
+  src/crypto/nip44.cpp
+  src/crypto/hkdf.cpp
+  src/crypto/hmac.cpp
+  src/crypto/sha256.cpp
+  src/util.cpp
+)
+target_include_directories(gitvault_checkpoint_detection_benchmark PRIVATE src)
+target_link_libraries(gitvault_checkpoint_detection_benchmark PRIVATE
+  OpenSSL::Crypto
+  SECP256K1::secp256k1
+)
+
 include(CTest)
 if(BUILD_TESTING)
   add_executable(gitvault_vector_clock_tests

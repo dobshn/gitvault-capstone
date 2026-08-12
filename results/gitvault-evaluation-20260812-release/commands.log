@@ -1,0 +1,1374 @@
+operation=init size=0 iteration=1 returncode=0 total_ms=10557.824
+initializing store at /gitvault-eval-20260812074347-b33a40-1...
+kdf_salt=56e014bb3e9a78243df7a11874ddad2f
+
+commit=a086bc45edae8dc4e8c6d6338455afd14e3c4aa6e66b40dca1dbb1c4da0132c1
+genesis=b2779515dc0618dc4a8f47fc0eddea606120c0cf72d4527d56f06c42dcb571ef
+GITVAULT_BENCH phase=auth.kdf_identity ms=1173.090
+
+Uploading Tree objects... hash=7ee82953883482822913882de59460dac329af8b1ba0538fa7e3bf5e4fe51f78 | size: 5 bytes
+GITVAULT_BENCH phase=init.objects_head ms=2843.644
+GITVAULT_BENCH phase=init.cloud_head_fetch ms=628.458
+GITVAULT_BENCH phase=init.genesis_publish_w2 ms=1724.284
+GITVAULT_BENCH phase=init.checkpoint_publish_w2 ms=1685.546
+
+operation=init size=0 iteration=2 returncode=0 total_ms=10759.129
+initializing store at /gitvault-eval-20260812074347-b33a40-2...
+kdf_salt=053a215cae98802d538e59825c798072
+
+commit=1127445d6d4ed7c9fc02c5e969eb8afb29a993737c687c25ea7c2b95b5091e6c
+genesis=3197c08b6a54f12ae0fba098479e5b182eca229082dfb2e1304652d27419bd33
+GITVAULT_BENCH phase=auth.kdf_identity ms=2023.139
+
+Uploading Tree objects... hash=75410f96d0c5d9c9b07b374b4f9bba3666ceb43c9f3f64ea477b8a1f7b2eb06c | size: 5 bytes
+GITVAULT_BENCH phase=init.objects_head ms=2963.302
+GITVAULT_BENCH phase=init.cloud_head_fetch ms=523.768
+GITVAULT_BENCH phase=init.genesis_publish_w2 ms=1644.194
+GITVAULT_BENCH phase=init.checkpoint_publish_w2 ms=1653.917
+
+operation=init size=0 iteration=3 returncode=0 total_ms=9921.294
+initializing store at /gitvault-eval-20260812074347-b33a40-3...
+kdf_salt=c78b573ea21e00d4f623cb9e33253c5c
+
+commit=f3a049d42094ef728c31ecb17e854cbf0f625e5c5baff67e7293be1fcbf80596
+genesis=36670ee4d93643393038e944182c4b617a3df73487bdd0d95d0755464bcbc068
+GITVAULT_BENCH phase=auth.kdf_identity ms=1241.758
+
+Uploading Tree objects... hash=b1b655fb88751b02cf8d752a8fa91b56e9756259560d723593cef231a9245475 | size: 5 bytes
+GITVAULT_BENCH phase=init.objects_head ms=3186.402
+GITVAULT_BENCH phase=init.cloud_head_fetch ms=506.285
+GITVAULT_BENCH phase=init.genesis_publish_w2 ms=1659.713
+GITVAULT_BENCH phase=init.checkpoint_publish_w2 ms=1597.514
+
+operation=init size=0 iteration=4 returncode=0 total_ms=9926.059
+initializing store at /gitvault-eval-20260812074347-b33a40-4...
+kdf_salt=40231f5813d6cb312bea571dd533abf3
+
+commit=c62a5dc0b6bec912694982bc7f134248b9280f7d782b9ea6e5ad0a65676590a5
+genesis=9a60a623e831dbc145406f076779095f628ded2ba26a749421a619f2cbf4ef31
+GITVAULT_BENCH phase=auth.kdf_identity ms=1232.258
+
+Uploading Tree objects... hash=6907a1794781aa95ce321520fa0a85d886d077678f2162b225dc7c7a8f3200c3 | size: 5 bytes
+GITVAULT_BENCH phase=init.objects_head ms=2765.175
+GITVAULT_BENCH phase=init.cloud_head_fetch ms=583.664
+GITVAULT_BENCH phase=init.genesis_publish_w2 ms=1697.044
+GITVAULT_BENCH phase=init.checkpoint_publish_w2 ms=1639.948
+
+operation=init size=0 iteration=5 returncode=0 total_ms=11449.005
+initializing store at /gitvault-eval-20260812074347-b33a40-5...
+kdf_salt=9dec87a0ae5657c4f67d403209f53d04
+
+commit=91c8bcbd9062493f8210b465bfc86387e94111dcccc7165054a792b3df9b3a20
+genesis=ce284ad39784971d2a2cc755b214ddc293a498bd29008562b7403abb9837eabf
+GITVAULT_BENCH phase=auth.kdf_identity ms=1906.545
+
+Uploading Tree objects... hash=af31d2548979c2625e782068c08aa99f2ce89c46ecec79bd7fc686cf8e27306b | size: 5 bytes
+GITVAULT_BENCH phase=init.objects_head ms=3463.036
+GITVAULT_BENCH phase=init.cloud_head_fetch ms=650.702
+GITVAULT_BENCH phase=init.genesis_publish_w2 ms=1961.081
+GITVAULT_BENCH phase=init.checkpoint_publish_w2 ms=1696.350
+
+operation=status size=0 iteration=1 returncode=0 total_ms=5322.740
+L=a086bc45edae8dc4e8c6d6338455afd14e3c4aa6e66b40dca1dbb1c4da0132c1
+C=a086bc45edae8dc4e8c6d6338455afd14e3c4aa6e66b40dca1dbb1c4da0132c1
+N=a086bc45edae8dc4e8c6d6338455afd14e3c4aa6e66b40dca1dbb1c4da0132c1
+clock_L={}
+clock_C={}
+clock_N={}
+relation_L_C=EQUAL
+relation_C_N=EQUAL
+relation_L_N=EQUAL
+cloud_revision=01658d4bfbdbae700000002948d8a40
+state=CONSISTENT
+reason=NONE
+action=NONE
+detail=local, Dropbox, and signed vector checkpoints agree
+relay=wss://relay.damus.io EOSE latency_ms=3152
+relay=wss://relay.primal.net EOSE latency_ms=1745
+relay=wss://relay.ditto.pub EOSE latency_ms=1523
+pending_operation=none
+GITVAULT_BENCH phase=auth.kdf_identity ms=176.899
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.078
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=472.378
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=3152.803
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.788
+GITVAULT_BENCH phase=preflight.total ms=3632.058
+
+operation=status size=0 iteration=2 returncode=0 total_ms=3666.052
+L=a086bc45edae8dc4e8c6d6338455afd14e3c4aa6e66b40dca1dbb1c4da0132c1
+C=a086bc45edae8dc4e8c6d6338455afd14e3c4aa6e66b40dca1dbb1c4da0132c1
+N=a086bc45edae8dc4e8c6d6338455afd14e3c4aa6e66b40dca1dbb1c4da0132c1
+clock_L={}
+clock_C={}
+clock_N={}
+relation_L_C=EQUAL
+relation_C_N=EQUAL
+relation_L_N=EQUAL
+cloud_revision=01658d4bfbdbae700000002948d8a40
+state=CONSISTENT
+reason=NONE
+action=NONE
+detail=local, Dropbox, and signed vector checkpoints agree
+relay=wss://relay.damus.io TRANSPORT_ERROR latency_ms=431 The WebSocket handshake was declined by the remote peer [boost.beast.websocket:20 at /opt/homebrew/include/boost/beast/websocket/impl/stream_impl.hpp:657:40 in function 'operator()']
+relay=wss://relay.primal.net EOSE latency_ms=1716
+relay=wss://relay.ditto.pub EOSE latency_ms=1441
+pending_operation=none
+GITVAULT_BENCH phase=auth.kdf_identity ms=179.073
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.073
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=562.724
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1716.991
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.586
+GITVAULT_BENCH phase=preflight.total ms=2285.911
+
+operation=status size=0 iteration=3 returncode=0 total_ms=3997.763
+L=a086bc45edae8dc4e8c6d6338455afd14e3c4aa6e66b40dca1dbb1c4da0132c1
+C=a086bc45edae8dc4e8c6d6338455afd14e3c4aa6e66b40dca1dbb1c4da0132c1
+N=a086bc45edae8dc4e8c6d6338455afd14e3c4aa6e66b40dca1dbb1c4da0132c1
+clock_L={}
+clock_C={}
+clock_N={}
+relation_L_C=EQUAL
+relation_C_N=EQUAL
+relation_L_N=EQUAL
+cloud_revision=01658d4bfbdbae700000002948d8a40
+state=CONSISTENT
+reason=NONE
+action=NONE
+detail=local, Dropbox, and signed vector checkpoints agree
+relay=wss://relay.damus.io EOSE latency_ms=994
+relay=wss://relay.primal.net EOSE latency_ms=1668
+relay=wss://relay.ditto.pub EOSE latency_ms=1395
+pending_operation=none
+GITVAULT_BENCH phase=auth.kdf_identity ms=198.337
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.074
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=624.073
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1669.356
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.655
+GITVAULT_BENCH phase=preflight.total ms=2300.196
+
+operation=status size=0 iteration=4 returncode=0 total_ms=4037.240
+L=a086bc45edae8dc4e8c6d6338455afd14e3c4aa6e66b40dca1dbb1c4da0132c1
+C=a086bc45edae8dc4e8c6d6338455afd14e3c4aa6e66b40dca1dbb1c4da0132c1
+N=a086bc45edae8dc4e8c6d6338455afd14e3c4aa6e66b40dca1dbb1c4da0132c1
+clock_L={}
+clock_C={}
+clock_N={}
+relation_L_C=EQUAL
+relation_C_N=EQUAL
+relation_L_N=EQUAL
+cloud_revision=01658d4bfbdbae700000002948d8a40
+state=CONSISTENT
+reason=NONE
+action=NONE
+detail=local, Dropbox, and signed vector checkpoints agree
+relay=wss://relay.damus.io EOSE latency_ms=1251
+relay=wss://relay.primal.net EOSE latency_ms=1701
+relay=wss://relay.ditto.pub EOSE latency_ms=1413
+pending_operation=none
+GITVAULT_BENCH phase=auth.kdf_identity ms=201.908
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.080
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=475.675
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1702.028
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.374
+GITVAULT_BENCH phase=preflight.total ms=2181.581
+
+operation=status size=0 iteration=5 returncode=0 total_ms=3903.247
+L=a086bc45edae8dc4e8c6d6338455afd14e3c4aa6e66b40dca1dbb1c4da0132c1
+C=a086bc45edae8dc4e8c6d6338455afd14e3c4aa6e66b40dca1dbb1c4da0132c1
+N=a086bc45edae8dc4e8c6d6338455afd14e3c4aa6e66b40dca1dbb1c4da0132c1
+clock_L={}
+clock_C={}
+clock_N={}
+relation_L_C=EQUAL
+relation_C_N=EQUAL
+relation_L_N=EQUAL
+cloud_revision=01658d4bfbdbae700000002948d8a40
+state=CONSISTENT
+reason=NONE
+action=NONE
+detail=local, Dropbox, and signed vector checkpoints agree
+relay=wss://relay.damus.io EOSE latency_ms=1176
+relay=wss://relay.primal.net EOSE latency_ms=1830
+relay=wss://relay.ditto.pub EOSE latency_ms=1407
+pending_operation=none
+GITVAULT_BENCH phase=auth.kdf_identity ms=195.623
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.068
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=506.970
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1831.003
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.538
+GITVAULT_BENCH phase=preflight.total ms=2343.948
+
+operation=mkdir size=0 iteration=1 returncode=0 total_ms=17222.653
+commit=80ed52799030e745bcc7f6b6673c04502ae9b941fe3bf19e2df63040e076c5b1
+GITVAULT_BENCH phase=auth.kdf_identity ms=198.828
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.089
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=442.390
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1742.785
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.790
+GITVAULT_BENCH phase=write.preflight ms=2191.888
+
+Uploading Tree objects... hash=932e1ce14055b27f5117ae9390f5af2534edab917ea94a1bb0b0b8d5da73f483 | size: 5 bytes
+
+Uploading Tree objects... hash=42d9be5977e70a8ce3120f0d9684d43d5b28e09cb2da8341e89838a50561aadd | size: 60 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=4183.687
+GITVAULT_BENCH phase=write.head_journal ms=1.136
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.168
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=1349.163
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1669.532
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.402
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=423.880
+GITVAULT_BENCH phase=commit.dropbox_cas ms=885.668
+GITVAULT_BENCH phase=commit.dropbox_readback ms=365.712
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=3.182
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1674.292
+GITVAULT_BENCH phase=commit.local_finalize ms=4.513
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=390.960
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1745.810
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=1.182
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=8524.391
+
+operation=mkdir size=0 iteration=2 returncode=0 total_ms=19397.271
+commit=ad51a6004b9835c86239b31c0c14fb6d0dc2f324d62127b07379532eb9e02ce4
+GITVAULT_BENCH phase=auth.kdf_identity ms=183.432
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.073
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=729.768
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1758.284
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=1.059
+GITVAULT_BENCH phase=write.preflight ms=2495.585
+
+Uploading Tree objects... hash=87af52cf99b562f3170da57c6210f0209db473c4d923ad8a8d63df0b2ac81bfb | size: 5 bytes
+
+Uploading Tree objects... hash=9c124a04a7db4823b8753e93831ebb824ce91de9611e98e2b18261f240d67e32 | size: 115 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=4996.326
+GITVAULT_BENCH phase=write.head_journal ms=1.105
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.193
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=368.311
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1729.398
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=1.096
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=1462.753
+GITVAULT_BENCH phase=commit.dropbox_cas ms=1185.447
+GITVAULT_BENCH phase=commit.dropbox_readback ms=705.813
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=2.698
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1657.060
+GITVAULT_BENCH phase=commit.local_finalize ms=4.292
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=378.611
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1756.412
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=1.115
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=9264.844
+
+operation=mkdir size=0 iteration=3 returncode=0 total_ms=18585.280
+commit=4a3f13dc174db77b4cbc988daeb7bbb45075726e3623ece3ccaa586112bd3a3b
+GITVAULT_BENCH phase=auth.kdf_identity ms=198.262
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.075
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=1687.263
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1740.114
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=1.235
+GITVAULT_BENCH phase=write.preflight ms=3434.854
+
+Uploading Tree objects... hash=8680663e12111eb3e428dc4c18590906aa512bc8395c653f11596eb89ea70e92 | size: 5 bytes
+
+Uploading Tree objects... hash=3572956a9de72402268ea9e451105a8379f52fe251029de1c2ceeecfff043fb1 | size: 170 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=5199.518
+GITVAULT_BENCH phase=write.head_journal ms=1.994
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.247
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=425.694
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1593.127
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.762
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=380.646
+GITVAULT_BENCH phase=commit.dropbox_cas ms=885.782
+GITVAULT_BENCH phase=commit.dropbox_readback ms=408.630
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=2.233
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1755.638
+GITVAULT_BENCH phase=commit.local_finalize ms=5.983
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=465.063
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1861.455
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=1.018
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=7797.596
+
+operation=mkdir size=0 iteration=4 returncode=0 total_ms=17848.814
+commit=ae3c011439812fec6d3bd7f91c69b8f8f39899694f4f43c1a2ecdcd3a633b4b5
+GITVAULT_BENCH phase=auth.kdf_identity ms=198.029
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.083
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=470.211
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1702.075
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.667
+GITVAULT_BENCH phase=write.preflight ms=2178.233
+
+Uploading Tree objects... hash=063a2172819bf58aba6b21e12798827a7127211b63abc0c6b6bbe221763356ab | size: 5 bytes
+
+Uploading Tree objects... hash=b9aec960270ee9de07fc373ef639c1bcb7c909de2edc35342ea783decd5ca047 | size: 225 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=4366.252
+GITVAULT_BENCH phase=write.head_journal ms=1.711
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.290
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=400.914
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1799.789
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.668
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=1374.802
+GITVAULT_BENCH phase=commit.dropbox_cas ms=1102.568
+GITVAULT_BENCH phase=commit.dropbox_readback ms=576.993
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=2.080
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1641.640
+GITVAULT_BENCH phase=commit.local_finalize ms=1.976
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=381.854
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1589.432
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.698
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=8882.983
+
+operation=mkdir size=0 iteration=5 returncode=0 total_ms=17293.518
+commit=b08cb58ac85316786c7698835ad5feca10d1bcdde5b92ddd300585ae40f3cd96
+GITVAULT_BENCH phase=auth.kdf_identity ms=176.911
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.071
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=500.968
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1795.644
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.281
+GITVAULT_BENCH phase=write.preflight ms=2299.495
+
+Uploading Tree objects... hash=7e5711670568ca5d0cba98b1ca8569a9f6a867c1d5ca5e07c7530de1621f9fc9 | size: 5 bytes
+
+Uploading Tree objects... hash=af2b02bcb23950c56ee8ba6e4d95f21fcfd656c43c5bc4ff3b9a94f22bd63e79 | size: 280 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=5016.722
+GITVAULT_BENCH phase=write.head_journal ms=1.425
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.205
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=467.059
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1687.622
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.415
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=431.227
+GITVAULT_BENCH phase=commit.dropbox_cas ms=918.054
+GITVAULT_BENCH phase=commit.dropbox_readback ms=396.940
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=1.676
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1861.641
+GITVAULT_BENCH phase=commit.local_finalize ms=4.081
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=502.493
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1698.837
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.732
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=7979.070
+
+operation=add size=8192 iteration=1 returncode=0 total_ms=17458.244
+
+Uploading Blob objects: 1/1 (100.0%)commit=9ccdbf852ac07c1eb38dd95454228bbcc569a8efc694944fe61f09d5a09fc6a3
+GITVAULT_BENCH phase=auth.kdf_identity ms=189.049
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.080
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=1645.182
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1743.920
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.300
+GITVAULT_BENCH phase=write.preflight ms=3392.577
+
+Uploading Tree objects... hash=47cd1371272d4774bb492fa2b4869b77a40cc08628f55088472abdda50bf3c54 | size: 350 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=3779.224
+GITVAULT_BENCH phase=write.head_journal ms=1.609
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.271
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=400.072
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1832.657
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.309
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=521.379
+GITVAULT_BENCH phase=commit.dropbox_cas ms=956.696
+GITVAULT_BENCH phase=commit.dropbox_readback ms=525.574
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=2.027
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1868.690
+GITVAULT_BENCH phase=commit.local_finalize ms=2.951
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=508.045
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1673.845
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.337
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=8299.764
+
+operation=cat size=8192 iteration=1 returncode=0 total_ms=6445.467
+GITVAULT_BENCH phase=auth.kdf_identity ms=175.659
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.072
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=589.921
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1693.357
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.304
+GITVAULT_BENCH phase=preflight.total ms=2286.872
+GITVAULT_BENCH phase=read.path_resolution ms=1772.792
+GITVAULT_BENCH phase=read.blob_fetch ms=721.331
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.177
+
+operation=remove size=8192 iteration=1 returncode=0 total_ms=18177.715
+commit=8922220bd35283a981bba448493cbc542676a9d79b2795196b864bd47f79fba3
+GITVAULT_BENCH phase=auth.kdf_identity ms=177.733
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.074
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=577.402
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1635.537
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.599
+GITVAULT_BENCH phase=write.preflight ms=2218.862
+
+Uploading Tree objects... hash=bbf4445394b60a03c94e3538e0eafc2890bdf9eecd18fa5fff174fae04d53024 | size: 280 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=5140.839
+GITVAULT_BENCH phase=write.head_journal ms=1.876
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.223
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=453.952
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1892.658
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.499
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=429.831
+GITVAULT_BENCH phase=commit.dropbox_cas ms=865.262
+GITVAULT_BENCH phase=commit.dropbox_readback ms=411.377
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=2.395
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1641.823
+GITVAULT_BENCH phase=commit.local_finalize ms=4.044
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=535.292
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2297.283
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=1.163
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=8545.847
+
+operation=add size=8192 iteration=2 returncode=0 total_ms=18472.424
+
+Uploading Blob objects: 1/1 (100.0%)commit=f291d21700a0b92d1ae3c8353ffdcfc5ee78c0862458be7425a8af9f89a1fce9
+GITVAULT_BENCH phase=auth.kdf_identity ms=199.768
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.073
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=543.317
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1724.160
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.436
+GITVAULT_BENCH phase=write.preflight ms=2270.449
+
+Uploading Tree objects... hash=3db280b239702d4d88fd658de6b44bb06afdacffc98d896c07759d7b3dd33292 | size: 350 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=3647.677
+GITVAULT_BENCH phase=write.head_journal ms=1.024
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.127
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=409.039
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1853.162
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.401
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=462.192
+GITVAULT_BENCH phase=commit.dropbox_cas ms=883.969
+GITVAULT_BENCH phase=commit.dropbox_readback ms=427.961
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=2.093
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1714.174
+GITVAULT_BENCH phase=commit.local_finalize ms=3.816
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=395.440
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1622.680
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.366
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=7781.036
+
+operation=cat size=8192 iteration=2 returncode=0 total_ms=7402.291
+GITVAULT_BENCH phase=auth.kdf_identity ms=192.000
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.082
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=555.992
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1811.591
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.382
+GITVAULT_BENCH phase=preflight.total ms=2371.223
+GITVAULT_BENCH phase=read.path_resolution ms=2801.743
+GITVAULT_BENCH phase=read.blob_fetch ms=648.268
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.090
+
+operation=remove size=8192 iteration=2 returncode=0 total_ms=17970.955
+commit=4ffa2795b4b84c44ee2f02764c2a99b86dd431f2b1aa553c5e7e21da7397b0ed
+GITVAULT_BENCH phase=auth.kdf_identity ms=180.510
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.068
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=632.373
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1923.440
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.385
+GITVAULT_BENCH phase=write.preflight ms=2559.460
+
+Uploading Tree objects... hash=47c5f778f3cae1e569d57366d2d9ae873e6b9c09cba7820d9192d2196ec39357 | size: 280 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=4126.039
+GITVAULT_BENCH phase=write.head_journal ms=1.064
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.097
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=410.242
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1672.711
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.540
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=437.896
+GITVAULT_BENCH phase=commit.dropbox_cas ms=900.227
+GITVAULT_BENCH phase=commit.dropbox_readback ms=1427.744
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=3.239
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1754.371
+GITVAULT_BENCH phase=commit.local_finalize ms=3.863
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=506.068
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1794.533
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.429
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=8922.269
+
+operation=add size=8192 iteration=3 returncode=0 total_ms=16856.787
+
+Uploading Blob objects: 1/1 (100.0%)commit=2bcad3bc318f87035a28fd745758a43ec408826416ce87c76c406e44aaed10e2
+GITVAULT_BENCH phase=auth.kdf_identity ms=184.756
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.074
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=697.319
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1741.821
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.559
+GITVAULT_BENCH phase=write.preflight ms=2444.156
+
+Uploading Tree objects... hash=e4d158b53730869e6da655cb8401251dd7f75b0547bcd8c48544632d17b3510f | size: 350 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=3318.281
+GITVAULT_BENCH phase=write.head_journal ms=1.625
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.197
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=1525.244
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1689.206
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.371
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=380.755
+GITVAULT_BENCH phase=commit.dropbox_cas ms=849.203
+GITVAULT_BENCH phase=commit.dropbox_readback ms=378.667
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=1.790
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1719.585
+GITVAULT_BENCH phase=commit.local_finalize ms=4.805
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=407.309
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1844.034
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.869
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=8811.343
+
+operation=cat size=8192 iteration=3 returncode=0 total_ms=6330.829
+GITVAULT_BENCH phase=auth.kdf_identity ms=193.579
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.076
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=456.182
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2007.745
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.876
+GITVAULT_BENCH phase=preflight.total ms=2469.901
+GITVAULT_BENCH phase=read.path_resolution ms=1727.945
+GITVAULT_BENCH phase=read.blob_fetch ms=609.177
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.147
+
+operation=remove size=8192 iteration=3 returncode=0 total_ms=17681.425
+commit=e28532e384b6c61876b6e0abd322540604e2c120bd3a06d664533d75b3f7739a
+GITVAULT_BENCH phase=auth.kdf_identity ms=179.757
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.080
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=470.762
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1461.711
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.596
+GITVAULT_BENCH phase=write.preflight ms=1937.694
+
+Uploading Tree objects... hash=bf95766b856142d19d3e01f8a774579a64363fe777a41bd5c0d26f269b08a15e | size: 280 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=5936.235
+GITVAULT_BENCH phase=write.head_journal ms=0.895
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.098
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=382.732
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1679.779
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.439
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=361.940
+GITVAULT_BENCH phase=commit.dropbox_cas ms=1020.300
+GITVAULT_BENCH phase=commit.dropbox_readback ms=431.942
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=2.233
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1640.300
+GITVAULT_BENCH phase=commit.local_finalize ms=3.068
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=478.564
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1627.297
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.924
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=7639.773
+
+operation=add size=8192 iteration=4 returncode=0 total_ms=16868.247
+
+Uploading Blob objects: 1/1 (100.0%)commit=0f295b6bfe221ba6ee100ed6deda37fb38ea4ed4967c66c47c3956666edf9d71
+GITVAULT_BENCH phase=auth.kdf_identity ms=184.243
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.077
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=1538.469
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1776.664
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.629
+GITVAULT_BENCH phase=write.preflight ms=3320.635
+
+Uploading Tree objects... hash=739ed281e8abfc40f780f92bc6d59111ad6ce8ae5151667297d1768a336f036c | size: 350 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=3459.142
+GITVAULT_BENCH phase=write.head_journal ms=1.693
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.185
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=429.916
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1683.532
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.532
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=454.486
+GITVAULT_BENCH phase=commit.dropbox_cas ms=1135.178
+GITVAULT_BENCH phase=commit.dropbox_readback ms=392.279
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=2.136
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1665.928
+GITVAULT_BENCH phase=commit.local_finalize ms=3.033
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=488.675
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1668.409
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.404
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=7934.107
+
+operation=cat size=8192 iteration=4 returncode=0 total_ms=8871.444
+GITVAULT_BENCH phase=auth.kdf_identity ms=178.422
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.069
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=526.164
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2785.578
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.496
+GITVAULT_BENCH phase=preflight.total ms=3316.477
+GITVAULT_BENCH phase=read.path_resolution ms=1793.378
+GITVAULT_BENCH phase=read.blob_fetch ms=1667.250
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.161
+
+operation=remove size=8192 iteration=4 returncode=0 total_ms=18475.734
+commit=c4d2d12dc6e427908879b7609471f6ea662b5566ac0902aafdbd380e24d3fd00
+GITVAULT_BENCH phase=auth.kdf_identity ms=189.339
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.073
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=480.725
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1819.331
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.548
+GITVAULT_BENCH phase=write.preflight ms=2305.179
+
+Uploading Tree objects... hash=8f85230b790d3f9c881e53f02a6d3aa41af6bb1fa4939ef86fdd186cbd252baf | size: 280 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=4455.595
+GITVAULT_BENCH phase=write.head_journal ms=1.071
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.113
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=1460.474
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1845.661
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.527
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=482.798
+GITVAULT_BENCH phase=commit.dropbox_cas ms=907.540
+GITVAULT_BENCH phase=commit.dropbox_readback ms=461.873
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=1.959
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1632.799
+GITVAULT_BENCH phase=commit.local_finalize ms=4.623
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=406.783
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2106.444
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.840
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=9322.331
+
+operation=add size=8192 iteration=5 returncode=0 total_ms=17671.126
+
+Uploading Blob objects: 1/1 (100.0%)commit=aea3f81b2c813b9720890d4552436de93b87ed6a3f238e69a4dddd1a7a65bb6b
+GITVAULT_BENCH phase=auth.kdf_identity ms=177.858
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.065
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=640.392
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1659.688
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.926
+GITVAULT_BENCH phase=write.preflight ms=2306.325
+
+Uploading Tree objects... hash=b4ee210af1f9069046e287693b6ef813042ef26d9c0bce50ba4adc486fad7859 | size: 350 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=4124.918
+GITVAULT_BENCH phase=write.head_journal ms=1.852
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.177
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=446.889
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1674.064
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.841
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=432.739
+GITVAULT_BENCH phase=commit.dropbox_cas ms=1033.411
+GITVAULT_BENCH phase=commit.dropbox_readback ms=523.991
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=1.403
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1697.803
+GITVAULT_BENCH phase=commit.local_finalize ms=3.801
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=446.522
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1613.401
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.530
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=7884.651
+
+operation=cat size=8192 iteration=5 returncode=0 total_ms=6370.735
+GITVAULT_BENCH phase=auth.kdf_identity ms=193.523
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.084
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=576.564
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1688.806
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.578
+GITVAULT_BENCH phase=preflight.total ms=2272.061
+GITVAULT_BENCH phase=read.path_resolution ms=2035.398
+GITVAULT_BENCH phase=read.blob_fetch ms=667.641
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.083
+
+operation=remove size=8192 iteration=5 returncode=0 total_ms=18322.538
+commit=a2855333877a51cd99d2e71f414176c3286428a8b7ac053933fa3b987c25ce8f
+GITVAULT_BENCH phase=auth.kdf_identity ms=178.992
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.089
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=545.996
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1710.598
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.326
+GITVAULT_BENCH phase=write.preflight ms=2259.816
+
+Uploading Tree objects... hash=f0fe8adbd3cb1e3977a57c3d400ef84651037ad7ba8c5f3ac875aff2d748df53 | size: 280 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=4807.664
+GITVAULT_BENCH phase=write.head_journal ms=0.933
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.104
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=385.486
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1867.152
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.503
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=387.695
+GITVAULT_BENCH phase=commit.dropbox_cas ms=1060.860
+GITVAULT_BENCH phase=commit.dropbox_readback ms=368.797
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=2.322
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1764.440
+GITVAULT_BENCH phase=commit.local_finalize ms=3.921
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=431.436
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1740.703
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.460
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=8023.335
+
+operation=add size=1048576 iteration=1 returncode=0 total_ms=18597.627
+
+Uploading Blob objects: 1/1 (100.0%)commit=fe59afd79d1a49f902ca8bec826d2ba3928160ed33e67e31389fb038f6f216a1
+GITVAULT_BENCH phase=auth.kdf_identity ms=197.223
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.069
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=531.552
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1703.087
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.561
+GITVAULT_BENCH phase=write.preflight ms=2240.347
+
+Uploading Tree objects... hash=f7b67b849a8f430d84ef79cd8b70afcf7803c745d4c22dab4ee1ebbccbe21d39 | size: 353 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=4202.316
+GITVAULT_BENCH phase=write.head_journal ms=1.096
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.137
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=457.386
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1715.987
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.402
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=1370.040
+GITVAULT_BENCH phase=commit.dropbox_cas ms=950.734
+GITVAULT_BENCH phase=commit.dropbox_readback ms=1391.235
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=1.885
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1593.219
+GITVAULT_BENCH phase=commit.local_finalize ms=4.552
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=408.842
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1642.148
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=1.143
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=9548.165
+
+operation=cat size=1048576 iteration=1 returncode=0 total_ms=8518.815
+GITVAULT_BENCH phase=auth.kdf_identity ms=186.040
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.078
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=523.144
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2272.601
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=1.025
+GITVAULT_BENCH phase=preflight.total ms=2802.464
+GITVAULT_BENCH phase=read.path_resolution ms=1747.436
+GITVAULT_BENCH phase=read.blob_fetch ms=1115.500
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=6.949
+
+operation=remove size=1048576 iteration=1 returncode=0 total_ms=20522.059
+commit=04b845cdfdacb1ea0d9c274f7aba27d360ae108eec29ad602ecd70905f98e4f2
+GITVAULT_BENCH phase=auth.kdf_identity ms=190.067
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.082
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=1583.235
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1780.823
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.865
+GITVAULT_BENCH phase=write.preflight ms=3369.994
+
+Uploading Tree objects... hash=5caac884650116eb7ed82efa3d503035cb6fdd8b8834080893133c81e97cef6a | size: 280 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=5387.931
+GITVAULT_BENCH phase=write.head_journal ms=1.419
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.261
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=432.887
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1877.846
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.689
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=460.748
+GITVAULT_BENCH phase=commit.dropbox_cas ms=1536.171
+GITVAULT_BENCH phase=commit.dropbox_readback ms=404.613
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=2.012
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1632.187
+GITVAULT_BENCH phase=commit.local_finalize ms=3.873
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=1375.365
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1821.517
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=1.013
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=9558.788
+
+operation=add size=1048576 iteration=2 returncode=0 total_ms=18028.387
+
+Uploading Blob objects: 1/1 (100.0%)commit=709b4102813ee97a2664a75dbcf80d8dfa579728ddf55d9b1e31a304fbf67efb
+GITVAULT_BENCH phase=auth.kdf_identity ms=200.312
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.073
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=1599.882
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1730.215
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.580
+GITVAULT_BENCH phase=write.preflight ms=3335.305
+
+Uploading Tree objects... hash=43b43aa340b5bbc75b3412a0232a7dc5778ecb77cf0fc6371663ec663a3e7a21 | size: 353 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=3137.720
+GITVAULT_BENCH phase=write.head_journal ms=1.136
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.143
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=377.609
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1837.004
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.297
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=483.691
+GITVAULT_BENCH phase=commit.dropbox_cas ms=1794.762
+GITVAULT_BENCH phase=commit.dropbox_readback ms=631.753
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=1.730
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1774.295
+GITVAULT_BENCH phase=commit.local_finalize ms=1.908
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=546.592
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1764.992
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.232
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=9220.479
+
+operation=cat size=1048576 iteration=2 returncode=0 total_ms=7495.438
+GITVAULT_BENCH phase=auth.kdf_identity ms=198.361
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.069
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=464.259
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2701.653
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.573
+GITVAULT_BENCH phase=preflight.total ms=3171.300
+GITVAULT_BENCH phase=read.path_resolution ms=1743.415
+GITVAULT_BENCH phase=read.blob_fetch ms=1142.458
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=10.539
+
+operation=remove size=1048576 iteration=2 returncode=0 total_ms=17088.525
+commit=236569fe23a28bcd39215872050d1c026fb699043d16c67667d82fce38cc301c
+GITVAULT_BENCH phase=auth.kdf_identity ms=188.044
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.074
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=544.413
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1727.427
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.643
+GITVAULT_BENCH phase=write.preflight ms=2277.928
+
+Uploading Tree objects... hash=d3915a607969aa9962b820b1af374d7bdbba665fc9ac27daa105708b6619713c | size: 280 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=4535.830
+GITVAULT_BENCH phase=write.head_journal ms=1.936
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.216
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=447.486
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1659.245
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.419
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=414.760
+GITVAULT_BENCH phase=commit.dropbox_cas ms=1061.287
+GITVAULT_BENCH phase=commit.dropbox_readback ms=511.135
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=1.780
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1651.801
+GITVAULT_BENCH phase=commit.local_finalize ms=2.830
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=438.263
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1855.236
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.742
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=8053.740
+
+operation=add size=1048576 iteration=3 returncode=0 total_ms=17496.047
+
+Uploading Blob objects: 1/1 (100.0%)commit=4173e307d2d41eb50a3ed3bcd842d60d92275b989e2df6319f5da8158ebe8469
+GITVAULT_BENCH phase=auth.kdf_identity ms=178.409
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.078
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=587.241
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1797.463
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.821
+GITVAULT_BENCH phase=write.preflight ms=2390.274
+
+Uploading Tree objects... hash=6d77fd3b97b66359a3e4d696a5968c06825dcd77073df39ed29b81d93f48d8df | size: 353 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=3246.642
+GITVAULT_BENCH phase=write.head_journal ms=1.367
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.196
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=383.508
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1727.481
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.806
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=501.222
+GITVAULT_BENCH phase=commit.dropbox_cas ms=932.483
+GITVAULT_BENCH phase=commit.dropbox_readback ms=397.551
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=1.661
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1841.170
+GITVAULT_BENCH phase=commit.local_finalize ms=2.619
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=382.627
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1866.926
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.389
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=8048.604
+
+operation=cat size=1048576 iteration=3 returncode=0 total_ms=6769.189
+GITVAULT_BENCH phase=auth.kdf_identity ms=183.322
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.070
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=674.145
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1689.448
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.554
+GITVAULT_BENCH phase=preflight.total ms=2368.811
+GITVAULT_BENCH phase=read.path_resolution ms=1750.724
+GITVAULT_BENCH phase=read.blob_fetch ms=1124.276
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=13.381
+
+operation=remove size=1048576 iteration=3 returncode=0 total_ms=18974.856
+commit=5d6b90175c8d9ef4e698f456172a55c9cbb1f00f82149c9d781385e79b32ec46
+GITVAULT_BENCH phase=auth.kdf_identity ms=187.483
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.085
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=494.014
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2661.912
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.510
+GITVAULT_BENCH phase=write.preflight ms=3160.839
+
+Uploading Tree objects... hash=15b00f5238eb8805bb9078954948d42e7dbcbc61eec6ce5180cd1d902e3f71f1 | size: 280 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=4810.178
+GITVAULT_BENCH phase=write.head_journal ms=1.687
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.229
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=476.627
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1711.513
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.349
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=409.114
+GITVAULT_BENCH phase=commit.dropbox_cas ms=878.278
+GITVAULT_BENCH phase=commit.dropbox_readback ms=382.063
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=1.923
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1728.299
+GITVAULT_BENCH phase=commit.local_finalize ms=2.588
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=389.252
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1830.063
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.443
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=7818.897
+
+operation=add size=1048576 iteration=4 returncode=0 total_ms=16380.841
+
+Uploading Blob objects: 1/1 (100.0%)commit=33fb7bea6f2f3de3bf7c28f82cf0ba68ca5c20330b66961590be08a18bcf59c9
+GITVAULT_BENCH phase=auth.kdf_identity ms=191.213
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.069
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=526.752
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1680.374
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.489
+GITVAULT_BENCH phase=write.preflight ms=2212.620
+
+Uploading Tree objects... hash=00bea78130d259ae87f26cce2b66124de3a9d15f8c1e8e254f1a643032a7950c | size: 353 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=4290.325
+GITVAULT_BENCH phase=write.head_journal ms=1.816
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.218
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=385.289
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1718.475
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.341
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=389.723
+GITVAULT_BENCH phase=commit.dropbox_cas ms=950.772
+GITVAULT_BENCH phase=commit.dropbox_readback ms=374.082
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=1.989
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1604.777
+GITVAULT_BENCH phase=commit.local_finalize ms=3.955
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=372.964
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1643.658
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.542
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=7453.735
+
+operation=cat size=1048576 iteration=4 returncode=0 total_ms=6855.432
+GITVAULT_BENCH phase=auth.kdf_identity ms=189.875
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.073
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=646.997
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1709.622
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.458
+GITVAULT_BENCH phase=preflight.total ms=2360.027
+GITVAULT_BENCH phase=read.path_resolution ms=1717.187
+GITVAULT_BENCH phase=read.blob_fetch ms=1425.293
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=10.696
+
+operation=remove size=1048576 iteration=4 returncode=0 total_ms=19839.605
+commit=de619f8e39eb3ada1a0595bfbdd091be22fca3fc40bdc6253999332055439e7a
+GITVAULT_BENCH phase=auth.kdf_identity ms=179.749
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.078
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=1603.058
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1894.448
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.927
+GITVAULT_BENCH phase=write.preflight ms=3503.102
+
+Uploading Tree objects... hash=8bfcc3a622d6e0da74b63f21d9913363b2b4724ad66e695858999792b78de165 | size: 280 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=5555.113
+GITVAULT_BENCH phase=write.head_journal ms=1.331
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.164
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=405.062
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1694.106
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.675
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=379.234
+GITVAULT_BENCH phase=commit.dropbox_cas ms=897.554
+GITVAULT_BENCH phase=commit.dropbox_readback ms=1540.356
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=1.454
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1588.780
+GITVAULT_BENCH phase=commit.local_finalize ms=3.899
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=418.878
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1678.683
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.412
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=8616.833
+
+operation=add size=1048576 iteration=5 returncode=0 total_ms=17324.004
+
+Uploading Blob objects: 1/1 (100.0%)commit=f867330774b1e00680e8ce00e888f7b49fc3596d25c52e0bb1679b4112026da8
+GITVAULT_BENCH phase=auth.kdf_identity ms=189.983
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.069
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=463.881
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2671.839
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.297
+GITVAULT_BENCH phase=write.preflight ms=3138.936
+
+Uploading Tree objects... hash=fbeac78f9e10c647dba75eaf3820af045408492681ba7c7c8b02ee3257e47646 | size: 353 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=3272.962
+GITVAULT_BENCH phase=write.head_journal ms=1.706
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.210
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=379.146
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1872.736
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.367
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=1418.800
+GITVAULT_BENCH phase=commit.dropbox_cas ms=847.110
+GITVAULT_BENCH phase=commit.dropbox_readback ms=394.600
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=2.974
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1605.814
+GITVAULT_BENCH phase=commit.local_finalize ms=4.022
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=430.549
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1640.887
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.609
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=8605.329
+
+operation=cat size=1048576 iteration=5 returncode=0 total_ms=9979.686
+GITVAULT_BENCH phase=auth.kdf_identity ms=192.282
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.078
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=477.935
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=3306.602
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.590
+GITVAULT_BENCH phase=preflight.total ms=3796.122
+GITVAULT_BENCH phase=read.path_resolution ms=1777.556
+GITVAULT_BENCH phase=read.blob_fetch ms=2816.892
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=10.605
+
+operation=remove size=1048576 iteration=5 returncode=0 total_ms=18286.065
+commit=e4ca1f789a085ba0c1dc1f195c79ef5b55e8dcaea09fedfc5855d119d9d13f70
+GITVAULT_BENCH phase=auth.kdf_identity ms=192.607
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.078
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=617.714
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1731.785
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.459
+GITVAULT_BENCH phase=write.preflight ms=2354.455
+
+Uploading Tree objects... hash=540ebcf1c272cc007abe964b44d24d90374cc7ec44a118f1f6ca9db6a76a205d | size: 280 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=4762.431
+GITVAULT_BENCH phase=write.head_journal ms=1.101
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.206
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=1415.117
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1637.049
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.266
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=499.330
+GITVAULT_BENCH phase=commit.dropbox_cas ms=1028.224
+GITVAULT_BENCH phase=commit.dropbox_readback ms=402.713
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=1.194
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1835.782
+GITVAULT_BENCH phase=commit.local_finalize ms=3.700
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=421.879
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1759.476
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.566
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=9011.432
+
+operation=add size=10485760 iteration=1 returncode=0 total_ms=21871.154
+
+Uploading Blob objects: 1/1 (100.0%)commit=bdc6aa6961b8c997fa6ed0e481fc626967b80f3d38a266094f8373067fe05330
+GITVAULT_BENCH phase=auth.kdf_identity ms=189.017
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.074
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=861.772
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1711.884
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.652
+GITVAULT_BENCH phase=write.preflight ms=2578.759
+
+Uploading Tree objects... hash=9d5654119e2f9a6c7d207c0c7c1c5c66de73b20504432dbc7092688ae2d80619 | size: 354 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=4643.976
+GITVAULT_BENCH phase=write.head_journal ms=1.930
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.227
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=1454.714
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1688.700
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.403
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=412.883
+GITVAULT_BENCH phase=commit.dropbox_cas ms=4458.889
+GITVAULT_BENCH phase=commit.dropbox_readback ms=410.058
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=1.676
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1740.069
+GITVAULT_BENCH phase=commit.local_finalize ms=2.809
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=403.817
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1672.776
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.839
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=12256.641
+
+operation=cat size=10485760 iteration=1 returncode=0 total_ms=9337.728
+GITVAULT_BENCH phase=auth.kdf_identity ms=204.929
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.074
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=506.455
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1671.972
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.653
+GITVAULT_BENCH phase=preflight.total ms=2182.290
+GITVAULT_BENCH phase=read.path_resolution ms=1735.642
+GITVAULT_BENCH phase=read.blob_fetch ms=3712.657
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=75.357
+
+operation=remove size=10485760 iteration=1 returncode=0 total_ms=16948.043
+commit=f382240ecf55ebfbf76d830b134f36bdf23473a7bcc941db75408c5bd1d387ac
+GITVAULT_BENCH phase=auth.kdf_identity ms=178.339
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.076
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=506.246
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1847.660
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.882
+GITVAULT_BENCH phase=write.preflight ms=2359.532
+
+Uploading Tree objects... hash=3c9f9748b2810d00c23f97f4a9dccbfa176c481044f658920fe36a5cf9be0b16 | size: 280 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=4709.757
+GITVAULT_BENCH phase=write.head_journal ms=1.787
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.175
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=481.238
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1670.041
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.910
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=475.524
+GITVAULT_BENCH phase=commit.dropbox_cas ms=972.710
+GITVAULT_BENCH phase=commit.dropbox_readback ms=413.734
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=1.999
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1755.336
+GITVAULT_BENCH phase=commit.local_finalize ms=3.969
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=444.577
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1651.870
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.802
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=7883.346
+
+operation=add size=10485760 iteration=2 returncode=0 total_ms=19219.226
+
+Uploading Blob objects: 1/1 (100.0%)commit=bbadcc7aafe6b60baaf5d093ebcd0721d71689ceea92d64330977ea5ec3161e7
+GITVAULT_BENCH phase=auth.kdf_identity ms=177.253
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.067
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=696.484
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1562.565
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.556
+GITVAULT_BENCH phase=write.preflight ms=2264.526
+
+Uploading Tree objects... hash=e538fc1b2e96a12566632d55e4f1ec7a72e6a9098155363e63536f926d05e217 | size: 354 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=6239.755
+GITVAULT_BENCH phase=write.head_journal ms=1.688
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.214
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=449.127
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1664.347
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.641
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=395.125
+GITVAULT_BENCH phase=commit.dropbox_cas ms=866.781
+GITVAULT_BENCH phase=commit.dropbox_readback ms=891.181
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=1.946
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=2224.519
+GITVAULT_BENCH phase=commit.local_finalize ms=2.163
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=388.892
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1693.160
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.524
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=8587.393
+
+operation=cat size=10485760 iteration=2 returncode=0 total_ms=9619.023
+GITVAULT_BENCH phase=auth.kdf_identity ms=187.428
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.076
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=588.250
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1707.248
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=1.090
+GITVAULT_BENCH phase=preflight.total ms=2302.037
+GITVAULT_BENCH phase=read.path_resolution ms=2012.584
+GITVAULT_BENCH phase=read.blob_fetch ms=3721.349
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=83.626
+
+operation=remove size=10485760 iteration=2 returncode=0 total_ms=18292.631
+commit=16c433f18e5e510a9d0d97ebfa3c714f6b908e5daa031e6a6099c5ede0013fc7
+GITVAULT_BENCH phase=auth.kdf_identity ms=183.618
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.118
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=456.144
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1673.861
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.973
+GITVAULT_BENCH phase=write.preflight ms=2136.339
+
+Uploading Tree objects... hash=0ce62b99381e283d717a16f4d4114199e74d6011c11ebb3dd2382281b0c06413 | size: 280 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=4804.921
+GITVAULT_BENCH phase=write.head_journal ms=1.609
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.216
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=437.306
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1840.159
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.727
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=517.247
+GITVAULT_BENCH phase=commit.dropbox_cas ms=1049.929
+GITVAULT_BENCH phase=commit.dropbox_readback ms=378.226
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=2.366
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1827.436
+GITVAULT_BENCH phase=commit.local_finalize ms=3.960
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=418.902
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1650.750
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.450
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=8137.298
+
+operation=add size=10485760 iteration=3 returncode=0 total_ms=20474.903
+
+Uploading Blob objects: 1/1 (100.0%)commit=a5271250816dd26bac899a45ca0e11986502baf6212b509f9859a5f147a152a7
+GITVAULT_BENCH phase=auth.kdf_identity ms=195.247
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.075
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=544.974
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1788.394
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.539
+GITVAULT_BENCH phase=write.preflight ms=2338.352
+
+Uploading Tree objects... hash=333e24b15a01a7a34b18dfd69c2c3b54d49ecadbbf9a4460a0b00562cbc1e041 | size: 354 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=8170.678
+GITVAULT_BENCH phase=write.head_journal ms=1.649
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.190
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=564.752
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1687.128
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.686
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=357.194
+GITVAULT_BENCH phase=commit.dropbox_cas ms=942.490
+GITVAULT_BENCH phase=commit.dropbox_readback ms=440.551
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=1.763
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1643.819
+GITVAULT_BENCH phase=commit.local_finalize ms=3.383
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=446.388
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1704.468
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.858
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=7804.252
+
+operation=cat size=10485760 iteration=3 returncode=0 total_ms=10774.891
+GITVAULT_BENCH phase=auth.kdf_identity ms=186.072
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.066
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=486.710
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1574.847
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.512
+GITVAULT_BENCH phase=preflight.total ms=2066.882
+GITVAULT_BENCH phase=read.path_resolution ms=1948.403
+GITVAULT_BENCH phase=read.blob_fetch ms=3480.081
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=78.133
+
+operation=remove size=10485760 iteration=3 returncode=0 total_ms=18945.604
+commit=5c9582d268770a43659c3b5ed0cafc52e44ff90fd9e75c1d17520a991117060f
+GITVAULT_BENCH phase=auth.kdf_identity ms=194.322
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.090
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=467.390
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1626.015
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.508
+GITVAULT_BENCH phase=write.preflight ms=2098.355
+
+Uploading Tree objects... hash=ecbfac285d93571edf8f04bf5a29d1d0191421790ff3fe7ac833c19490e96289 | size: 280 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=6654.681
+GITVAULT_BENCH phase=write.head_journal ms=1.914
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.266
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=584.577
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1795.387
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.277
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=521.150
+GITVAULT_BENCH phase=commit.dropbox_cas ms=840.807
+GITVAULT_BENCH phase=commit.dropbox_readback ms=452.610
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=1.255
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1751.477
+GITVAULT_BENCH phase=commit.local_finalize ms=2.623
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=392.167
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1828.556
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.325
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=8177.890
+
+operation=add size=10485760 iteration=4 returncode=0 total_ms=19985.272
+
+Uploading Blob objects: 1/1 (100.0%)commit=d66b506f0dc5953703ac88788de325f27034d4cae2a93a9c8cdbbe65761cfbd9
+GITVAULT_BENCH phase=auth.kdf_identity ms=188.267
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.074
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=492.950
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1777.087
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.585
+GITVAULT_BENCH phase=write.preflight ms=2275.806
+
+Uploading Tree objects... hash=1fe2b8aa08e02beefa7681367702640309add70fcc9aac3975f7ddff3c820666 | size: 354 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=6407.469
+GITVAULT_BENCH phase=write.head_journal ms=1.763
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.218
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=392.377
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1702.018
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.408
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=537.060
+GITVAULT_BENCH phase=commit.dropbox_cas ms=1031.814
+GITVAULT_BENCH phase=commit.dropbox_readback ms=1456.556
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=1.685
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1691.853
+GITVAULT_BENCH phase=commit.local_finalize ms=3.967
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=419.942
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1764.023
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.756
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=9010.763
+
+operation=cat size=10485760 iteration=4 returncode=0 total_ms=9093.689
+GITVAULT_BENCH phase=auth.kdf_identity ms=185.022
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.087
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=530.002
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1781.137
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.723
+GITVAULT_BENCH phase=preflight.total ms=2317.463
+GITVAULT_BENCH phase=read.path_resolution ms=1733.330
+GITVAULT_BENCH phase=read.blob_fetch ms=3380.989
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=84.201
+
+operation=remove size=10485760 iteration=4 returncode=0 total_ms=17658.128
+commit=d94ea8a4d133c6bbf0131790efc35c367ff8a74b54c5cc37af297cccf4705ba0
+GITVAULT_BENCH phase=auth.kdf_identity ms=182.829
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.078
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=473.648
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1679.029
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.410
+GITVAULT_BENCH phase=write.preflight ms=2156.985
+
+Uploading Tree objects... hash=7b55b6f8e39ca1c8ac9a4a928a82235aa322a04ff550e22972c5cc4ee77a40c3 | size: 280 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=4490.164
+GITVAULT_BENCH phase=write.head_journal ms=1.335
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.157
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=1390.907
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1615.353
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.420
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=386.353
+GITVAULT_BENCH phase=commit.dropbox_cas ms=1070.858
+GITVAULT_BENCH phase=commit.dropbox_readback ms=503.685
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=1.510
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1700.205
+GITVAULT_BENCH phase=commit.local_finalize ms=2.070
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=439.700
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1667.587
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.487
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=8788.908
+
+operation=add size=10485760 iteration=5 returncode=0 total_ms=19637.218
+
+Uploading Blob objects: 1/1 (100.0%)commit=f0934881057e377cb6a77bc121bf5122357e2bc15838c2e0386ebb6e1f6ef285
+GITVAULT_BENCH phase=auth.kdf_identity ms=186.446
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.073
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=456.502
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1642.180
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.366
+GITVAULT_BENCH phase=write.preflight ms=2102.803
+
+Uploading Tree objects... hash=efe6f1d61cbb6f4c213c7e5e91f591a773bc5e3eaf51a1c0303d129426edfa79 | size: 354 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=5682.113
+GITVAULT_BENCH phase=write.head_journal ms=1.776
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.238
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=535.457
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1729.642
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.272
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=727.557
+GITVAULT_BENCH phase=commit.dropbox_cas ms=890.548
+GITVAULT_BENCH phase=commit.dropbox_readback ms=370.418
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=1.630
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=1678.017
+GITVAULT_BENCH phase=commit.local_finalize ms=3.291
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=423.497
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1822.930
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.760
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=8192.104
+
+operation=cat size=10485760 iteration=5 returncode=0 total_ms=9472.784
+GITVAULT_BENCH phase=auth.kdf_identity ms=179.485
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.083
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=471.349
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1717.510
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.768
+GITVAULT_BENCH phase=preflight.total ms=2193.370
+GITVAULT_BENCH phase=read.path_resolution ms=1756.215
+GITVAULT_BENCH phase=read.blob_fetch ms=4070.635
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=72.325
+
+operation=remove size=10485760 iteration=5 returncode=0 total_ms=18498.638
+commit=733d4cffec641facff9600f9aca39981668db9a874231e11d33b184cccb6846d
+GITVAULT_BENCH phase=auth.kdf_identity ms=188.538
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.076
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=589.355
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1781.978
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.998
+GITVAULT_BENCH phase=write.preflight ms=2377.780
+
+Uploading Tree objects... hash=c25d1da3e42f2a9cd19acdcea45cc3daa8725c98c5136fa58318bdd44f9ba942 | size: 280 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=4667.033
+GITVAULT_BENCH phase=write.head_journal ms=1.824
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.230
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=434.245
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1662.859
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.559
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=381.371
+GITVAULT_BENCH phase=commit.dropbox_cas ms=1092.272
+GITVAULT_BENCH phase=commit.dropbox_readback ms=1369.929
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=1.912
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=2029.921
+GITVAULT_BENCH phase=commit.local_finalize ms=3.318
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=418.098
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=1769.203
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.696
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=9173.492
+
+operation=cleanup size=0 iteration=0 returncode=0 total_ms=1511.641
+Warning: 'destroy' will permanently remove:
+  local metadata: /Users/dobshn/.gitvault/gitvault-eval-20260812074347-b33a40-1
+  remote Dropbox folder: /gitvault-eval-20260812074347-b33a40-1
+
+Proceed? (y/N): Remote vault folder deleted.
+Local vault metadata deleted.
+
+operation=cleanup size=0 iteration=0 returncode=0 total_ms=1215.886
+Warning: 'destroy' will permanently remove:
+  local metadata: /Users/dobshn/.gitvault/gitvault-eval-20260812074347-b33a40-2
+  remote Dropbox folder: /gitvault-eval-20260812074347-b33a40-2
+
+Proceed? (y/N): Remote vault folder deleted.
+Local vault metadata deleted.
+
+operation=cleanup size=0 iteration=0 returncode=0 total_ms=1840.249
+Warning: 'destroy' will permanently remove:
+  local metadata: /Users/dobshn/.gitvault/gitvault-eval-20260812074347-b33a40-3
+  remote Dropbox folder: /gitvault-eval-20260812074347-b33a40-3
+
+Proceed? (y/N): Remote vault folder deleted.
+Local vault metadata deleted.
+
+operation=cleanup size=0 iteration=0 returncode=0 total_ms=1226.123
+Warning: 'destroy' will permanently remove:
+  local metadata: /Users/dobshn/.gitvault/gitvault-eval-20260812074347-b33a40-4
+  remote Dropbox folder: /gitvault-eval-20260812074347-b33a40-4
+
+Proceed? (y/N): Remote vault folder deleted.
+Local vault metadata deleted.
+
+operation=cleanup size=0 iteration=0 returncode=0 total_ms=1450.647
+Warning: 'destroy' will permanently remove:
+  local metadata: /Users/dobshn/.gitvault/gitvault-eval-20260812074347-b33a40-5
+  remote Dropbox folder: /gitvault-eval-20260812074347-b33a40-5
+
+Proceed? (y/N): Remote vault folder deleted.
+Local vault metadata deleted.

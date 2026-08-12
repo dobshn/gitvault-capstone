@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "checkpoint_state_machine.h"
+#include "benchmark_trace.h"
 #include "crypto/sha256.h"
 #include "util.h"
 #include "vault_process_lock.h"
@@ -170,7 +171,9 @@ AnchorChannelConfig AnchorCoordinator::initialize(
   if (trust.channel_exists() || trust.checkpoint_exists()) {
     throw std::runtime_error("anchor trust state already exists");
   }
+  const auto cloud_started = std::chrono::steady_clock::now();
   const VersionedBytes cloud = store.read_cloud_head_versioned();
+  gitvault_benchmark_trace("init.cloud_head_fetch", cloud_started);
   const VaultHeadState initial = engine.decrypt_head_state(cloud.bytes);
   if (!initial.clock.empty() || initial.protocol_epoch != 0) {
     throw std::runtime_error("initial HEAD must have an empty vector clock");
@@ -217,7 +220,10 @@ AnchorChannelConfig AnchorCoordinator::initialize(
     }
   };
 
+  const auto genesis_publish_started = std::chrono::steady_clock::now();
   publish_with_quorum(genesis_event);
+  gitvault_benchmark_trace("init.genesis_publish_w2",
+                           genesis_publish_started);
   trust.cache_event(genesis_event);
   trust.remove_outbox(genesis_event.id);
 
@@ -235,7 +241,10 @@ AnchorChannelConfig AnchorCoordinator::initialize(
       checkpoint_payload, checkpoint_time,
       checkpoint_tags(config, config.installation_id),
       engine.identity().signing_secret);
+  const auto checkpoint_publish_started = std::chrono::steady_clock::now();
   publish_with_quorum(checkpoint_event);
+  gitvault_benchmark_trace("init.checkpoint_publish_w2",
+                           checkpoint_publish_started);
   trust.save_witness(replica_id(config), checkpoint_event);
   AnchorCheckpoint checkpoint;
   checkpoint.protocol_epoch = initial.protocol_epoch;
@@ -365,11 +374,17 @@ AnchorCoordinatorStatus AnchorCoordinator::evaluate_current(
     throw std::runtime_error(
         "vector checkpoint is missing; initialize or import the Vault again");
   }
-  if (recover) replay_outbox();
+  if (recover) {
+    const auto outbox_started = std::chrono::steady_clock::now();
+    replay_outbox();
+    gitvault_benchmark_trace("preflight.outbox_replay", outbox_started);
+  }
 
   AnchorCoordinatorStatus status;
   const AnchorCheckpoint checkpoint = trust_.load_checkpoint();
+  const auto cloud_started = std::chrono::steady_clock::now();
   const VersionedBytes cloud = store_.read_cloud_head_versioned();
+  gitvault_benchmark_trace("preflight.cloud_head_fetch", cloud_started);
   status.cloud_head_bytes = cloud.bytes;
   status.cloud_revision = cloud.revision;
   status.cloud_head_state = engine_.decrypt_head_state(cloud.bytes);
@@ -382,7 +397,9 @@ AnchorCoordinatorStatus AnchorCoordinator::evaluate_current(
   query.author = config_.vault_public_key;
   query.kind = kGitVaultCheckpointEventKind;
   query.required_tags = {{"t", to_hex(config_.channel_id)}};
+  const auto relay_started = std::chrono::steady_clock::now();
   status.relay_fetch = channel_->fetch(query);
+  gitvault_benchmark_trace("preflight.relay_fetch_r2", relay_started);
   const std::vector<SignedNostrEvent> events = merge_events(
       trust_.load_witnesses(), status.relay_fetch.events);
 
@@ -397,7 +414,10 @@ AnchorCoordinatorStatus AnchorCoordinator::evaluate_current(
       config_.read_quorum;
   input.read_only_operation = read_only_operation;
   input.prepared_write_exists = trust_.prepared_exists();
+  const auto decision_started = std::chrono::steady_clock::now();
   status.decision = evaluate_checkpoint_state(state_context(), input);
+  gitvault_benchmark_trace("preflight.checkpoint_evaluation",
+                           decision_started);
   status.observed_head = status.decision.verified_tip;
   status.local_cloud_relation =
       clock_relation(status.local_head_state, status.cloud_head_state);
@@ -563,20 +583,26 @@ AnchorCoordinatorStatus AnchorCoordinator::resume_prepared(
     throw std::runtime_error("prepared encrypted HEAD does not match its journal");
   }
 
+  const auto cloud_started = std::chrono::steady_clock::now();
   VersionedBytes cloud = store_.read_cloud_head_versioned();
+  gitvault_benchmark_trace("commit.cloud_head_recheck", cloud_started);
   VaultHeadState cloud_state = engine_.decrypt_head_state(cloud.bytes);
   if (cloud_state.head == expected_previous.head &&
       cloud_state.clock == expected_previous.clock &&
       cloud_state.protocol_epoch == expected_previous.protocol_epoch) {
+    const auto cas_started = std::chrono::steady_clock::now();
     const ConditionalWriteResult updated = store_.compare_exchange_cloud_head(
         prepared.encrypted_head_bytes, prepared.cloud_revision);
+    gitvault_benchmark_trace("commit.dropbox_cas", cas_started);
     if (updated.status == ConditionalWriteStatus::Conflict) {
       trust_.clear_prepared();
       throw std::runtime_error(
           "Dropbox HEAD CAS conflict; no signed checkpoint was created; "
           "reload and retry the command");
     }
+    const auto readback_started = std::chrono::steady_clock::now();
     cloud = store_.read_cloud_head_versioned();
+    gitvault_benchmark_trace("commit.dropbox_readback", readback_started);
     if (!updated.revision.empty() && updated.revision != cloud.revision) {
       throw std::runtime_error(
           "Dropbox CAS response revision differs from exact readback revision");
@@ -594,32 +620,46 @@ AnchorCoordinatorStatus AnchorCoordinator::resume_prepared(
 
   SignedNostrEvent checkpoint;
   if (!prepared.observation_event_id.has_value()) {
+    const auto checkpoint_started = std::chrono::steady_clock::now();
     checkpoint = make_checkpoint(cloud_state, cloud.bytes, cloud.revision);
     trust_.save_outbox({checkpoint, {}});
     prepared.observation_event_id = checkpoint.id;
     trust_.save_prepared(prepared);
+    gitvault_benchmark_trace("commit.checkpoint_create_journal",
+                             checkpoint_started);
   } else {
     checkpoint = find_known_event(trust_, *prepared.observation_event_id);
   }
+  const auto publish_started = std::chrono::steady_clock::now();
   (void)ensure_published(checkpoint);
+  gitvault_benchmark_trace("commit.checkpoint_publish_w2",
+                           publish_started);
+  const auto finalize_started = std::chrono::steady_clock::now();
   trust_.save_witness(replica_id(config_), checkpoint);
   prepared.phase = PreparedWritePhase::ObservationPublished;
   trust_.save_prepared(prepared);
   adopt_published_observation(prepared.new_head, checkpoint.id, cloud);
   finalize_prepared(prepared);
+  gitvault_benchmark_trace("commit.local_finalize", finalize_started);
   return evaluate_current(read_only_operation, false);
 }
 
 AnchorCoordinatorStatus AnchorCoordinator::preflight(
     bool read_only_operation) {
+  const auto started = std::chrono::steady_clock::now();
   VaultProcessLock lock(trust_.trust_directory() / "write.lock");
-  return evaluate_current(read_only_operation, true);
+  AnchorCoordinatorStatus result =
+      evaluate_current(read_only_operation, true);
+  gitvault_benchmark_trace("preflight.total", started);
+  return result;
 }
 
 PreparedVaultWrite AnchorCoordinator::execute_write(
     const std::function<PreparedVaultWrite(const AnchorHash&)>& prepare) {
   VaultProcessLock lock(trust_.trust_directory() / "write.lock");
+  const auto preflight_started = std::chrono::steady_clock::now();
   AnchorCoordinatorStatus status = evaluate_current(false, true);
+  gitvault_benchmark_trace("write.preflight", preflight_started);
   if (status.decision.state != AnchorClientState::Consistent) {
     throw std::runtime_error(
         std::string("write requires CONSISTENT state; current state is ") +
@@ -627,7 +667,9 @@ PreparedVaultWrite AnchorCoordinator::execute_write(
         anchor_state_reason_name(status.decision.reason) + "): " +
         status.decision.detail);
   }
+  const auto prepare_started = std::chrono::steady_clock::now();
   const PreparedVaultWrite write = prepare(status.cloud_head);
+  gitvault_benchmark_trace("write.object_prepare_upload", prepare_started);
   if (!engine_.verify_commit_parent(write.new_head, status.cloud_head)) {
     throw std::runtime_error("prepared Commit does not use the CAS base as parent");
   }
@@ -649,9 +691,13 @@ PreparedVaultWrite AnchorCoordinator::execute_write(
   journal.encrypted_head_bytes = engine_.encrypt_head_state(new_state);
   journal.phase = PreparedWritePhase::ObjectsPrepared;
   journal.cloud_revision = status.cloud_revision;
+  const auto journal_started = std::chrono::steady_clock::now();
   trust_.save_prepared(journal);
+  gitvault_benchmark_trace("write.head_journal", journal_started);
 
+  const auto commit_started = std::chrono::steady_clock::now();
   const AnchorCoordinatorStatus completed = evaluate_current(false, true);
+  gitvault_benchmark_trace("write.cas_checkpoint_finalize", commit_started);
   const AnchorCheckpoint checkpoint = trust_.load_checkpoint();
   if (checkpoint.accepted_head != write.new_head ||
       completed.cloud_head != write.new_head || trust_.prepared_exists()) {

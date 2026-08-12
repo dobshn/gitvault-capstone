@@ -1,4 +1,5 @@
 #include "vault_engine.h"
+#include "benchmark_trace.h"
 #include "crypto/ctr.h"
 #include "crypto/hmac.h"
 #include "crypto/pbkdf2.h"
@@ -167,6 +168,7 @@ namespace {
 }
 
 VaultEngine::VaultEngine(ObjectStore& s, std::string password, bool creating_vault) : store(s), pool(3), total_uploads(0), finished_uploads(0) {
+    const auto authentication_started = std::chrono::steady_clock::now();
     crypto = std::make_unique<CryptoImpl>();
     if (!password.empty()) {
       cfg = ensure_store_config(store, creating_vault);
@@ -178,14 +180,18 @@ VaultEngine::VaultEngine(ObjectStore& s, std::string password, bool creating_vau
             "vault identity not found; initialize a new vault or import its identity");
       }
     }
+    gitvault_benchmark_trace("auth.kdf_identity", authentication_started);
 }
 
 std::array<uint8_t, 32> VaultEngine::init_vault() {
+    const auto started = std::chrono::steady_clock::now();
     initialize_vault_identity();
     Tree empty_tree;
     std::cout << "kdf_salt=" << to_hex(cfg.salt) << "\n";
     std::array<uint8_t, 32> root_hash = store_tree_object(empty_tree);
-    return store_commit(root_hash, unix_time_seconds(), {});
+    const auto result = store_commit(root_hash, unix_time_seconds(), {});
+    gitvault_benchmark_trace("init.objects_head", started);
+    return result;
 }
 
 std::array<uint8_t, 32> VaultEngine::lock_vault(const std::filesystem::path& plain_dir) {
@@ -225,12 +231,18 @@ Entry VaultEngine::resolve_entry(const std::string& path, bool require_directory
 }
 
 ByteVec VaultEngine::read_file_from_vault(const std::string& path) {
+  const auto resolution_started = std::chrono::steady_clock::now();
   Entry entry = resolve_entry(path, false);
+  gitvault_benchmark_trace("read.path_resolution", resolution_started);
   if (entry.type != 0) {
     throw std::runtime_error("path is not a file: " + path);
   }
+  const auto fetch_started = std::chrono::steady_clock::now();
   ByteVec data = store.read_object(entry.hash);
+  gitvault_benchmark_trace("read.blob_fetch", fetch_started);
+  const auto decrypt_started = std::chrono::steady_clock::now();
   ByteVec plaintext = crypto->decrypt_object_checked(keys.enc_key, data, entry.hash);
+  gitvault_benchmark_trace("read.blob_decrypt_verify", decrypt_started);
   return plaintext;
 }
 

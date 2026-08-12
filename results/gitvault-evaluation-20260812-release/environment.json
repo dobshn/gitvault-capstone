@@ -1,0 +1,20 @@
+{
+  "benchmark_vault_prefix": "gitvault-eval-20260812074347-b33a40",
+  "local_trust_bytes_after_operations": 4110,
+  "local_witness_files_after_operations": 1,
+  "machine": "arm64",
+  "payload_sizes_bytes": [
+    8192,
+    1048576,
+    10485760
+  ],
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "processor": "arm",
+  "relays": [
+    "wss://relay.damus.io",
+    "wss://relay.primal.net",
+    "wss://relay.ditto.pub"
+  ],
+  "repetitions": 5,
+  "timestamp_utc": "2026-08-12T07:57:47.178462+00:00"
+}
