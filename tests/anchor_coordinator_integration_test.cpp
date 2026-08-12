@@ -1,6 +1,7 @@
 #include "API.h"
 #include "anchor_coordinator.h"
 #include "anchor_trust_store.h"
+#include "crypto/sha256.h"
 #include "object_store.h"
 #include "util.h"
 #include "vault_engine.h"
@@ -8,7 +9,6 @@
 #include <algorithm>
 #include <filesystem>
 #include <iostream>
-#include <limits>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -26,10 +26,16 @@ void expect(bool condition, const std::string& message) {
   }
 }
 
+template <size_t N>
+std::array<uint8_t, N> filled(uint8_t value) {
+  std::array<uint8_t, N> result{};
+  result.fill(value);
+  return result;
+}
+
 struct TempDirectory {
-  std::filesystem::path path =
-      std::filesystem::temp_directory_path() /
-      ("gitvault-coordinator-test-" + to_hex(random_bytes(8)));
+  std::filesystem::path path = std::filesystem::temp_directory_path() /
+      ("gitvault-vector-coordinator-test-" + to_hex(random_bytes(8)));
   ~TempDirectory() {
     std::error_code ignored;
     std::filesystem::remove_all(path, ignored);
@@ -45,7 +51,7 @@ struct SharedCloud {
   std::mutex mutex;
   std::map<std::string, RemoteFile> files;
   uint64_t next_revision = 1;
-  bool conflict_next_conditional_write = false;
+  bool conflict_next_cas = false;
   size_t remove_calls = 0;
 };
 
@@ -58,15 +64,13 @@ public:
   void fetch(std::string, std::string) override {}
   bool destroy(std::string, std::string) override { return true; }
 
-  void put(std::string_view path,
-           const ByteVec& data,
-           bool overwrite) const override {
+  void put(std::string_view path, const ByteVec& data, bool overwrite) const override {
     std::lock_guard<std::mutex> lock(cloud_->mutex);
     const std::string key(path);
     if (!overwrite && cloud_->files.count(key) != 0) {
       throw std::runtime_error("fake add conflict");
     }
-    cloud_->files[key] = {data, next_revision()};
+    cloud_->files[key] = {data, revision()};
   }
 
   ByteVec get(std::string_view path) const override {
@@ -83,12 +87,11 @@ public:
   }
 
   ConditionalWriteResult put_if_revision(
-      std::string_view path,
-      const ByteVec& data,
+      std::string_view path, const ByteVec& data,
       std::string_view expected_revision) const override {
     std::lock_guard<std::mutex> lock(cloud_->mutex);
-    if (cloud_->conflict_next_conditional_write) {
-      cloud_->conflict_next_conditional_write = false;
+    if (cloud_->conflict_next_cas) {
+      cloud_->conflict_next_cas = false;
       return {ConditionalWriteStatus::Conflict, {}};
     }
     const auto found = cloud_->files.find(std::string(path));
@@ -96,22 +99,21 @@ public:
         found->second.revision != expected_revision) {
       return {ConditionalWriteStatus::Conflict, {}};
     }
-    const std::string revision = next_revision();
-    found->second = {data, revision};
-    return {ConditionalWriteStatus::Updated, revision};
+    const std::string next = revision();
+    found->second = {data, next};
+    return {ConditionalWriteStatus::Updated, next};
   }
 
   ConditionalWriteResult put_if_absent(
-      std::string_view path,
-      const ByteVec& data) const override {
+      std::string_view path, const ByteVec& data) const override {
     std::lock_guard<std::mutex> lock(cloud_->mutex);
     const std::string key(path);
     if (cloud_->files.count(key) != 0) {
       return {ConditionalWriteStatus::Conflict, {}};
     }
-    const std::string revision = next_revision();
-    cloud_->files[key] = {data, revision};
-    return {ConditionalWriteStatus::Updated, revision};
+    const std::string next = revision();
+    cloud_->files[key] = {data, next};
+    return {ConditionalWriteStatus::Updated, next};
   }
 
   bool exists(std::string_view path) const override {
@@ -126,7 +128,7 @@ public:
   }
 
 private:
-  std::string next_revision() const {
+  std::string revision() const {
     return "rev-" + std::to_string(cloud_->next_revision++);
   }
   std::shared_ptr<SharedCloud> cloud_;
@@ -134,13 +136,18 @@ private:
 
 struct SharedAnchor {
   std::mutex mutex;
-  std::map<AnchorHash, SignedNostrEvent> events;
+  std::map<AnchorHash, SignedNostrEvent> immutable;
+  std::map<std::string, SignedNostrEvent> addressable;
   size_t accepted_relay_count = 3;
   size_t synchronized_relay_count = 3;
-  size_t publish_count = 0;
-  size_t reduce_sync_after_publish_count =
-      std::numeric_limits<size_t>::max();
 };
+
+std::string d_tag(const SignedNostrEvent& event) {
+  for (const auto& tag : event.tags) {
+    if (tag.size() == 2 && tag[0] == "d") return tag[1];
+  }
+  return {};
+}
 
 class ThreeRelayChannel final : public IAnchorChannel {
 public:
@@ -149,65 +156,61 @@ public:
       : anchor_(std::move(anchor)), endpoints_(std::move(endpoints)) {}
 
   AnchorPublishResult publish(const SignedNostrEvent& event) override {
-    AnchorPublishStatus status = AnchorPublishStatus::Accepted;
-    size_t accepted_relay_count = 0;
     {
       std::lock_guard<std::mutex> lock(anchor_->mutex);
-      ++anchor_->publish_count;
-      accepted_relay_count = anchor_->accepted_relay_count;
-      const auto [found, inserted] = anchor_->events.emplace(event.id, event);
-      if (!inserted) {
-        if (serialize_nostr_event_json(found->second) !=
-            serialize_nostr_event_json(event)) {
-          throw std::runtime_error("fake relay immutable conflict");
+      if (event.kind == kGitVaultCheckpointEventKind) {
+        const std::string address = d_tag(event);
+        if (address.empty()) throw std::runtime_error("checkpoint has no d tag");
+        const auto found = anchor_->addressable.find(address);
+        if (found == anchor_->addressable.end() ||
+            found->second.created_at < event.created_at ||
+            (found->second.created_at == event.created_at &&
+             event.id < found->second.id)) {
+          anchor_->addressable[address] = event;
         }
-        status = AnchorPublishStatus::AlreadyPresent;
+      } else {
+        anchor_->immutable.emplace(event.id, event);
       }
     }
     AnchorPublishResult result;
     for (size_t index = 0; index < endpoints_.size(); ++index) {
-      const AnchorPublishStatus endpoint_status =
-          index < accepted_relay_count ? status
-                                       : AnchorPublishStatus::Timeout;
       result.endpoints.push_back(
-          {endpoints_[index], event.id, endpoint_status, {}, 0});
+          {endpoints_[index], event.id,
+           index < anchor_->accepted_relay_count
+               ? AnchorPublishStatus::Accepted
+               : AnchorPublishStatus::Timeout,
+           {}, 0});
     }
     return result;
   }
 
   AnchorFetchResult fetch(const AnchorChannelQuery& query) const override {
     AnchorFetchResult result;
-    size_t synchronized_relay_count = 0;
-    {
-      std::lock_guard<std::mutex> lock(anchor_->mutex);
-      synchronized_relay_count =
-          anchor_->publish_count >= anchor_->reduce_sync_after_publish_count
-              ? anchor_->synchronized_relay_count
-              : endpoints_.size();
-      for (const auto& [id, event] : anchor_->events) {
-        (void)id;
-        if (query.author.has_value() && event.public_key != *query.author) {
-          continue;
-        }
-        if (query.kind.has_value() && event.kind != *query.kind) continue;
-        bool tags_match = true;
-        for (const auto& required : query.required_tags) {
-          if (std::find(event.tags.begin(), event.tags.end(), required) ==
-              event.tags.end()) {
-            tags_match = false;
-          }
-        }
-        if (tags_match) result.events.push_back(event);
+    std::lock_guard<std::mutex> lock(anchor_->mutex);
+    auto include = [&](const SignedNostrEvent& event) {
+      if (query.author.has_value() && event.public_key != *query.author) return;
+      if (query.kind.has_value() && event.kind != *query.kind) return;
+      for (const auto& tag : query.required_tags) {
+        if (std::find(event.tags.begin(), event.tags.end(), tag) ==
+            event.tags.end()) return;
       }
+      result.events.push_back(event);
+    };
+    for (const auto& [id, event] : anchor_->immutable) {
+      (void)id;
+      include(event);
+    }
+    for (const auto& [address, event] : anchor_->addressable) {
+      (void)address;
+      include(event);
     }
     for (size_t index = 0; index < endpoints_.size(); ++index) {
       result.endpoints.push_back(
           {endpoints_[index],
-           index < synchronized_relay_count
+           index < anchor_->synchronized_relay_count
                ? AnchorFetchStatus::Synchronized
                : AnchorFetchStatus::TransportError,
-           index < synchronized_relay_count ? "" : "injected relay failure",
-           0});
+           {}, 0});
     }
     return result;
   }
@@ -229,271 +232,220 @@ void install_second_client(ObjectStore& source_store,
                            VaultEngine& source_engine,
                            ObjectStore& target_store,
                            const std::string& password) {
-  AnchorTrustStore source_trust(source_store.trust_directory(),
-                                source_engine.trust_mac_key());
-  target_store.write_local_config_bytes(
-      source_store.read_local_config_bytes());
+  AnchorTrustStore source(source_store.trust_directory(),
+                          source_engine.trust_mac_key());
+  target_store.write_local_config_bytes(source_store.read_local_config_bytes());
   target_store.save_vault_identity(source_store.load_vault_identity());
   VaultEngine target_engine(target_store, password);
-  AnchorTrustStore target_trust(target_store.trust_directory(),
-                                target_engine.trust_mac_key());
-  AnchorChannelConfig channel = source_trust.load_channel();
-  channel.installation_id = "device-b";
-  target_trust.save_channel(channel);
-  const AnchorCheckpoint checkpoint = source_trust.load_checkpoint();
-  target_trust.save_checkpoint(checkpoint);
-  for (const auto& event : source_trust.load_cached_events()) {
-    target_trust.cache_event(event);
+  AnchorTrustStore target(target_store.trust_directory(),
+                          target_engine.trust_mac_key());
+  AnchorChannelConfig channel = source.load_channel();
+  channel.installation_id = std::string(32, 'b');
+  target.save_channel(channel);
+  target.save_checkpoint(source.load_checkpoint());
+  for (const auto& event : source.load_cached_events()) target.cache_event(event);
+  for (const auto& event : source.load_witnesses()) {
+    const AnchorEventPayload payload = verify_decrypt_anchor_event(
+        event, channel.vault_public_key,
+        target_engine.identity().signing_secret);
+    const auto& checkpoint = std::get<HeadCheckpointEvent>(payload);
+    const ByteVec bytes = from_hex(checkpoint.common.installation_id);
+    ReplicaId id{};
+    std::copy(bytes.begin(), bytes.end(), id.begin());
+    target.save_witness(id, event);
   }
-  target_store.write_local_head(
-      target_engine.encrypt_head(checkpoint.accepted_head));
+  target_store.write_local_head(source_store.read_cloud_head_versioned().bytes);
 }
 
-void test_two_clients_catch_up_and_cas_is_append_only() {
+struct Fixture {
   TempDirectory temp;
-  const std::string password = "integration-password";
-  const std::vector<std::string> endpoints = {
+  std::string password = "integration-password";
+  std::vector<std::string> endpoints = {
       "wss://relay-one.invalid", "wss://relay-two.invalid",
       "wss://relay-three.invalid"};
-  auto cloud = std::make_shared<SharedCloud>();
-  auto anchor = std::make_shared<SharedAnchor>();
+  std::shared_ptr<SharedCloud> cloud = std::make_shared<SharedCloud>();
+  std::shared_ptr<SharedAnchor> anchor = std::make_shared<SharedAnchor>();
+  ObjectStore store_a{std::make_unique<FakeCloudApi>(cloud), temp.path / "a"};
 
-  ObjectStore store_a(std::make_unique<FakeCloudApi>(cloud), temp.path / "a");
-  store_a.init("token", "vault");
-  VaultEngine engine_a(store_a, password, true);
-  const AnchorHash h0 = engine_a.init_vault();
-  ThreeRelayChannel init_channel(anchor, endpoints);
-  const AnchorChannelConfig initialized = AnchorCoordinator::initialize(
-      store_a, engine_a, init_channel, endpoints);
+  Fixture() { store_a.init("token", "vault"); }
+};
 
-  AnchorTrustStore interrupted_trust(
-      store_a.trust_directory(), engine_a.trust_mac_key());
-  const SignedNostrEvent genesis =
-      interrupted_trust.load_cached_events().front();
-  std::filesystem::remove(store_a.trust_directory() / "checkpoint.json");
-  std::filesystem::remove(store_a.trust_directory() / "events" /
-                          (to_hex(initialized.genesis_event_id) + ".json"));
-  interrupted_trust.save_outbox({genesis, {}});
-  AnchorCoordinator initialization_recovery(
-      store_a, engine_a,
-      std::make_unique<ThreeRelayChannel>(anchor, endpoints));
-  const AnchorCoordinatorStatus recovered_init =
-      initialization_recovery.preflight(false);
-  expect(interrupted_trust.checkpoint_exists() &&
-             recovered_init.decision.state == AnchorClientState::Consistent,
-         "missing Genesis checkpoint recovers from the durable outbox");
+void test_two_clients_cas_and_frozen_components() {
+  Fixture fixture;
+  VaultEngine engine_a(fixture.store_a, fixture.password, true);
+  const AnchorHash initial = engine_a.init_vault();
+  ThreeRelayChannel init_channel(fixture.anchor, fixture.endpoints);
+  (void)AnchorCoordinator::initialize(
+      fixture.store_a, engine_a, init_channel, fixture.endpoints);
 
-  ObjectStore store_b(std::make_unique<FakeCloudApi>(cloud), temp.path / "b");
+  ObjectStore store_b(std::make_unique<FakeCloudApi>(fixture.cloud),
+                      fixture.temp.path / "b");
   store_b.fetch("token", "vault");
-  install_second_client(store_a, engine_a, store_b, password);
-  VaultEngine engine_b(store_b, password);
-
+  install_second_client(fixture.store_a, engine_a, store_b, fixture.password);
+  VaultEngine engine_b(store_b, fixture.password);
   AnchorCoordinator coordinator_a(
-      store_a, engine_a,
-      std::make_unique<ThreeRelayChannel>(anchor, endpoints));
+      fixture.store_a, engine_a,
+      std::make_unique<ThreeRelayChannel>(fixture.anchor, fixture.endpoints));
   AnchorCoordinator coordinator_b(
       store_b, engine_b,
-      std::make_unique<ThreeRelayChannel>(anchor, endpoints));
+      std::make_unique<ThreeRelayChannel>(fixture.anchor, fixture.endpoints));
 
   const PreparedVaultWrite first = coordinator_a.execute_write(
       [&](const AnchorHash& base) {
         return engine_a.prepare_mkdir("from-a", base);
       });
-  expect(first.previous_head == h0 && first.new_head != h0,
-         "A publishes a linear transition from Genesis");
+  expect(first.previous_head == initial,
+         "first replica writes from the empty vector clock");
+  const VaultHeadState after_a = engine_a.decrypt_head_state(
+      fixture.store_a.read_cloud_head_versioned().bytes);
+  expect(after_a.clock.size() == 1,
+         "first CAS adds exactly one replica component");
 
-  const AnchorCoordinatorStatus b_catch_up = coordinator_b.preflight(false);
-  expect(b_catch_up.decision.state == AnchorClientState::LocalCatchUp &&
-             b_catch_up.local_head == first.new_head,
-         "B at H0 safely adopts C=N=H1");
-  const AnchorCoordinatorStatus b_consistent = coordinator_b.preflight(false);
-  expect(b_consistent.decision.state == AnchorClientState::Consistent,
-         "B reaches CONSISTENT after catch-up");
+  const AnchorCoordinatorStatus caught_up = coordinator_b.preflight(false);
+  expect(caught_up.decision.state == AnchorClientState::LocalCatchUp,
+         "second replica safely catches up using a comparable checkpoint");
+  expect(coordinator_b.preflight(false).decision.state ==
+             AnchorClientState::Consistent,
+         "second replica becomes consistent after catch-up");
 
-  const PreparedVaultWrite second = coordinator_b.execute_write(
-      [&](const AnchorHash& base) {
-        return engine_b.prepare_mkdir("from-b", base);
-      });
-  expect(second.previous_head == first.new_head,
-         "B can write only after using the verified H1 parent");
+  (void)coordinator_b.execute_write([&](const AnchorHash& base) {
+    return engine_b.prepare_mkdir("from-b", base);
+  });
+  const VaultHeadState after_b = engine_b.decrypt_head_state(
+      store_b.read_cloud_head_versioned().bytes);
+  expect(after_b.clock.size() == 2,
+         "a newly writing replica adds its own vector component");
 
   (void)coordinator_a.preflight(false);
   (void)coordinator_a.preflight(false);
-  const size_t objects_before_conflict = object_count(cloud);
+  const size_t before_conflict = object_count(fixture.cloud);
   {
-    std::lock_guard<std::mutex> lock(cloud->mutex);
-    cloud->conflict_next_conditional_write = true;
+    std::lock_guard<std::mutex> lock(fixture.cloud->mutex);
+    fixture.cloud->conflict_next_cas = true;
   }
-  bool conflict_observed = false;
+  bool conflict = false;
   try {
     (void)coordinator_a.execute_write([&](const AnchorHash& base) {
       return engine_a.prepare_mkdir("losing-write", base);
     });
   } catch (const std::runtime_error& error) {
-    conflict_observed =
-        std::string(error.what()).find("CAS conflict") != std::string::npos;
+    conflict = std::string(error.what()).find("CAS conflict") !=
+               std::string::npos;
   }
-  expect(conflict_observed, "stale Dropbox revision is reported as CAS conflict");
-  expect(object_count(cloud) > objects_before_conflict,
-         "objects prepared before a CAS conflict remain append-only");
-  expect(cloud->remove_calls == 0,
-         "no Tree or Blob is deleted during updates or CAS failure");
+  expect(conflict, "a stale Dropbox revision produces a CAS conflict");
+  expect(object_count(fixture.cloud) > before_conflict &&
+             fixture.cloud->remove_calls == 0,
+         "CAS failure retains immutable prepared objects");
 
-  {
-    std::lock_guard<std::mutex> lock(anchor->mutex);
-    anchor->accepted_relay_count = 1;
-  }
-  bool quorum_failure = false;
-  try {
-    (void)coordinator_a.execute_write([&](const AnchorHash& base) {
-      return engine_a.prepare_mkdir("resume-after-w1", base);
-    });
-  } catch (const std::runtime_error& error) {
-    quorum_failure =
-        std::string(error.what()).find("W=2") != std::string::npos;
-  }
-  AnchorTrustStore pending_trust(store_a.trust_directory(),
-                                 engine_a.trust_mac_key());
-  expect(quorum_failure && pending_trust.prepared_exists() &&
-             !pending_trust.load_outbox().empty(),
-         "W=1 leaves an authenticated prepared journal and outbox");
-  {
-    std::lock_guard<std::mutex> lock(anchor->mutex);
-    anchor->accepted_relay_count = 3;
-  }
-  const AnchorCoordinatorStatus resumed = coordinator_a.preflight(false);
-  expect(!pending_trust.prepared_exists() &&
-             resumed.cloud_head == resumed.observed_head,
-         "the next command resumes a W=1 interrupted write without loss");
-
-  const VersionedBytes versioned = store_a.read_cloud_head_versioned();
-  const ConditionalWriteResult stale = store_a.compare_exchange_cloud_head(
-      versioned.bytes, "stale-revision");
-  expect(stale.status == ConditionalWriteStatus::Conflict,
-         "ObjectStore preserves the revision-CAS contract");
+  (void)coordinator_a.execute_write([&](const AnchorHash& base) {
+    return engine_a.prepare_mkdir("after-b-retired", base);
+  });
+  const VaultHeadState final_state = engine_a.decrypt_head_state(
+      fixture.store_a.read_cloud_head_versioned().bytes);
+  expect(final_state.clock.size() == 2,
+         "an inactive replica component remains as a frozen tombstone");
+  expect(fixture.anchor->addressable.size() == 2,
+         "Nostr retains one latest addressable checkpoint per replica");
+  const auto witness_count = [](const std::filesystem::path& directory) {
+    size_t result = 0;
+    for (const auto& item : std::filesystem::directory_iterator(directory)) {
+      if (item.is_regular_file() && item.path().extension() == ".json") ++result;
+    }
+    return result;
+  };
+  expect(witness_count(fixture.store_a.trust_directory() / "witnesses") == 2,
+         "local trust storage keeps only one latest witness per replica");
 }
 
-void test_observation_w2_completes_before_final_read_quorum() {
-  TempDirectory temp;
-  const std::string password = "integration-password";
-  const std::vector<std::string> endpoints = {
-      "wss://relay-one.invalid", "wss://relay-two.invalid",
-      "wss://relay-three.invalid"};
-  auto cloud = std::make_shared<SharedCloud>();
-  auto anchor = std::make_shared<SharedAnchor>();
-
-  ObjectStore store(std::make_unique<FakeCloudApi>(cloud), temp.path / "a");
-  store.init("token", "vault");
-  VaultEngine engine(store, password, true);
-  const AnchorHash initial_head = engine.init_vault();
-  ThreeRelayChannel init_channel(anchor, endpoints);
-  AnchorChannelConfig channel_config = AnchorCoordinator::initialize(
-      store, engine, init_channel, endpoints);
-  AnchorTrustStore trust(store.trust_directory(), engine.trust_mac_key());
-  const AnchorCheckpoint initial_checkpoint = trust.load_checkpoint();
-  channel_config.read_quorum = 3;
-  trust.save_channel(channel_config);
-
-  {
-    std::lock_guard<std::mutex> lock(anchor->mutex);
-    anchor->accepted_relay_count = 2;
-    anchor->synchronized_relay_count = 1;
-    anchor->reduce_sync_after_publish_count = anchor->publish_count + 2;
-  }
+void test_checkpoint_publish_recovery_and_degraded_read() {
+  Fixture fixture;
+  VaultEngine engine(fixture.store_a, fixture.password, true);
+  (void)engine.init_vault();
+  ThreeRelayChannel init_channel(fixture.anchor, fixture.endpoints);
+  (void)AnchorCoordinator::initialize(
+      fixture.store_a, engine, init_channel, fixture.endpoints);
   AnchorCoordinator coordinator(
-      store, engine,
-      std::make_unique<ThreeRelayChannel>(anchor, endpoints));
-  channel_config = trust.load_channel();
-  expect(coordinator.config().read_quorum == 2 &&
-             channel_config.read_quorum == 2,
-         "an authenticated legacy R=3 policy migrates to R=2");
-  const PreparedVaultWrite write = coordinator.execute_write(
-      [&](const AnchorHash& base) {
-        return engine.prepare_mkdir("completed-at-w2", base);
-      });
+      fixture.store_a, engine,
+      std::make_unique<ThreeRelayChannel>(fixture.anchor, fixture.endpoints));
 
-  const AnchorCheckpoint checkpoint = trust.load_checkpoint();
-  expect(write.previous_head == initial_head &&
-             checkpoint.accepted_head == write.new_head &&
-             engine.decrypt_head(store.read_local_head()) == write.new_head &&
-             engine.decrypt_head(store.read_cloud_head_versioned().bytes) ==
-                 write.new_head,
-         "Observation W=2 and cloud readback advance local checkpoint");
-  expect(!trust.prepared_exists() && trust.load_outbox().empty(),
-         "completed W=2 write clears its prepared journal and outbox");
+  fixture.anchor->accepted_relay_count = 1;
+  bool quorum_failure = false;
+  try {
+    (void)coordinator.execute_write([&](const AnchorHash& base) {
+      return engine.prepare_mkdir("resume-after-w1", base);
+    });
+  } catch (const std::runtime_error& error) {
+    quorum_failure = std::string(error.what()).find("W=2") != std::string::npos;
+  }
+  AnchorTrustStore trust(fixture.store_a.trust_directory(),
+                         engine.trust_mac_key());
+  expect(quorum_failure && trust.prepared_exists() &&
+             !trust.load_outbox().empty(),
+         "W=1 after CAS leaves a durable journal and checkpoint outbox");
 
+  fixture.anchor->accepted_relay_count = 3;
+  const AnchorCoordinatorStatus recovered = coordinator.preflight(false);
+  expect(!trust.prepared_exists() && trust.load_outbox().empty() &&
+             recovered.cloud_head == trust.load_checkpoint().accepted_head,
+         "the next preflight republishes and finalizes the exact CAS result");
+
+  fixture.anchor->synchronized_relay_count = 1;
   const AnchorCoordinatorStatus degraded = coordinator.preflight(true);
-  expect(degraded.decision.state == AnchorClientState::DegradedReadOnly &&
-             !degraded.observed_head.has_value() &&
-             degraded.cloud_observed_relation == "unavailable",
-         "incomplete relay sync reports N as unavailable after completion");
+  expect(degraded.decision.state == AnchorClientState::DegradedReadOnly,
+         "R<2 permits only a local/cloud-equal degraded read");
+}
 
-  SignedNostrEvent proposal_event;
-  SignedNostrEvent observation_event;
-  HeadProposalEvent proposal_payload;
-  bool found_proposal = false;
-  bool found_observation = false;
-  for (const auto& event : trust.load_cached_events()) {
-    const AnchorEventPayload payload = verify_decrypt_anchor_event(
-        event, channel_config.vault_public_key,
+void test_incompatible_signed_checkpoints_detect_fork() {
+  Fixture fixture;
+  VaultEngine engine(fixture.store_a, fixture.password, true);
+  (void)engine.init_vault();
+  ThreeRelayChannel channel(fixture.anchor, fixture.endpoints);
+  const AnchorChannelConfig config = AnchorCoordinator::initialize(
+      fixture.store_a, engine, channel, fixture.endpoints);
+
+  auto publish_fork = [&](const std::string& installation,
+                          const ReplicaId& replica,
+                          const AnchorHash& head,
+                          uint64_t created_at) {
+    HeadCheckpointEvent payload;
+    payload.common.vault_id = config.vault_id;
+    payload.common.operation_id = filled<16>(static_cast<uint8_t>(created_at));
+    payload.common.protocol_epoch = config.protocol_epoch;
+    payload.common.installation_id = installation;
+    payload.head = head;
+    payload.clock[replica] = 1;
+    payload.head_envelope_hash = filled<32>(static_cast<uint8_t>(created_at));
+    payload.observed_cloud_revision = "malicious-cas-view";
+    const SignedNostrEvent event = sign_encrypted_anchor_event(
+        payload, created_at,
+        {{"t", to_hex(config.channel_id)},
+         {"d", "gitvault:" + to_hex(config.vault_id) + ":" + installation}},
         engine.identity().signing_secret);
-    if (const auto* proposal = std::get_if<HeadProposalEvent>(&payload);
-        proposal != nullptr && proposal->new_head == write.new_head) {
-      proposal_event = event;
-      proposal_payload = *proposal;
-      found_proposal = true;
-    }
-    if (const auto* observation =
-            std::get_if<HeadObservationEvent>(&payload);
-        observation != nullptr &&
-        observation->observed_cloud_head == write.new_head) {
-      observation_event = event;
-      found_observation = true;
-    }
-  }
-  expect(found_proposal && found_observation,
-         "completed write caches its Proposal and Observation");
+    (void)channel.publish(event);
+  };
 
-  const VersionedBytes committed_cloud = store.read_cloud_head_versioned();
-  trust.save_checkpoint(initial_checkpoint);
-  store.write_local_head(engine.encrypt_head(initial_head));
-  PreparedWriteRecord interrupted;
-  interrupted.operation_id = proposal_payload.common.operation_id;
-  interrupted.previous_head = initial_head;
-  interrupted.new_head = write.new_head;
-  interrupted.encrypted_head_bytes = committed_cloud.bytes;
-  interrupted.phase = PreparedWritePhase::ObservationPublished;
-  interrupted.proposal_event_id = proposal_event.id;
-  interrupted.observation_event_id = observation_event.id;
-  interrupted.cloud_revision = committed_cloud.revision;
-  trust.save_prepared(interrupted);
-  trust.save_outbox({proposal_event, {endpoints[0], endpoints[1]}});
-  trust.save_outbox({observation_event, {endpoints[0], endpoints[1]}});
+  publish_fork(std::string(32, 'a'), filled<16>(0xaa), filled<32>(0x41), 500);
+  publish_fork(std::string(32, 'b'), filled<16>(0xbb), filled<32>(0x42), 501);
 
-  const AnchorCoordinatorStatus recovered = coordinator.preflight(true);
-  expect(recovered.decision.state == AnchorClientState::DegradedReadOnly &&
-             trust.load_checkpoint().accepted_head == write.new_head &&
-             !trust.prepared_exists() && trust.load_outbox().empty(),
-         "an existing OBSERVATION_PUBLISHED journal finalizes without R=2");
-
-  {
-    std::lock_guard<std::mutex> lock(anchor->mutex);
-    anchor->synchronized_relay_count = 2;
-  }
-  const AnchorCoordinatorStatus consistent = coordinator.preflight(false);
-  expect(consistent.decision.state == AnchorClientState::Consistent &&
-             consistent.observed_head == write.new_head,
-         "a later R=2 fetch verifies the completed checkpoint");
+  AnchorCoordinator coordinator(
+      fixture.store_a, engine,
+      std::make_unique<ThreeRelayChannel>(fixture.anchor, fixture.endpoints));
+  const AnchorCoordinatorStatus status = coordinator.preflight(false);
+  expect(status.decision.state == AnchorClientState::Forked &&
+             status.decision.reason ==
+                 AnchorStateReason::DivergentObservedBranches,
+         "incompatible signed vector checkpoints expose a CAS fork");
 }
 }  // namespace
 
 int main() {
-  test_two_clients_catch_up_and_cas_is_append_only();
-  test_observation_w2_completes_before_final_read_quorum();
+  test_two_clients_cas_and_frozen_components();
+  test_checkpoint_publish_recovery_and_degraded_read();
+  test_incompatible_signed_checkpoints_detect_fork();
   if (failures != 0) {
     std::cerr << failures << " test(s) failed\n";
     return 1;
   }
-  std::cout << "all anchor coordinator integration tests passed\n";
+  std::cout << "all vector checkpoint coordinator tests passed\n";
   return 0;
 }

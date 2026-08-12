@@ -72,6 +72,8 @@ public:
                                      const AnchorHash& base_head);
     ByteVec encrypt_head(const AnchorHash& commit_hash) const;
     AnchorHash decrypt_head(const ByteVec& data) const;
+    ByteVec encrypt_head_state(const VaultHeadState& state) const;
+    VaultHeadState decrypt_head_state(const ByteVec& data) const;
     bool verify_commit_parent(const AnchorHash& commit_hash,
                               const AnchorHash& expected_parent_hash);
     bool is_commit_ancestor(const AnchorHash& ancestor,

@@ -46,6 +46,42 @@ std::array<uint8_t, N> fixed_from_hex(const json& value,
   return result;
 }
 
+json clock_json(const VectorClock& clock) {
+  validate_vector_clock(clock);
+  json result = json::array();
+  for (const auto& [replica_id, counter] : clock) {
+    result.push_back(json::array({fixed_hex(replica_id), counter}));
+  }
+  return result;
+}
+
+VectorClock parse_clock(const json& value, const char* field) {
+  if (!value.is_array() || value.size() > kMaximumVectorClockEntries) {
+    throw std::runtime_error(std::string(field) + " must be a bounded array");
+  }
+  VectorClock result;
+  ReplicaId previous{};
+  bool have_previous = false;
+  for (const auto& item : value) {
+    if (!item.is_array() || item.size() != 2 ||
+        !item.at(1).is_number_unsigned()) {
+      throw std::runtime_error(std::string(field) +
+                               " component must be [replica,counter]");
+    }
+    const ReplicaId replica = fixed_from_hex<16>(item.at(0), field);
+    const uint64_t counter = item.at(1).get<uint64_t>();
+    if (counter == 0 || (have_previous && !(previous < replica)) ||
+        !result.emplace(replica, counter).second) {
+      throw std::runtime_error(std::string(field) +
+                               " must be non-zero, unique, and sorted");
+    }
+    previous = replica;
+    have_previous = true;
+  }
+  validate_vector_clock(result);
+  return result;
+}
+
 void require_exact_fields(const json& value,
                           const std::set<std::string>& fields,
                           const char* type) {
@@ -237,13 +273,14 @@ AnchorChannelConfig parse_channel(const json& value) {
   result.relay_urls = value.at("relay_urls").get<std::vector<std::string>>();
   result.publish_quorum = value.at("publish_quorum").get<uint8_t>();
   result.read_quorum = value.at("read_quorum").get<uint8_t>();
-  if (result.format_version != 1 ||
+  if (result.format_version != 2 ||
       result.protocol_version != kAnchorProtocolVersion ||
       result.relay_urls.size() != 3 || result.publish_quorum != 2 ||
       std::set<std::string>(result.relay_urls.begin(),
                             result.relay_urls.end()).size() != 3 ||
       (result.read_quorum != 2 && result.read_quorum != 3) ||
-      result.installation_id.empty()) {
+      result.installation_id.size() != 32 ||
+      from_hex(result.installation_id).size() != 16) {
     throw std::runtime_error("unsupported or invalid channel policy");
   }
   return result;
@@ -251,24 +288,37 @@ AnchorChannelConfig parse_channel(const json& value) {
 
 json checkpoint_json(const AnchorCheckpoint& value) {
   return {{"accepted_head", fixed_hex(value.accepted_head)},
+          {"accepted_clock", clock_json(value.accepted_clock)},
           {"cloud_revision", value.cloud_revision},
           {"format_version", value.format_version},
+          {"head_envelope_hash", fixed_hex(value.head_envelope_hash)},
+          {"last_checkpoint_created_at", value.last_checkpoint_created_at},
+          {"protocol_epoch", value.protocol_epoch},
           {"tip_event_id", fixed_hex(value.tip_event_id)}};
 }
 
 AnchorCheckpoint parse_checkpoint(const json& value) {
   require_exact_fields(value,
-                       {"accepted_head", "cloud_revision", "format_version",
+                       {"accepted_head", "accepted_clock", "cloud_revision",
+                        "format_version", "head_envelope_hash",
+                        "last_checkpoint_created_at", "protocol_epoch",
                         "tip_event_id"},
                        "checkpoint");
   AnchorCheckpoint result;
   result.format_version = value.at("format_version").get<uint8_t>();
   result.accepted_head =
       fixed_from_hex<32>(value.at("accepted_head"), "accepted_head");
+  result.accepted_clock =
+      parse_clock(value.at("accepted_clock"), "accepted_clock");
+  result.protocol_epoch = value.at("protocol_epoch").get<uint64_t>();
+  result.head_envelope_hash = fixed_from_hex<32>(
+      value.at("head_envelope_hash"), "head_envelope_hash");
+  result.last_checkpoint_created_at =
+      value.at("last_checkpoint_created_at").get<uint64_t>();
   result.tip_event_id =
       fixed_from_hex<32>(value.at("tip_event_id"), "tip_event_id");
   result.cloud_revision = value.at("cloud_revision").get<std::string>();
-  if (result.format_version != 1 || result.cloud_revision.empty()) {
+  if (result.format_version != 2 || result.cloud_revision.empty()) {
     throw std::runtime_error("unsupported or invalid checkpoint");
   }
   return result;
@@ -280,9 +330,12 @@ json prepared_json(const PreparedWriteRecord& value) {
       {"encrypted_head", to_hex(value.encrypted_head_bytes)},
       {"format_version", value.format_version},
       {"new_head", fixed_hex(value.new_head)},
+      {"new_clock", clock_json(value.new_clock)},
       {"operation_id", fixed_hex(value.operation_id)},
       {"phase", prepared_write_phase_name(value.phase)},
       {"previous_head", fixed_hex(value.previous_head)},
+      {"previous_clock", clock_json(value.previous_clock)},
+      {"protocol_epoch", value.protocol_epoch},
   };
   result["observation_event_id"] = value.observation_event_id.has_value()
                                        ? json(fixed_hex(*value.observation_event_id))
@@ -305,8 +358,9 @@ PreparedWriteRecord parse_prepared(const json& value) {
   require_exact_fields(
       value,
       {"cloud_revision", "encrypted_head", "format_version", "new_head",
-       "observation_event_id", "operation_id", "phase", "previous_head",
-       "proposal_event_id"},
+       "new_clock", "observation_event_id", "operation_id", "phase",
+       "previous_clock", "previous_head", "proposal_event_id",
+       "protocol_epoch"},
       "prepared write");
   PreparedWriteRecord result;
   result.format_version = value.at("format_version").get<uint8_t>();
@@ -315,6 +369,10 @@ PreparedWriteRecord parse_prepared(const json& value) {
   result.previous_head =
       fixed_from_hex<32>(value.at("previous_head"), "previous_head");
   result.new_head = fixed_from_hex<32>(value.at("new_head"), "new_head");
+  result.previous_clock =
+      parse_clock(value.at("previous_clock"), "previous_clock");
+  result.new_clock = parse_clock(value.at("new_clock"), "new_clock");
+  result.protocol_epoch = value.at("protocol_epoch").get<uint64_t>();
   result.encrypted_head_bytes =
       from_hex(value.at("encrypted_head").get<std::string>());
   result.phase = parse_phase(value.at("phase").get<std::string>());
@@ -327,7 +385,9 @@ PreparedWriteRecord parse_prepared(const json& value) {
     result.observation_event_id = fixed_from_hex<32>(
         value.at("observation_event_id"), "observation_event_id");
   }
-  if (result.format_version != 1 || result.encrypted_head_bytes.size() != 80) {
+  if (result.format_version != 2 || result.encrypted_head_bytes.empty() ||
+      compare_vector_clocks(result.previous_clock, result.new_clock) !=
+          VectorClockRelation::Before) {
     throw std::runtime_error("unsupported or invalid prepared write");
   }
   return result;
@@ -457,6 +517,38 @@ std::vector<SignedNostrEvent> AnchorTrustStore::load_cached_events(
   return result;
 }
 
+void AnchorTrustStore::save_witness(
+    const ReplicaId& replica_id,
+    const SignedNostrEvent& event) const {
+  ensure_directories();
+  if (event.kind != kGitVaultCheckpointEventKind) {
+    throw std::runtime_error("witness must be a checkpoint event");
+  }
+  write_authenticated(
+      witness_directory() / (fixed_hex(replica_id) + ".json"), "witness",
+      json{{"event", json::parse(serialize_nostr_event_json(event))}},
+      mac_key_);
+}
+
+std::vector<SignedNostrEvent> AnchorTrustStore::load_witnesses(
+    size_t limit) const {
+  ensure_directories();
+  std::vector<SignedNostrEvent> result;
+  for (const auto& path : json_files(witness_directory(), limit)) {
+    const json payload = read_authenticated(path, "witness", mac_key_);
+    require_exact_fields(payload, {"event"}, "witness");
+    SignedNostrEvent event =
+        deserialize_nostr_event_json(payload.at("event").dump());
+    const std::string replica = path.stem().string();
+    if (event.kind != kGitVaultCheckpointEventKind || replica.size() != 32 ||
+        from_hex(replica).size() != 16) {
+      throw std::runtime_error("invalid cached witness event");
+    }
+    result.push_back(std::move(event));
+  }
+  return result;
+}
+
 void AnchorTrustStore::save_outbox(const AnchorOutboxRecord& record) const {
   ensure_directories();
   const json payload = {
@@ -517,10 +609,15 @@ std::filesystem::path AnchorTrustStore::outbox_directory() const {
   return trust_directory_ / "outbox";
 }
 
+std::filesystem::path AnchorTrustStore::witness_directory() const {
+  return trust_directory_ / "witnesses";
+}
+
 void AnchorTrustStore::ensure_directories() const {
   protect_directory(trust_directory_);
   protect_directory(event_directory());
   protect_directory(outbox_directory());
+  protect_directory(witness_directory());
 }
 
 const char* prepared_write_phase_name(PreparedWritePhase phase) {

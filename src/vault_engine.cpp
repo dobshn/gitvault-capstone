@@ -17,8 +17,9 @@
 
 namespace {
     constexpr size_t kIvSize = 16;
-    constexpr size_t kHeadCipherSize = 32;
     constexpr size_t kHeadTagSize = 32;
+    constexpr uint8_t kHeadStateFormatVersion = 2;
+    constexpr size_t kHeadStateFixedPlainSize = 4 + 1 + 8 + 32 + 16 + 16 + 2;
     constexpr size_t kChunkSize = 1 << 20;
     constexpr uint64_t kProgressThresholdBytes = 16ull * 1024 * 1024;
     constexpr uint64_t kProgressIntervalBytes = 64ull * 1024 * 1024;
@@ -28,6 +29,114 @@ namespace {
 
     bool is_zero_hash(const std::array<uint8_t, 32>& hash) {
       return std::all_of(hash.begin(), hash.end(), [](uint8_t byte) { return byte == 0; });
+    }
+
+    template <typename Integer>
+    void append_big_endian(ByteVec& output, Integer value) {
+      for (size_t index = 0; index < sizeof(Integer); ++index) {
+        const size_t shift = (sizeof(Integer) - index - 1) * 8;
+        output.push_back(static_cast<uint8_t>(value >> shift));
+      }
+    }
+
+    template <typename Integer>
+    Integer read_big_endian(const ByteVec& input, size_t& offset) {
+      if (offset + sizeof(Integer) > input.size()) {
+        throw std::runtime_error("truncated HEAD state");
+      }
+      Integer result = 0;
+      for (size_t index = 0; index < sizeof(Integer); ++index) {
+        result = static_cast<Integer>((result << 8) | input[offset++]);
+      }
+      return result;
+    }
+
+    template <size_t N>
+    void append_array(ByteVec& output, const std::array<uint8_t, N>& value) {
+      append_bytes(output, value.data(), value.size());
+    }
+
+    template <size_t N>
+    std::array<uint8_t, N> read_array(const ByteVec& input, size_t& offset) {
+      if (offset + N > input.size()) {
+        throw std::runtime_error("truncated HEAD state array");
+      }
+      std::array<uint8_t, N> result{};
+      std::copy_n(input.begin() + static_cast<std::ptrdiff_t>(offset), N,
+                  result.begin());
+      offset += N;
+      return result;
+    }
+
+    ByteVec serialize_head_state(const VaultHeadState& state) {
+      if (state.format_version != kHeadStateFormatVersion) {
+        throw std::runtime_error("unsupported HEAD state format");
+      }
+      validate_vector_clock(state.clock);
+      if (!state.clock.empty()) {
+        const auto writer = state.clock.find(state.writer_replica_id);
+        if (writer == state.clock.end() || writer->second == 0) {
+          throw std::runtime_error(
+              "HEAD writer must have a non-zero vector clock component");
+        }
+      }
+      ByteVec output;
+      output.reserve(kHeadStateFixedPlainSize + state.clock.size() * 24);
+      output.insert(output.end(), {'G', 'V', 'H', '2'});
+      output.push_back(state.format_version);
+      append_big_endian<uint64_t>(output, state.protocol_epoch);
+      append_array(output, state.head);
+      append_array(output, state.writer_replica_id);
+      append_array(output, state.operation_id);
+      append_big_endian<uint16_t>(output,
+          static_cast<uint16_t>(state.clock.size()));
+      for (const auto& [replica_id, counter] : state.clock) {
+        append_array(output, replica_id);
+        append_big_endian<uint64_t>(output, counter);
+      }
+      return output;
+    }
+
+    VaultHeadState deserialize_head_state(const ByteVec& input) {
+      const ByteVec magic{'G', 'V', 'H', '2'};
+      if (input.size() < kHeadStateFixedPlainSize ||
+          !std::equal(magic.begin(), magic.end(), input.begin())) {
+        throw std::runtime_error("invalid HEAD state magic or size");
+      }
+      size_t offset = 4;
+      VaultHeadState state;
+      state.format_version = input[offset++];
+      if (state.format_version != kHeadStateFormatVersion) {
+        throw std::runtime_error("unsupported HEAD state format");
+      }
+      state.protocol_epoch = read_big_endian<uint64_t>(input, offset);
+      state.head = read_array<32>(input, offset);
+      state.writer_replica_id = read_array<16>(input, offset);
+      state.operation_id = read_array<16>(input, offset);
+      const uint16_t count = read_big_endian<uint16_t>(input, offset);
+      if (count > kMaximumVectorClockEntries ||
+          input.size() != kHeadStateFixedPlainSize +
+                              static_cast<size_t>(count) * 24) {
+        throw std::runtime_error("invalid HEAD vector clock length");
+      }
+      ReplicaId previous{};
+      bool have_previous = false;
+      for (uint16_t index = 0; index < count; ++index) {
+        const ReplicaId replica_id = read_array<16>(input, offset);
+        const uint64_t counter = read_big_endian<uint64_t>(input, offset);
+        if (counter == 0 || (have_previous && !(previous < replica_id)) ||
+            !state.clock.emplace(replica_id, counter).second) {
+          throw std::runtime_error("invalid HEAD vector clock component");
+        }
+        previous = replica_id;
+        have_previous = true;
+      }
+      validate_vector_clock(state.clock);
+      if (!state.clock.empty() &&
+          state.clock.count(state.writer_replica_id) == 0) {
+        throw std::runtime_error("HEAD writer is absent from vector clock");
+      }
+      return state;
     }
 
     std::string make_tree_scan_line(const std::string& prefix,
@@ -343,9 +452,9 @@ void VaultEngine::initialize_vault_identity() {
       std::cerr << oss.str() << "\n";
   }
 
-  ByteVec VaultEngine::encrypt_head(const AnchorHash& commit_hash) const {
+  ByteVec VaultEngine::encrypt_head_state(const VaultHeadState& state) const {
       ByteVec iv = random_bytes(kIvSize);
-      ByteVec plain(commit_hash.begin(), commit_hash.end());
+      ByteVec plain = serialize_head_state(state);
       ByteVec cipher = aes256_ctr_crypt(keys.enc_key, iv, plain);
       ByteVec mac_input;
       mac_input.reserve(iv.size() + cipher.size());
@@ -362,17 +471,23 @@ void VaultEngine::initialize_vault_identity() {
       return out;
   }
 
+  ByteVec VaultEngine::encrypt_head(const AnchorHash& commit_hash) const {
+      VaultHeadState state;
+      state.head = commit_hash;
+      return encrypt_head_state(state);
+  }
+
   void VaultEngine::write_head(const AnchorHash& commit_hash) {
       store.install_initial_head(encrypt_head(commit_hash));
   }
 
-  AnchorHash VaultEngine::decrypt_head(const ByteVec& data) const {
-        if (data.size() != kIvSize + kHeadCipherSize + kHeadTagSize) {
+  VaultHeadState VaultEngine::decrypt_head_state(const ByteVec& data) const {
+        if (data.size() < kIvSize + kHeadStateFixedPlainSize + kHeadTagSize) {
             throw std::runtime_error("invalid HEAD size");
         }
         ByteVec iv(data.begin(), data.begin() + kIvSize);
-        ByteVec cipher(data.begin() + kIvSize, data.begin() + kIvSize + kHeadCipherSize);
-        ByteVec tag(data.begin() + kIvSize + kHeadCipherSize, data.end());
+        ByteVec cipher(data.begin() + kIvSize, data.end() - kHeadTagSize);
+        ByteVec tag(data.end() - kHeadTagSize, data.end());
 
         ByteVec mac_input;
         mac_input.reserve(iv.size() + cipher.size());
@@ -386,12 +501,11 @@ void VaultEngine::initialize_vault_identity() {
         }
 
         ByteVec plain = aes256_ctr_crypt(keys.enc_key, iv, cipher);
-        if (plain.size() != 32) {
-            throw std::runtime_error("invalid HEAD plaintext size");
-        }
-        std::array<uint8_t, 32> out{};
-        std::copy(plain.begin(), plain.end(), out.begin());
-        return out;
+        return deserialize_head_state(plain);
+  }
+
+  AnchorHash VaultEngine::decrypt_head(const ByteVec& data) const {
+        return decrypt_head_state(data).head;
   }
 
   AnchorHash VaultEngine::read_head() {
@@ -477,6 +591,7 @@ void VaultEngine::initialize_vault_identity() {
       }
       current = commit.parent_hash;
     }
+
     throw std::runtime_error("commit parent cycle detected: " + to_hex(current));
   }
 

@@ -120,12 +120,13 @@ GitVault stores local state at:
     channel.json
     checkpoint.json
     prepared.json             # only while a write is pending
-    events/<event-id>.json
+    events/<genesis-event-id>.json
+    witnesses/<replica-id>.json
     outbox/<event-id>.json
 ```
 
 The refresh token file is created by `login`.
-`checkpoint.json` is the authenticated local trust anchor. GitVault compares its accepted local HEAD (`L`), Dropbox's revisioned HEAD (`C`), and the unique verified Observation tip (`N`) before every read or write. `sync` no longer copies Dropbox HEAD unconditionally.
+`checkpoint.json` is the authenticated local trust anchor. HEAD V2 encrypts and authenticates the current Commit, protocol epoch, writer/operation IDs, and a sparse vector clock. GitVault compares the local trusted clock (`L`), Dropbox's revisioned HEAD clock (`C`), and the latest signed per-replica checkpoints (`N`) before every read or write. `sync` never copies Dropbox HEAD unconditionally.
 Config V2 derives one 32-byte master key with PBKDF2, then uses HKDF-SHA256 labels to derive separate object-encryption, HEAD-MAC, identity-wrapping-encryption, and identity-wrapping-MAC keys.
 New vaults also generate one random secp256k1-compatible signing secret. It is encrypted and authenticated with the identity wrapping keys before being stored locally as `vault-identity.enc`; GitVault does not intentionally write the plaintext signing secret to a file.
 Password-authenticated commands reject a vault whose local identity is missing. Config V1 is unsupported. `export-client` includes exact config bytes, the wrapped Vault identity, a checkpoint, and signed evidence; it never includes a Dropbox token or plaintext password. The bootstrap file must be moved through a confidential, integrity-protected one-time channel such as a trusted USB transfer or AirDrop.
@@ -136,7 +137,7 @@ GitVault uses a channel-independent NIP-01 event envelope for anchor messages. I
 
 On input, the parser requires exactly the seven unique NIP-01 wire fields and fixed-length lowercase hexadecimal encodings. Verification first requires the event public key to match the trusted Vault public key, then recomputes the canonical event ID before verifying the signature. Thus an unrelated self-signed event and any change to the content, tags, metadata, ID, public key, or signature are rejected.
 
-Public kind `9500` events contain exactly one searchable `t` tag holding a random 32-byte channel ID. Genesis, Proposal, Observation, Vault ID, operation ID, and HEAD values are canonical JSON encrypted with NIP-44 v2 self-encryption. GitVault verifies the outer public key, canonical event ID, Schnorr signature, kind, and channel tag before decrypting the content. Relays still learn the Vault public key, timestamps, event sizes, relay selection, and activity frequency.
+The immutable Genesis uses kind `9500` with one searchable `t` tag holding a random 32-byte channel ID. Latest checkpoints use addressable kind `30078` with `t` and replica-specific `d` tags. Vault ID, operation ID, HEAD, vector clock, envelope hash, and Dropbox revision are canonical JSON encrypted with NIP-44 v2 self-encryption. GitVault verifies the outer public key, canonical event ID, Schnorr signature, kind, and exact checkpoint address before accepting a witness. Relays still learn the Vault public key, timestamps, event sizes, replica count, relay selection, and activity frequency.
 
 ### Anchor channel abstraction
 
@@ -144,17 +145,19 @@ Public kind `9500` events contain exactly one searchable `t` tag holding a rando
 
 `LocalFileAnchorChannel` is the deterministic test adapter. It stores one JSON file per event ID under `<channel-root>/events/<event-id>.json`. Publishing the same event again is idempotent, and an existing ID is never overwritten with different bytes. Concurrent publishers install the completed event with an atomic no-replace hard link. Fetch results are sorted by event ID only for reproducible tests; that order has no security meaning.
 
-`NostrAnchorChannel` uses WebSocket/TLS, connects to all configured relays in parallel, counts only a matching `OK=true`, waits for `EOSE`, deduplicates exact event IDs, handles NIP-42 AUTH with the Vault key, and rejects same-ID/different-bytes responses. It performs no hidden retry: the authenticated outbox retries on the next command. The initial implementation fetches the full history and stops at 4,096 events or configured frame/content limits.
+`NostrAnchorChannel` uses WebSocket/TLS, connects to all configured relays in parallel, counts only a matching `OK=true`, waits for `EOSE`, deduplicates exact event IDs, handles NIP-42 AUTH with the Vault key, and rejects same-ID/different-bytes responses. Checkpoints use addressable kind `30078` and `d=gitvault:<vault-id>:<replica-id>`, so a conforming relay retains only the latest signed checkpoint for each replica. The authenticated outbox retries an interrupted publication on the next command.
 
-### Proposal/Observation state machine
+### Vector-clock/CAS checkpoint state machine
 
-GitVault has canonical semantic payloads for `VAULT_GENESIS`, `HEAD_PROPOSAL`, and `HEAD_OBSERVATION`. Genesis pins the exact config hash and initial Commit. A Proposal links a verified parent event and `previous_head -> new_head` Commit V2 transition. An Observation references one Proposal and records the cloud HEAD and Dropbox revision read back after CAS.
+Genesis pins the exact config hash and initial Commit. Each installation receives a random 128-bit `replica_id` during initialization or bootstrap import. A successful write increments only that replica's vector-clock component. Removed or reinstalled replicas are not reused: their last component remains as a frozen tombstone, while a reinstallation gets a fresh ID.
 
-The state evaluator starts from pinned Genesis, ignores delivery order and `created_at`, validates Commit V2 parents, and compares `L`, `C`, and `N` by ancestry. It returns `CONSISTENT`, `LOCAL_CATCH_UP`, `WRITE_PREPARED`, `PROPOSED`, `OBSERVATION_REQUIRED`, `ANNOUNCED`, `DEGRADED_READ_ONLY`, `ROLLBACK_DETECTED`, `FORKED`, or `RECOVERY_REQUIRED`, with a separate reason and action.
+The state evaluator ignores delivery order and uses vector-clock comparison. A clock strictly below the local trusted checkpoint is a rollback. Concurrent signed checkpoints, or equal clocks that authenticate different HEAD states, are a fork. Commit V2 parent ancestry is still checked when preparing a write and when adopting a comparable cloud checkpoint, but it is no longer used to order Nostr history.
 
-Two competing Proposals alone are not a fork. Different observed children are a fork; `C<N` on one lineage is a separately reported rollback. `N<C` is accepted only when an exact valid Proposal explains `C`, after which any replica can publish the missing Observation. Missing references, a bad Commit parent, a parallel local checkpoint, and an unexplained cloud HEAD fail closed.
+On an honest Dropbox backend, concurrent writers that read the same revision produce different candidate clocks, but only one revision CAS succeeds; the loser publishes no checkpoint. If Dropbox violates CAS semantics and confirms both views, the honest replicas leave incompatible signed checkpoints at different Nostr addresses, which are reported as `FORKED` when observed together.
 
-Writes are single-writer and online-only: prepare append-only objects, fsync the journal, publish Proposal to `W=2`, change Dropbox HEAD by expected revision, read it back, publish Observation to `W=2`, then advance local HEAD/checkpoint. Reads require `R=2`; if relay synchronization is incomplete, only `L=C=checkpoint` may be read with a freshness warning. Querying two of three relays improves availability but can miss fork evidence held only by the omitted relay. There is no merge, offline write, object GC, key rotation, device revocation, or consensus among relays.
+Writes are online-only: acquire the local Vault process lock, prepare append-only objects, fsync a journal containing the exact candidate HEAD bytes, change Dropbox HEAD by expected revision, read back and compare the exact bytes/revision, publish the signed checkpoint to `W=2`, then advance the local HEAD/checkpoint. Reads require `R=2`; if relay synchronization is incomplete, only local/cloud-equal state may be read with a freshness warning. There is no merge, offline write, object GC, key rotation, cryptographic device revocation, or consensus among relays.
+
+Checkpoint metadata is constant in the number of operations and `O(number of replica IDs)`: Nostr and the local witness cache retain one latest checkpoint per replica. Commit/Tree/Blob object storage is append-only and is not constant; safe object garbage collection remains a separate problem. Vector clocks are capped at 256 components. Automatic component deletion or epoch compaction is intentionally not performed because dropping a component without a separately crash-safe reconfiguration protocol breaks causal comparison.
 
 ### Remote store layout
 

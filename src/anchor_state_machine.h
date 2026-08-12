@@ -85,6 +85,8 @@ struct AnchorStateResult {
   AnchorStateReason reason = AnchorStateReason::None;
   AnchorStateAction action = AnchorStateAction::None;
   AnchorHash verified_tip{};
+  VectorClock verified_clock;
+  AnchorHash verified_head_envelope_hash{};
   AnchorHash verified_tip_event_id{};
   std::optional<AnchorHash> local_head_to_adopt;
   std::optional<AnchorHash> proposal_to_observe;

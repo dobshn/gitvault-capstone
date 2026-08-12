@@ -10,7 +10,7 @@
 #include "util.h"
 
 struct AnchorChannelConfig {
-  uint8_t format_version = 1;
+  uint8_t format_version = 2;
   uint8_t protocol_version = kAnchorProtocolVersion;
   uint64_t protocol_epoch = 0;
   AnchorHash vault_id{};
@@ -25,10 +25,14 @@ struct AnchorChannelConfig {
 };
 
 struct AnchorCheckpoint {
-  uint8_t format_version = 1;
+  uint8_t format_version = 2;
+  uint64_t protocol_epoch = 0;
   AnchorHash accepted_head{};
+  VectorClock accepted_clock;
+  AnchorHash head_envelope_hash{};
   AnchorHash tip_event_id{};
   std::string cloud_revision;
+  uint64_t last_checkpoint_created_at = 0;
 };
 
 enum class PreparedWritePhase {
@@ -39,10 +43,13 @@ enum class PreparedWritePhase {
 };
 
 struct PreparedWriteRecord {
-  uint8_t format_version = 1;
+  uint8_t format_version = 2;
+  uint64_t protocol_epoch = 0;
   AnchorOperationId operation_id{};
   AnchorHash previous_head{};
   AnchorHash new_head{};
+  VectorClock previous_clock;
+  VectorClock new_clock;
   ByteVec encrypted_head_bytes;
   PreparedWritePhase phase = PreparedWritePhase::ObjectsPrepared;
   std::optional<AnchorHash> proposal_event_id;
@@ -75,6 +82,11 @@ public:
   void cache_event(const SignedNostrEvent& event) const;
   std::vector<SignedNostrEvent> load_cached_events(size_t limit = 4096) const;
 
+  void save_witness(const ReplicaId& replica_id,
+                    const SignedNostrEvent& event) const;
+  std::vector<SignedNostrEvent> load_witnesses(
+      size_t limit = kMaximumVectorClockEntries) const;
+
   void save_outbox(const AnchorOutboxRecord& record) const;
   std::vector<AnchorOutboxRecord> load_outbox(size_t limit = 4096) const;
   void remove_outbox(const AnchorHash& event_id) const;
@@ -85,6 +97,7 @@ private:
   std::filesystem::path authenticated_path(const char* name) const;
   std::filesystem::path event_directory() const;
   std::filesystem::path outbox_directory() const;
+  std::filesystem::path witness_directory() const;
   void ensure_directories() const;
 
   std::filesystem::path trust_directory_;

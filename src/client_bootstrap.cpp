@@ -10,7 +10,7 @@
 namespace {
 using nlohmann::json;
 constexpr size_t kMaximumBootstrapBytes = 64 * 1024 * 1024;
-constexpr size_t kMaximumBootstrapEvents = 4096;
+constexpr size_t kMaximumBootstrapEvents = kMaximumVectorClockEntries + 1;
 
 void require_fields(const json& value,
                     const std::set<std::string>& expected) {
@@ -115,11 +115,12 @@ ClientBootstrap read_client_bootstrap(const std::filesystem::path& path) {
     }
     result.events.push_back(std::move(event));
   }
-  if (result.format_version != 1 || result.vault_name.empty() ||
+  if (result.format_version != 2 || result.vault_name.empty() ||
       result.vault_name.find('/') != std::string::npos ||
       result.vault_name.find('\\') != std::string::npos ||
       result.config_bytes.empty() || result.wrapped_identity.empty() ||
-      ids.count(result.channel.genesis_event_id) == 0) {
+      ids.count(result.channel.genesis_event_id) == 0 ||
+      ids.count(result.checkpoint.tip_event_id) == 0) {
     throw std::runtime_error("unsupported or invalid client bootstrap");
   }
   return result;

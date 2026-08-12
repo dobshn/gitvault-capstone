@@ -63,10 +63,11 @@ ClientBootstrap sample() {
   value.channel.vault_public_key = event.public_key;
   value.channel.genesis_event_id = event.id;
   value.channel.config_hash = filled<32>(0x22);
-  value.channel.installation_id = "device-a";
+  value.channel.installation_id = std::string(32, 'a');
   value.channel.relay_urls = {
       "wss://one.invalid", "wss://two.invalid", "wss://three.invalid"};
   value.checkpoint.accepted_head = filled<32>(0x33);
+  value.checkpoint.head_envelope_hash = filled<32>(0x34);
   value.checkpoint.tip_event_id = event.id;
   value.checkpoint.cloud_revision = "rev-1";
   value.events = {event};

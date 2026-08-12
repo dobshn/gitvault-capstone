@@ -1,76 +1,103 @@
-# Nostr-based fork detection implementation
+# Vector-clock/CAS fork detection
 
-GitVault treats Dropbox as the object/HEAD data plane and signed, NIP-44-encrypted Nostr events as externally replicated evidence. It does not treat relay quorum as consensus.
+GitVault treats Dropbox as the object and mutable-HEAD data plane. Nostr is a witness that retains the latest encrypted, signed checkpoint for each replica; it is not a consensus service.
 
-## Decision inputs
+## Identifiers and clocks
 
-- `L`: HEAD in the authenticated local checkpoint.
-- `C`: HEAD decrypted from the current Dropbox file revision.
-- `N`: unique tip of the verified Genesis/Proposal/Observation graph.
-- `W`: a locally journaled prepared transition that is not fully checkpointed.
+Each initialized or imported client generates a random 128-bit `replica_id`. All replicas still share the Vault signing key and are one trust principal. The ID selects one vector-clock component and one Nostr address; it is not a device public key and provides no cryptographic attribution or revocation.
 
-All ordering is Commit V2 parent ancestry. Nostr `created_at` and arrival order are diagnostics only.
+Zero components are omitted. A new replica first appears when its first Dropbox CAS succeeds. An inactive replica's component remains frozen. Reinstallations receive a new ID instead of reusing a possibly stale counter.
 
-The important outcomes are:
+For clocks `a` and `b`:
 
-- `L<C=N`: verify ancestry, install the exact cloud HEAD bytes locally, and advance the checkpoint.
-- `C<N` on the observed lineage: report `ROLLBACK_DETECTED`.
-- `N<C`: require an exact Proposal whose Commit parent is valid, then publish the missing Observation and reevaluate.
-- parallel `C` explained by a Proposal: observe it; two resulting observed branches report `FORKED`.
-- relay `EOSE` count below two: block writes; permit only a freshness-degraded read when `L=C=checkpoint`.
+- `a < b` when every component of `a` is no greater and at least one is smaller.
+- `a || b` when neither clock is no greater than the other.
+- Missing components are zero.
+- Equal clocks that authenticate different HEAD states are equivocation.
+
+The implementation caps clocks at 256 components and fails closed. It does not automatically delete components or compact epochs.
+
+## Authenticated HEAD V2
+
+The Dropbox `HEAD` envelope encrypts and HMAC-authenticates:
+
+```text
+VaultHeadState {
+  format_version = 2
+  protocol_epoch
+  head_commit
+  vector_clock
+  writer_replica_id
+  operation_id
+}
+```
+
+The vector clock and Commit hash are one authenticated unit. Dropbox can replay or split valid envelopes but cannot create a new one without the Vault keys.
+
+## Latest signed checkpoints
+
+Checkpoints are NIP-44 encrypted Nostr addressable events:
+
+```text
+kind = 30078
+tags = [
+  ["t", channel_id],
+  ["d", "gitvault:<vault-id>:<replica-id>"]
+]
+```
+
+Their signed payload contains the HEAD, vector clock, operation ID, SHA-256 of the exact encrypted HEAD envelope, and the Dropbox revision observed after CAS. NIP-01 permits relays to retain only the latest event for each `(kind, pubkey, d)` address, bounding live witness state by the number of replicas rather than the number of writes.
+
+`created_at` is made monotonically increasing for replacement behavior, but has no security ordering meaning. Vector clocks determine ordering.
 
 ## Durable write boundary
 
-Objects are installed with create-if-absent and are never removed by a mutation. The only mutable remote file is HEAD, and its update requires the Dropbox revision read by preflight.
-
 ```text
-R=2 fetch and validate
-  -> persist prepared.json
-  -> persist/sign Proposal in outbox
-  -> Proposal W=2
+R=2 fetch and vector validation
+  -> acquire local process lock
+  -> prepare immutable objects and Commit(parent=current HEAD)
+  -> increment this replica's vector component
+  -> persist exact encrypted candidate HEAD in prepared.json
   -> Dropbox HEAD CAS(expected revision)
-  -> read back HEAD and revision
-  -> persist/sign Observation in outbox
-  -> Observation W=2
-  -> exact cloud HEAD + authenticated checkpoint
-  -> clear completed journal/outbox
+  -> exact HEAD bytes and returned/readback revision comparison
+  -> persist signed checkpoint in outbox
+  -> checkpoint W=2
+  -> local HEAD and authenticated checkpoint
+  -> clear journal/outbox
 ```
 
-Restart repeats idempotent event publication and resumes from the recorded phase. A CAS conflict creates no Observation, never rebases automatically, and preserves prepared immutable objects and signed Proposal evidence.
+A CAS conflict creates no signed checkpoint. Objects prepared before the conflict remain append-only. A crash after CAS is recovered from the exact candidate bytes and checkpoint outbox.
 
-## Relay protocol and leakage
+## Decisions
 
-The production adapter uses `wss://` (plain `ws://` is accepted only for loopback tests), kind `9500`, author, and a single random `t` tag. It waits for the matching publish `OK` and fetch `EOSE`, supports NIP-42 challenges, and stops rather than truncating oversized histories. Semantic content and HEADs are NIP-44 encrypted, but relay operators still see the public key, event time, size, channel tag, selected relays, IP-layer metadata, and activity frequency.
+- `cloud < local trusted`: `ROLLBACK_DETECTED`.
+- `cloud || local` or any two signed checkpoints are concurrent: `FORKED`.
+- Equal clocks with different HEAD/envelope/operation: `FORKED`.
+- `local < cloud = signed checkpoint`: verify Commit ancestry and catch up.
+- `latest witness < cloud`: verify ancestry, publish a recovery checkpoint, then adopt.
+- `R < 2`: block writes; allow only a local/cloud-equal degraded read.
 
-## Bootstrap trust
+On honest Dropbox, two clients based on one revision may create concurrent candidates, but revision CAS allows only one to be committed and the loser signs nothing. If Dropbox confirms both split views, the clients publish incompatible checkpoints at their separate replica addresses. Once both are delivered to a client, vector comparison detects the fork.
 
-`export-client` is allowed only after an `R=2` synchronization in `CONSISTENT`. The canonical bootstrap contains the exact Vault config, password-wrapped Vault identity, channel/Genesis pin, accepted checkpoint, and verified event cache. It contains no Dropbox token or plaintext password. `import-client` verifies the password-wrapped identity, exact Dropbox config, bootstrap evidence, current relay union, and current Dropbox HEAD before keeping local metadata. The transfer channel itself is assumed confidential and integrity protected.
+This is evidence of inconsistent CAS-visible state, not attribution of intent. A compromised client holding the shared Vault key can fabricate checkpoints and is a full Vault compromise under the current threat model.
 
-## Evaluation
+## Space bound
 
-Automated tests cover official NIP-44 vectors, event/signature tampering, relay `OK`/`EOSE`/AUTH/replay/same-ID conflicts, state relation matrices, rollback versus fork, W/R failures, authenticated journal tampering, two independent client roots, revision CAS conflict, and append-only object retention.
+Nostr and local checkpoint metadata are `O(number of replica IDs)` and constant in operation count. Dropbox Commit/Tree/Blob storage remains append-only and therefore is not constant. Device-key membership, secure device revocation, vector-component compaction, and object garbage collection are separate protocols and are not implemented.
 
-For experiments, compare LocalFile, one relay, and `N=3/W=2/R=2` with the same history and payload. Record init/read/write p50/p95, event bytes, relay round trips, verification time and peak RSS at 1/10/100/1,000 commits, one-relay outage behavior, crash recovery time, and time until independently observed split views meet. Full-history fetch is intentionally the baseline; optimize with a checkpoint event or NIP-77 only after measurements show it is the bottleneck.
-
-The reproducible CPU/history baseline emits CSV:
+## Tests
 
 ```bash
-./build/gitvault_anchor_history_benchmark
-# or select sizes
-./build/gitvault_anchor_history_benchmark 1 10 100 1000
+cmake -S . -B build
+cmake --build build -j4
+
+# Pure vector-clock ordering, zero-component, overflow, and 256-replica limit
+./build/gitvault_vector_clock_tests
+
+# Two replicas, CAS conflict, frozen component, W=1 recovery, degraded read,
+# and malicious-CAS incompatible checkpoint detection
+./build/gitvault_anchor_coordinator_integration_tests
+
+# Entire suite
+ctest --test-dir build --output-on-failure
 ```
-
-2026-08-02 개발 환경의 한 reference run(7회, 생성 시간 제외)은 다음과 같았다. 이는 CPU/event-graph baseline이며 실제 relay·Dropbox 지연은 포함하지 않는다.
-
-| commits | events | wire bytes | verify p50 | verify p95 |
-|---:|---:|---:|---:|---:|
-| 1 | 3 | 2,746 | 0.97 ms | 1.36 ms |
-| 10 | 21 | 20,030 | 5.07 ms | 6.10 ms |
-| 100 | 201 | 193,113 | 47.08 ms | 47.21 ms |
-| 1,000 | 2,001 | 1,926,616 | 1,759.44 ms | 1,765.16 ms |
-
-1,000 commit에서 증가 폭이 커지므로 현재 반복 reference resolver가 우선 최적화 후보임을 확인했다. 실제 LocalFile/Nostr N=1/N=3 종단 지연은 실험자가 선택한 relay와 Dropbox 계정에서 별도로 측정해야 한다.
-
-## Explicit limits
-
-One active writer is a user contract. A malicious replica that knows both the password and Vault signing secret is out of scope. Permanent Dropbox/relay censorship or permanent partitions cannot guarantee detection. `C=N` proves a verified common prefix, not global freshness. There is no merge Commit, offline write, GC, key rotation, per-device revocation, or Email adapter in this version.

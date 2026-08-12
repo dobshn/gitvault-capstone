@@ -65,6 +65,42 @@ std::string parse_string(const json& value, const char* field_name) {
   return value.get<std::string>();
 }
 
+json vector_clock_json(const VectorClock& clock) {
+  validate_vector_clock(clock);
+  json encoded = json::array();
+  for (const auto& [replica_id, counter] : clock) {
+    encoded.push_back(json::array({array_to_hex(replica_id), counter}));
+  }
+  return encoded;
+}
+
+VectorClock parse_vector_clock(const json& value) {
+  if (!value.is_array() || value.size() > kMaximumVectorClockEntries) {
+    throw std::runtime_error("vector_clock must be a bounded array");
+  }
+  VectorClock result;
+  ReplicaId previous{};
+  bool have_previous = false;
+  for (const auto& component : value) {
+    if (!component.is_array() || component.size() != 2) {
+      throw std::runtime_error("vector clock component must be [replica,counter]");
+    }
+    const ReplicaId replica_id =
+        parse_fixed_lower_hex<16>(component.at(0), "vector_clock replica");
+    const uint64_t counter =
+        parse_unsigned_integer(component.at(1), "vector_clock counter");
+    if (counter == 0 || (have_previous && !(previous < replica_id)) ||
+        !result.emplace(replica_id, counter).second) {
+      throw std::runtime_error(
+          "vector clock components must be non-zero, unique, and sorted");
+    }
+    previous = replica_id;
+    have_previous = true;
+  }
+  validate_vector_clock(result);
+  return result;
+}
+
 json parse_without_duplicate_keys(const std::string& encoded) {
   std::set<std::string> parsed_keys;
   bool duplicate_key = false;
@@ -137,6 +173,15 @@ std::string dump_strict(const json& value) {
 }
 }  // namespace
 
+bool vault_head_states_equal(const VaultHeadState& left,
+                             const VaultHeadState& right) {
+  return left.format_version == right.format_version &&
+         left.protocol_epoch == right.protocol_epoch &&
+         left.head == right.head && left.clock == right.clock &&
+         left.writer_replica_id == right.writer_replica_id &&
+         left.operation_id == right.operation_id;
+}
+
 const AnchorEventCommon& anchor_event_common(
     const AnchorEventPayload& payload) {
   return std::visit(
@@ -166,13 +211,22 @@ std::string serialize_anchor_event_payload(
           value["parent_event_id"] = array_to_hex(event.parent_event_id);
           value["commit_format_version"] = event.commit_format_version;
           return value;
-        } else {
+        } else if constexpr (std::is_same_v<Event, HeadObservationEvent>) {
           json value = common_json(event.common, "head_observation");
           value["proposal_event_id"] = array_to_hex(event.proposal_event_id);
           value["expected_previous_head"] =
               array_to_hex(event.expected_previous_head);
           value["observed_cloud_head"] =
               array_to_hex(event.observed_cloud_head);
+          value["observed_cloud_revision"] =
+              event.observed_cloud_revision;
+          return value;
+        } else {
+          json value = common_json(event.common, "head_checkpoint");
+          value["head"] = array_to_hex(event.head);
+          value["vector_clock"] = vector_clock_json(event.clock);
+          value["head_envelope_hash"] =
+              array_to_hex(event.head_envelope_hash);
           value["observed_cloud_revision"] =
               event.observed_cloud_revision;
           return value;
@@ -243,6 +297,24 @@ AnchorEventPayload deserialize_anchor_event_payload(
       event.observed_cloud_revision = parse_string(
           encoded.at("observed_cloud_revision"), "observed_cloud_revision");
       payload = event;
+    } else if (event_type == "head_checkpoint") {
+      require_exact_fields(encoded, {
+          "protocol_version", "event_type", "vault_id", "operation_id",
+          "protocol_epoch", "installation_id", "head", "vector_clock",
+          "head_envelope_hash", "observed_cloud_revision",
+      });
+      HeadCheckpointEvent event;
+      event.common = parse_common(encoded);
+      event.head = parse_fixed_lower_hex<32>(encoded.at("head"), "head");
+      event.clock = parse_vector_clock(encoded.at("vector_clock"));
+      event.head_envelope_hash = parse_fixed_lower_hex<32>(
+          encoded.at("head_envelope_hash"), "head_envelope_hash");
+      event.observed_cloud_revision = parse_string(
+          encoded.at("observed_cloud_revision"), "observed_cloud_revision");
+      if (event.observed_cloud_revision.empty()) {
+        throw std::runtime_error("observed_cloud_revision must not be empty");
+      }
+      payload = event;
     } else {
       throw std::runtime_error("unsupported anchor event type");
     }
@@ -264,7 +336,9 @@ SignedNostrEvent sign_anchor_event(
     const std::array<uint8_t, 32>& signing_secret) {
   UnsignedNostrEvent event;
   event.created_at = created_at;
-  event.kind = kGitVaultAnchorEventKind;
+  event.kind = std::holds_alternative<HeadCheckpointEvent>(payload)
+                   ? kGitVaultCheckpointEventKind
+                   : kGitVaultAnchorEventKind;
   event.tags = tags;
   event.content = serialize_anchor_event_payload(payload);
   return sign_nostr_event(event, signing_secret);
@@ -280,7 +354,9 @@ SignedNostrEvent sign_encrypted_anchor_event(
       nip44_conversation_key(signing_secret, public_key);
   UnsignedNostrEvent event;
   event.created_at = created_at;
-  event.kind = kGitVaultAnchorEventKind;
+  event.kind = std::holds_alternative<HeadCheckpointEvent>(payload)
+                   ? kGitVaultCheckpointEventKind
+                   : kGitVaultAnchorEventKind;
   event.tags = tags;
   event.content = nip44_encrypt(serialize_anchor_event_payload(payload),
                                 conversation_key);
@@ -291,7 +367,8 @@ AnchorEventPayload verify_decrypt_anchor_event(
     const SignedNostrEvent& event,
     const SchnorrPublicKey& trusted_public_key,
     const std::array<uint8_t, 32>& decryption_secret) {
-  if (event.kind != kGitVaultAnchorEventKind ||
+  if ((event.kind != kGitVaultAnchorEventKind &&
+       event.kind != kGitVaultCheckpointEventKind) ||
       !verify_nostr_event(event, trusted_public_key)) {
     throw std::runtime_error("anchor event signature verification failed");
   }

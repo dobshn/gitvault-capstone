@@ -69,6 +69,20 @@ namespace {
           store, engine, std::move(channel));
     }
 
+    std::string format_vector_clock(const VectorClock& clock) {
+      std::ostringstream output;
+      output << '{';
+      bool first = true;
+      for (const auto& [replica, counter] : clock) {
+        if (!first) output << ',';
+        first = false;
+        output << to_hex(ByteVec(replica.begin(), replica.end())) << ':'
+               << counter;
+      }
+      output << '}';
+      return output.str();
+    }
+
     const char* fetch_status_name(AnchorFetchStatus status) {
       switch (status) {
         case AnchorFetchStatus::Synchronized: return "EOSE";
@@ -89,6 +103,12 @@ namespace {
         std::cout << "unavailable";
       }
       std::cout << "\n"
+                << "clock_L="
+                << format_vector_clock(status.local_head_state.clock) << "\n"
+                << "clock_C="
+                << format_vector_clock(status.cloud_head_state.clock) << "\n"
+                << "clock_N="
+                << format_vector_clock(status.decision.verified_clock) << "\n"
                 << "relation_L_C=" << status.local_cloud_relation << "\n"
                 << "relation_C_N=" << status.cloud_observed_relation << "\n"
                 << "relation_L_N=" << status.local_observed_relation << "\n"
@@ -187,16 +207,65 @@ namespace {
         throw std::runtime_error(
             "bootstrap identity does not match the channel public key");
       }
+      bool genesis_found = false;
+      bool checkpoint_found = false;
       for (const auto& event : bootstrap.events) {
-        if (event.kind != kGitVaultAnchorEventKind ||
-            event.tags != std::vector<NostrTag>{{
-                "t", to_hex(bootstrap.channel.channel_id)}} ||
-            !verify_nostr_event(event, public_key)) {
+        if (!verify_nostr_event(event, public_key)) {
           throw std::runtime_error(
               "bootstrap contains an invalid outer Nostr event");
         }
-        (void)verify_decrypt_anchor_event(
+        const AnchorEventPayload payload = verify_decrypt_anchor_event(
             event, public_key, identity.signing_secret);
+        if (const auto* genesis = std::get_if<VaultGenesisEvent>(&payload)) {
+          if (event.id != bootstrap.channel.genesis_event_id ||
+              event.kind != kGitVaultAnchorEventKind ||
+              event.tags != std::vector<NostrTag>{{
+                  "t", to_hex(bootstrap.channel.channel_id)}} ||
+              genesis->common.vault_id != bootstrap.channel.vault_id ||
+              genesis->common.protocol_epoch !=
+                  bootstrap.channel.protocol_epoch ||
+              genesis->config_hash != bootstrap.channel.config_hash) {
+            throw std::runtime_error("bootstrap Genesis is invalid");
+          }
+          genesis_found = true;
+          continue;
+        }
+        if (const auto* checkpoint =
+                std::get_if<HeadCheckpointEvent>(&payload)) {
+          const ByteVec replica =
+              from_hex(checkpoint->common.installation_id);
+          if (event.kind != kGitVaultCheckpointEventKind ||
+              replica.size() != ReplicaId{}.size() ||
+              checkpoint->common.vault_id != bootstrap.channel.vault_id ||
+              checkpoint->common.protocol_epoch !=
+                  bootstrap.channel.protocol_epoch ||
+              event.tags != std::vector<NostrTag>{
+                  {"t", to_hex(bootstrap.channel.channel_id)},
+                  {"d", "gitvault:" + to_hex(bootstrap.channel.vault_id) +
+                            ":" + checkpoint->common.installation_id}}) {
+            throw std::runtime_error(
+                "bootstrap checkpoint witness is invalid");
+          }
+          if (event.id == bootstrap.checkpoint.tip_event_id) {
+            if (checkpoint->common.protocol_epoch !=
+                    bootstrap.checkpoint.protocol_epoch ||
+                checkpoint->head != bootstrap.checkpoint.accepted_head ||
+                checkpoint->clock != bootstrap.checkpoint.accepted_clock ||
+                checkpoint->head_envelope_hash !=
+                    bootstrap.checkpoint.head_envelope_hash) {
+              throw std::runtime_error(
+                  "bootstrap trusted checkpoint is invalid");
+            }
+            checkpoint_found = true;
+          }
+          continue;
+        }
+        throw std::runtime_error(
+            "bootstrap contains an unsupported anchor event");
+      }
+      if (!genesis_found || !checkpoint_found) {
+        throw std::runtime_error(
+            "bootstrap is missing its Genesis or trusted checkpoint");
       }
     }
 
@@ -524,6 +593,11 @@ void Vault::execute(Command& cmd) {
       bootstrap.channel = trust.load_channel();
       bootstrap.checkpoint = trust.load_checkpoint();
       bootstrap.events = trust.load_cached_events();
+      {
+        const auto witnesses = trust.load_witnesses();
+        bootstrap.events.insert(bootstrap.events.end(), witnesses.begin(),
+                                witnesses.end());
+      }
       write_client_bootstrap(cmd.positional[1], bootstrap);
       std::cout << "bootstrap=" << cmd.positional[1] << "\n";
     } else if (cmd.command == "import-client") {
@@ -560,10 +634,37 @@ void Vault::execute(Command& cmd) {
         trust.save_channel(local_channel);
         trust.save_checkpoint(bootstrap.checkpoint);
         for (const auto& event : bootstrap.events) {
-          trust.cache_event(event);
+          if (event.kind == kGitVaultCheckpointEventKind) {
+            const AnchorEventPayload decoded = verify_decrypt_anchor_event(
+                event, local_channel.vault_public_key,
+                vault_engine.identity().signing_secret);
+            const auto* checkpoint =
+                std::get_if<HeadCheckpointEvent>(&decoded);
+            if (checkpoint == nullptr ||
+                checkpoint->common.installation_id.size() != 32) {
+              throw std::runtime_error("invalid bootstrap checkpoint witness");
+            }
+            const ByteVec id_bytes =
+                from_hex(checkpoint->common.installation_id);
+            ReplicaId id{};
+            std::copy(id_bytes.begin(), id_bytes.end(), id.begin());
+            trust.save_witness(id, event);
+          } else {
+            trust.cache_event(event);
+          }
         }
-        obj_store.write_local_head(
-            vault_engine.encrypt_head(bootstrap.checkpoint.accepted_head));
+        const VersionedBytes imported_cloud =
+            obj_store.read_cloud_head_versioned();
+        const VaultHeadState imported_state =
+            vault_engine.decrypt_head_state(imported_cloud.bytes);
+        if (imported_state.protocol_epoch !=
+                bootstrap.checkpoint.protocol_epoch ||
+            imported_state.head != bootstrap.checkpoint.accepted_head ||
+            imported_state.clock != bootstrap.checkpoint.accepted_clock) {
+          throw std::runtime_error(
+              "Dropbox HEAD differs from the bootstrap vector checkpoint");
+        }
+        obj_store.write_local_head(imported_cloud.bytes);
         auto channel = std::make_unique<NostrAnchorChannel>(
             local_channel.relay_urls,
             vault_engine.identity().signing_secret);

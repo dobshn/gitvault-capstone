@@ -7,13 +7,15 @@
 #include <vector>
 
 #include "nostr_event.h"
+#include "vector_clock.h"
 
 using AnchorHash = std::array<uint8_t, 32>;
 using AnchorOperationId = std::array<uint8_t, 16>;
 
-constexpr uint8_t kAnchorProtocolVersion = 1;
+constexpr uint8_t kAnchorProtocolVersion = 2;
 constexpr uint8_t kAnchorCommitFormatVersion = 2;
 constexpr uint16_t kGitVaultAnchorEventKind = 9500;
+constexpr uint16_t kGitVaultCheckpointEventKind = 30078;
 
 struct AnchorEventCommon {
   uint8_t protocol_version = kAnchorProtocolVersion;
@@ -45,10 +47,31 @@ struct HeadObservationEvent {
   std::string observed_cloud_revision;
 };
 
+struct VaultHeadState {
+  uint8_t format_version = 2;
+  uint64_t protocol_epoch = 0;
+  AnchorHash head{};
+  VectorClock clock;
+  ReplicaId writer_replica_id{};
+  AnchorOperationId operation_id{};
+};
+
+struct HeadCheckpointEvent {
+  AnchorEventCommon common;
+  AnchorHash head{};
+  VectorClock clock;
+  AnchorHash head_envelope_hash{};
+  std::string observed_cloud_revision;
+};
+
 using AnchorEventPayload = std::variant<
     VaultGenesisEvent,
     HeadProposalEvent,
-    HeadObservationEvent>;
+    HeadObservationEvent,
+    HeadCheckpointEvent>;
+
+bool vault_head_states_equal(const VaultHeadState& left,
+                             const VaultHeadState& right);
 
 const AnchorEventCommon& anchor_event_common(const AnchorEventPayload& payload);
 std::string serialize_anchor_event_payload(const AnchorEventPayload& payload);

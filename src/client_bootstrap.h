@@ -8,7 +8,7 @@
 #include "util.h"
 
 struct ClientBootstrap {
-  uint8_t format_version = 1;
+  uint8_t format_version = 2;
   std::string vault_name;
   ByteVec config_bytes;
   ByteVec wrapped_identity;

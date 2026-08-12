@@ -36,6 +36,7 @@ add_executable(gitvault_anchor_history_benchmark
   benchmarks/anchor_history_benchmark.cpp
   src/anchor_event.cpp
   src/anchor_state_machine.cpp
+  src/vector_clock.cpp
   src/nostr_event.cpp
   src/crypto/schnorr.cpp
   src/crypto/nip44.cpp
@@ -52,6 +53,13 @@ target_link_libraries(gitvault_anchor_history_benchmark PRIVATE
 
 include(CTest)
 if(BUILD_TESTING)
+  add_executable(gitvault_vector_clock_tests
+    tests/vector_clock_test.cpp
+    src/vector_clock.cpp
+  )
+  target_include_directories(gitvault_vector_clock_tests PRIVATE src)
+  add_test(NAME gitvault_vector_clock_tests COMMAND gitvault_vector_clock_tests)
+
   add_executable(gitvault_format_tests
     tests/format_test.cpp
     src/format.cpp
@@ -113,6 +121,7 @@ if(BUILD_TESTING)
     src/anchor_channel.cpp
     src/anchor_event.cpp
     src/anchor_state_machine.cpp
+    src/vector_clock.cpp
     src/local_file_anchor_channel.cpp
     src/nostr_event.cpp
     src/crypto/schnorr.cpp
@@ -133,6 +142,7 @@ if(BUILD_TESTING)
   add_executable(gitvault_anchor_trust_store_tests
     tests/anchor_trust_store_test.cpp
     src/anchor_trust_store.cpp
+    src/vector_clock.cpp
     src/nostr_event.cpp
     src/crypto/hmac.cpp
     src/crypto/schnorr.cpp
@@ -169,6 +179,7 @@ if(BUILD_TESTING)
     src/anchor_coordinator.cpp
     src/anchor_event.cpp
     src/anchor_state_machine.cpp
+    src/checkpoint_state_machine.cpp
     src/anchor_trust_store.cpp
     src/dropbox_storage.cpp
     src/format.cpp
@@ -176,6 +187,8 @@ if(BUILD_TESTING)
     src/object_store.cpp
     src/vault_engine.cpp
     src/vault_identity.cpp
+    src/vault_process_lock.cpp
+    src/vector_clock.cpp
     src/crypto/CryptoImpl.cpp
     src/crypto/ctr.cpp
     src/crypto/hkdf.cpp
@@ -225,6 +238,7 @@ if(BUILD_TESTING)
     tests/client_bootstrap_test.cpp
     src/client_bootstrap.cpp
     src/anchor_trust_store.cpp
+    src/vector_clock.cpp
     src/nostr_event.cpp
     src/crypto/hmac.cpp
     src/crypto/schnorr.cpp

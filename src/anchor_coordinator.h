@@ -16,6 +16,8 @@ struct AnchorCoordinatorStatus {
   AnchorStateResult decision;
   AnchorHash local_head{};
   AnchorHash cloud_head{};
+  VaultHeadState local_head_state;
+  VaultHeadState cloud_head_state;
   std::optional<AnchorHash> observed_head;
   ByteVec cloud_head_bytes;
   std::string cloud_revision;
@@ -51,15 +53,12 @@ private:
                                            bool recover);
   void replay_outbox();
   AnchorPublishResult ensure_published(const SignedNostrEvent& event);
-  SignedNostrEvent make_proposal(const PreparedWriteRecord& prepared) const;
-  SignedNostrEvent make_observation(
-      const PreparedWriteRecord& prepared,
-      const AnchorHash& proposal_event_id,
-      const std::string& cloud_revision) const;
-  SignedNostrEvent recover_observation(
-      const SignedNostrEvent& proposal_event,
-      const HeadProposalEvent& proposal,
+  SignedNostrEvent make_checkpoint(
+      const VaultHeadState& head,
+      const ByteVec& head_envelope,
       const std::string& cloud_revision);
+  void publish_and_adopt_checkpoint(const VaultHeadState& head,
+                                    const VersionedBytes& cloud);
   AnchorCoordinatorStatus resume_prepared(
       PreparedWriteRecord prepared,
       const AnchorCoordinatorStatus& current,
@@ -67,7 +66,7 @@ private:
   void adopt_checkpoint(const AnchorCoordinatorStatus& current);
   void adopt_published_observation(
       const AnchorHash& head,
-      const AnchorHash& observation_event_id,
+      const AnchorHash& checkpoint_event_id,
       const VersionedBytes& cloud);
   void finalize_prepared(const PreparedWriteRecord& prepared);
 

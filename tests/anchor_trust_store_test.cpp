@@ -84,6 +84,7 @@ void test_authenticated_metadata_and_tamper_detection() {
 
   AnchorCheckpoint checkpoint;
   checkpoint.accepted_head = filled<32>(0x21);
+  checkpoint.head_envelope_hash = filled<32>(0x23);
   checkpoint.tip_event_id = filled<32>(0x22);
   checkpoint.cloud_revision = "0123456789abcdef";
   store.save_checkpoint(checkpoint);
@@ -111,7 +112,9 @@ void test_prepared_event_cache_and_outbox() {
   prepared.operation_id = filled<16>(0x31);
   prepared.previous_head = filled<32>(0x32);
   prepared.new_head = filled<32>(0x33);
-  prepared.encrypted_head_bytes = ByteVec(80, 0x34);
+  prepared.previous_clock[filled<16>(0x41)] = 1;
+  prepared.new_clock[filled<16>(0x41)] = 2;
+  prepared.encrypted_head_bytes = ByteVec(128, 0x34);
   prepared.phase = PreparedWritePhase::ProposalPublished;
   prepared.proposal_event_id = filled<32>(0x35);
   prepared.cloud_revision = "rev-before-cas";
