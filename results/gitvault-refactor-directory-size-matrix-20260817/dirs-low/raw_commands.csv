@@ -1,0 +1,9 @@
+scenario,operation,dataset_files,file_size_bytes,sequence,total_ms,success,return_code,error_class
+scale-20,init,20,8192,1,23384.579,1,0,
+scale-20,status,20,8192,2,4645.878,1,0,
+scale-20,list,20,8192,3,6208.89,1,0,
+scale-20,tree,20,8192,4,10610.953,1,0,
+scale-20,cat-sample-1,20,8192,5,12130.32,1,0,
+scale-20,quick-scan,20,8192,6,16730.717,1,0,
+scale-20,deep-scan,20,8192,7,28930.812,1,0,
+cleanup,destroy,0,8192,8,2397.661,1,0,

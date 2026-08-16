@@ -1,0 +1,4 @@
+workload,old_successes,new_successes,old_mean_ms,new_mean_ms,mean_delta_percent,old_p95_ms,new_p95_ms,p95_delta_percent,old_goodput_ops_per_sec,new_goodput_ops_per_sec,goodput_delta_percent
+ycsb-c,20,20,9831.598,10325.266,5.02,10312.750,12758.011,23.71,0.101704,0.096841,-4.78
+ycsb-b,20,20,10860.046,10759.537,-0.93,13229.209,12778.385,-3.41,0.092072,0.092933,0.94
+ycsb-a,20,20,17411.672,18126.157,4.10,25773.488,26409.695,2.47,0.057429,0.055165,-3.94
