@@ -1,7 +1,0 @@
-case,old_retries,new_retries,init_delta_percent,cat_delta_percent,deep_scan_delta_percent,old_successes,new_successes
-dirs-low,3,2,7.87,24.63,-0.55,7,7
-dirs-medium,4,3,-13.85,6.08,-5.29,7,7
-dirs-high,0,0,-11.19,-6.95,-4.14,7,7
-size-80kib,1,1,2.72,7.56,-3.01,7,7
-size-2.5mib,2,1,-1.06,13.25,8.78,7,7
-size-40mib,1,0,-0.52,1.28,15.04,7,7

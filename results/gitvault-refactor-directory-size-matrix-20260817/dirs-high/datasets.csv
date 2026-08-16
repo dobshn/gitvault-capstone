@@ -1,2 +1,0 @@
-scenario,requested_files,actual_files,directories,file_size_bytes,dataset_bytes,smallfile_elapsed_ms,smallfile_files_per_sec,gitvault_init_ms,gitvault_init_success
-scale-20,20,20,23,8192,163840,3630.882,1912.936,35820.682,1
