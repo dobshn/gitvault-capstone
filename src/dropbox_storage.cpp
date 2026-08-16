@@ -1,5 +1,6 @@
 #include "dropbox_storage.h"
 
+#include "dropbox_retry.h"
 #include "json.hpp"
 
 #include <algorithm>
@@ -313,8 +314,6 @@ ConditionalWriteResult DropboxStorage::upload_conditionally(
     const json& mode) const {
   require_initialized("conditional upload");
 
-  thread_local httplib::SSLClient client("content.dropboxapi.com", 443);
-  client.set_keep_alive(true);
   httplib::Headers headers = {
       {"Authorization", "Bearer " + access_token_},
       {"Dropbox-API-Arg",
@@ -327,22 +326,41 @@ ConditionalWriteResult DropboxStorage::upload_conditionally(
   const char* body = data.empty()
                          ? ""
                          : reinterpret_cast<const char*>(data.data());
-  auto res = client.Post("/2/files/upload", headers, body, data.size(),
-                         "application/octet-stream");
-  if (!res) {
-    throw std::runtime_error("Conditional upload failed (network/TLS)");
+  for (int attempt = 1; attempt <= kDropboxUploadMaxAttempts; ++attempt) {
+    thread_local httplib::SSLClient client("content.dropboxapi.com", 443);
+    client.set_keep_alive(true);
+    auto res = client.Post("/2/files/upload", headers, body, data.size(),
+                           "application/octet-stream");
+    if (!res) {
+      throw std::runtime_error("Conditional upload failed (network/TLS)");
+    }
+    if (res->status == 409) {
+      return {ConditionalWriteStatus::Conflict, {}};
+    }
+    if (res->status == 200) {
+      const json metadata = json::parse(res->body);
+      return {ConditionalWriteStatus::Updated,
+              require_revision(metadata, "Conditional upload")};
+    }
+    if (res->status != 429) {
+      throw std::runtime_error(
+          "Conditional upload /2/files/upload failed. HTTP " +
+          std::to_string(res->status) + ": " + res->body);
+    }
+    if (attempt == kDropboxUploadMaxAttempts) {
+      throw std::runtime_error(
+          "Conditional upload failed after " + std::to_string(attempt) +
+          " attempts. HTTP 429: " + res->body);
+    }
+
+    const int delay_seconds = dropbox_retry_delay_seconds(
+        res->get_header_value("Retry-After"), res->body, attempt);
+    std::cerr << "\nConditional upload rate limited; retrying after "
+              << delay_seconds << "s (attempt " << attempt << "/"
+              << kDropboxUploadMaxAttempts << ")" << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds(delay_seconds));
   }
-  if (res->status == 409) {
-    return {ConditionalWriteStatus::Conflict, {}};
-  }
-  if (res->status != 200) {
-    throw std::runtime_error(
-        "Conditional upload /2/files/upload failed. HTTP " +
-        std::to_string(res->status) + ": " + res->body);
-  }
-  const json metadata = json::parse(res->body);
-  return {ConditionalWriteStatus::Updated,
-          require_revision(metadata, "Conditional upload")};
+  throw std::runtime_error("conditional upload retry loop exhausted");
 }
 
 ConditionalWriteResult DropboxStorage::put_if_revision(

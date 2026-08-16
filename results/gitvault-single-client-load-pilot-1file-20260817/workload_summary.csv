@@ -1,0 +1,2 @@
+workload,dataset_files,operations,reads,updates,successes,failures,elapsed_ms,attempted_ops_per_sec,goodput_ops_per_sec,mean_ms,median_ms,p95_ms,p99_ms,min_ms,max_ms
+ycsb-c,1,2,2,0,2,0,20373.462,0.098167,0.098167,10185.798,10185.798,10309.626,10320.633,10048.21,10323.385

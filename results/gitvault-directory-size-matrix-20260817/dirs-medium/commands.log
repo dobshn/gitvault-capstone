@@ -1,0 +1,174 @@
+scenario=scale-20 operation=smallfile-create returncode=0 total_ms=3619.578
+do not need pause between files for single-threaded workload
+changing --finish to true for op type create
+                                 version : 3.2
+                           hosts in test : None
+                        launch by daemon : False
+                   top test directory(s) : ['/var/folders/dv/6qqlc4qd201cxqrq7nd63qcm0000gn/T/gitvault-load-ypnazuel/scale-20']
+                               operation : create
+                            files/thread : 20
+                                 threads : 1
+           record size (KB, 0 = maximum) : 0
+                          file size (KB) : 8
+                  file size distribution : fixed
+                           files per dir : 5
+                            dirs per dir : 10
+              threads share directories? : N
+                         filename prefix : 
+                         filename suffix : 
+             hash file number into dir.? : N
+                     fsync after modify? : N
+                         incompressible? : Y
+          pause between files (microsec) : 0
+                             auto-pause? : N
+ delay after cleanup per file (microsec) : 0
+             minimum directories per sec : 50
+                             total hosts : 1
+                    finish all requests? : Y
+                              stonewall? : Y
+                 measure response times? : N
+                            verify read? : Y
+                                verbose? : N
+                          log to stderr? : N
+host = MacBook-Pro-14.local,thr = 00,elapsed = 0.004832029342651367,files = 20,records = 20,status = ok
+total threads = 1
+total files = 20
+total IOPS = 4139
+total data =     0.000 GiB
+100.00% of requested files processed, warning threshold is  70.00%
+elapsed time =     0.005
+files/sec = 4139.047713
+IOPS = 4139.047713
+MiB/sec = 32.336310
+
+scenario=scale-20 operation=init dataset_files=20 sequence=1 returncode=0 total_ms=26818.021
+initializing store at /gitvault-load-20260816174806-d72015-20...
+
+Uploading Blob objects: 1/4 (25.0%)
+Uploading Blob objects: 2/4 (50.0%)
+Uploading Blob objects: 3/4 (75.0%)
+Uploading Blob objects: 4/4 (100.0%)
+Uploading Blob objects: 5/9 (55.6%)
+Uploading Blob objects: 6/9 (66.7%)
+Uploading Blob objects: 7/9 (77.8%)
+Uploading Blob objects: 8/9 (88.9%)
+Uploading Blob objects: 9/14 (64.3%)
+Uploading Blob objects: 10/15 (66.7%)
+Uploading Blob objects: 11/15 (73.3%)
+Uploading Blob objects: 12/15 (80.0%)
+Uploading Blob objects: 13/20 (65.0%)
+Uploading Blob objects: 14/20 (70.0%)
+Uploading Blob objects: 15/20 (75.0%)
+Uploading Blob objects: 16/20 (80.0%)
+Uploading Blob objects: 17/20 (85.0%)
+Uploading Blob objects: 18/20 (90.0%)
+Uploading Blob objects: 19/20 (95.0%)
+Uploading Blob objects: 20/20 (100.0%)
+commit=6b027d68ea142084676db7400d3c40b80f499e9f884124d556bd88d0916412b6
+genesis=684f1ae224d016d048963da6178ef6b8f26963ecd62e48fadf28570745e26fe9
+GITVAULT_BENCH phase=auth.kdf_identity ms=1627.813
+
+Uploading Tree objects... hash=ea2f8621064043bb96a87dd5380ac92f3a1ea4eb0f52b8e897f72dfabf7d9136 | size: 321 bytes
+
+Conditional upload rate limited; retrying after 1s (attempt 1/5)
+
+Uploading Tree objects... hash=0b979faf3eb9079445da31b78c1e86326048ab1295ed83ae22a7a1705d5027a9 | size: 400 bytes
+
+Conditional upload rate limited; retrying after 1s (attempt 1/5)
+
+Uploading Tree objects... hash=e9b93cbf7ad10947660c3453a5026b2fd5145f59f821eb7eda10b87ad39a8ab4 | size: 405 bytes
+
+Uploading Tree objects... hash=221ccef008dc8cfb09285113b3ad903c44b249a660b0ac4d2e11395598916e8d | size: 85 bytes
+
+Conditional upload rate limited; retrying after 1s (attempt 1/5)
+
+Uploading Tree objects... hash=d97f5c89b1537048a636b0ac79b034980e6ad0ebbb485720540970eaaf5689d1 | size: 405 bytes
+
+Conditional upload rate limited; retrying after 1s (attempt 1/5)
+
+Uploading Tree objects... hash=518057d061f17709fa8bd53f6c6d75f37e19e8e09c028a7de637ad39f6c812f6 | size: 250 bytes
+
+Uploading Tree objects... hash=1ad0b667014d6e1865ebd5d6d1771540ea8a1e5e47afa7c30904a2b4ec59abbd | size: 56 bytes
+
+Uploading Tree objects... hash=04993c01b00595edbdde10fe6352971badab7df7f6bafd86b7e7b3af0a3bcb2e | size: 69 bytes
+GITVAULT_BENCH phase=init.cloud_head_fetch ms=464.963
+GITVAULT_BENCH phase=init.genesis_publish_w2 ms=2293.613
+GITVAULT_BENCH phase=init.checkpoint_publish_w2 ms=2253.233
+
+scenario=scale-20 operation=status dataset_files=20 sequence=2 returncode=0 total_ms=4565.342
+L=6b027d68ea142084676db7400d3c40b80f499e9f884124d556bd88d0916412b6
+C=6b027d68ea142084676db7400d3c40b80f499e9f884124d556bd88d0916412b6
+N=6b027d68ea142084676db7400d3c40b80f499e9f884124d556bd88d0916412b6
+clock_L={}
+clock_C={}
+clock_N={}
+relation_L_C=EQUAL
+relation_C_N=EQUAL
+relation_L_N=EQUAL
+cloud_revision=016592da97532f700000002948d8a40
+state=CONSISTENT
+reason=NONE
+action=NONE
+detail=local, Dropbox, and signed vector checkpoints agree
+relay=wss://relay.damus.io EOSE latency_ms=1813
+relay=wss://relay.primal.net EOSE latency_ms=1637
+relay=wss://relay.ditto.pub EOSE latency_ms=2373
+pending_operation=none
+GITVAULT_BENCH phase=auth.kdf_identity ms=174.798
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.068
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=449.054
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2374.081
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.731
+GITVAULT_BENCH phase=preflight.total ms=2829.105
+
+scenario=scale-20 operation=list dataset_files=20 sequence=3 returncode=0 total_ms=7327.606
+GITVAULT_BENCH phase=auth.kdf_identity ms=194.372
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.067
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=1644.177
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2275.942
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.719
+GITVAULT_BENCH phase=preflight.total ms=3926.330
+
+scenario=scale-20 operation=tree dataset_files=20 sequence=4 returncode=0 total_ms=11165.265
+GITVAULT_BENCH phase=auth.kdf_identity ms=192.513
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.068
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=506.002
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2268.528
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.721
+GITVAULT_BENCH phase=preflight.total ms=2781.562
+
+scenario=scale-20 operation=cat-sample-1 dataset_files=20 sequence=5 returncode=0 total_ms=9458.557
+GITVAULT_BENCH phase=auth.kdf_identity ms=181.340
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.070
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=553.965
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2243.139
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.702
+GITVAULT_BENCH phase=preflight.total ms=2804.672
+GITVAULT_BENCH phase=read.path_resolution ms=4563.682
+GITVAULT_BENCH phase=read.blob_fetch ms=645.274
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.179
+
+scenario=scale-20 operation=quick-scan dataset_files=20 sequence=6 returncode=0 total_ms=15964.158
+GITVAULT_BENCH phase=auth.kdf_identity ms=187.196
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.069
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=476.261
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2306.110
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.740
+GITVAULT_BENCH phase=preflight.total ms=2789.791
+
+scenario=scale-20 operation=deep-scan dataset_files=20 sequence=7 returncode=0 total_ms=32664.720
+GITVAULT_BENCH phase=auth.kdf_identity ms=200.104
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.075
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=447.131
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2382.934
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.735
+GITVAULT_BENCH phase=preflight.total ms=2836.332
+
+scenario=cleanup operation=destroy dataset_files=0 sequence=8 returncode=0 total_ms=1510.528
+Warning: 'destroy' will permanently remove:
+  local metadata: /Users/dobshn/.gitvault/gitvault-load-20260816174806-d72015-20
+  remote Dropbox folder: /gitvault-load-20260816174806-d72015-20
+
+Proceed? (y/N): Remote vault folder deleted.
+Local vault metadata deleted.
+

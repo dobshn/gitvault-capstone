@@ -1,0 +1,1065 @@
+scenario=scale-10 operation=smallfile-create returncode=0 total_ms=3620.915
+do not need pause between files for single-threaded workload
+changing --finish to true for op type create
+                                 version : 3.2
+                           hosts in test : None
+                        launch by daemon : False
+                   top test directory(s) : ['/var/folders/dv/6qqlc4qd201cxqrq7nd63qcm0000gn/T/gitvault-load-lo8uzadu/scale-10']
+                               operation : create
+                            files/thread : 10
+                                 threads : 1
+           record size (KB, 0 = maximum) : 0
+                          file size (KB) : 8
+                  file size distribution : fixed
+                           files per dir : 10
+                            dirs per dir : 10
+              threads share directories? : N
+                         filename prefix : 
+                         filename suffix : 
+             hash file number into dir.? : N
+                     fsync after modify? : N
+                         incompressible? : Y
+          pause between files (microsec) : 0
+                             auto-pause? : N
+ delay after cleanup per file (microsec) : 0
+             minimum directories per sec : 50
+                             total hosts : 1
+                    finish all requests? : Y
+                              stonewall? : Y
+                 measure response times? : N
+                            verify read? : Y
+                                verbose? : N
+                          log to stderr? : N
+host = MacBook-Pro-14.local,thr = 00,elapsed = 0.0054912567138671875,files = 10,records = 10,status = ok
+total threads = 1
+total files = 10
+total IOPS = 1821
+total data =     0.000 GiB
+100.00% of requested files processed, warning threshold is  70.00%
+elapsed time =     0.005
+files/sec = 1821.076763
+IOPS = 1821.076763
+MiB/sec = 14.227162
+
+scenario=scale-10 operation=init dataset_files=10 sequence=1 returncode=0 total_ms=17749.425
+initializing store at /gitvault-load-20260816172443-2cd7f5-10...
+
+Uploading Blob objects: 1/9 (11.1%)
+Uploading Blob objects: 2/9 (22.2%)
+Uploading Blob objects: 3/10 (30.0%)
+Uploading Blob objects: 4/10 (40.0%)
+Uploading Blob objects: 5/10 (50.0%)
+Uploading Blob objects: 6/10 (60.0%)
+Uploading Blob objects: 7/10 (70.0%)
+Uploading Blob objects: 8/10 (80.0%)
+Uploading Blob objects: 9/10 (90.0%)
+Uploading Blob objects: 10/10 (100.0%)
+commit=cfbeb7142c28d98d4f6469e023318e0079be8c8fd77746295699d934fcda1058
+genesis=4a22a8d768a8df933ac54aff4949b7555b9d205719f84ea92fe32489eb4def76
+GITVAULT_BENCH phase=auth.kdf_identity ms=1440.166
+
+Uploading Tree objects... hash=87241d8d2f985a5f3ddab18e546d78d4d0c1faed75c6183cf9d2a20ad0a398d8 | size: 716 bytes
+
+Uploading Tree objects... hash=43c4b97cdb8267e8c07a9501d32e246b869a001a200ae11c73eff07eb4c7763e | size: 85 bytes
+
+Conditional upload rate limited; retrying after 1s (attempt 1/5)
+
+Uploading Tree objects... hash=6aae260c9a47eef0f37617800579b8b4b4d8f04f67c02d251b6cb7176f82f50b | size: 103 bytes
+
+Uploading Tree objects... hash=544d09b1f1f20cdc4892c90e911b4adcc0d1e2eca8074e0c96e4d8e8135164c4 | size: 56 bytes
+
+Uploading Tree objects... hash=c4c881d80a978fb7a494b13867e106960c4d67d37420ec6220000fc2af5d9b27 | size: 69 bytes
+GITVAULT_BENCH phase=init.cloud_head_fetch ms=623.707
+GITVAULT_BENCH phase=init.genesis_publish_w2 ms=2630.866
+GITVAULT_BENCH phase=init.checkpoint_publish_w2 ms=2680.911
+
+scenario=scale-10 operation=status dataset_files=10 sequence=2 returncode=0 total_ms=4442.830
+L=cfbeb7142c28d98d4f6469e023318e0079be8c8fd77746295699d934fcda1058
+C=cfbeb7142c28d98d4f6469e023318e0079be8c8fd77746295699d934fcda1058
+N=cfbeb7142c28d98d4f6469e023318e0079be8c8fd77746295699d934fcda1058
+clock_L={}
+clock_C={}
+clock_N={}
+relation_L_C=EQUAL
+relation_C_N=EQUAL
+relation_L_N=EQUAL
+cloud_revision=016592d5533efca00000002948d8a40
+state=CONSISTENT
+reason=NONE
+action=NONE
+detail=local, Dropbox, and signed vector checkpoints agree
+relay=wss://relay.damus.io EOSE latency_ms=2062
+relay=wss://relay.primal.net EOSE latency_ms=1666
+relay=wss://relay.ditto.pub EOSE latency_ms=2381
+pending_operation=none
+GITVAULT_BENCH phase=auth.kdf_identity ms=201.181
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.079
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=428.726
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2381.994
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.748
+GITVAULT_BENCH phase=preflight.total ms=2816.972
+
+scenario=scale-10 operation=list dataset_files=10 sequence=3 returncode=0 total_ms=6657.322
+GITVAULT_BENCH phase=auth.kdf_identity ms=199.601
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.071
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=690.782
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2335.502
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.628
+GITVAULT_BENCH phase=preflight.total ms=3032.275
+
+scenario=scale-10 operation=tree dataset_files=10 sequence=4 returncode=0 total_ms=9721.275
+GITVAULT_BENCH phase=auth.kdf_identity ms=177.445
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.071
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=936.911
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2433.719
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.718
+GITVAULT_BENCH phase=preflight.total ms=3376.461
+
+scenario=scale-10 operation=cat-sample-1 dataset_files=10 sequence=5 returncode=0 total_ms=8427.534
+GITVAULT_BENCH phase=auth.kdf_identity ms=186.343
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.076
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=525.529
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2314.046
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.628
+GITVAULT_BENCH phase=preflight.total ms=2845.999
+GITVAULT_BENCH phase=read.path_resolution ms=3496.678
+GITVAULT_BENCH phase=read.blob_fetch ms=581.433
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.174
+
+scenario=scale-10 operation=quick-scan dataset_files=10 sequence=6 returncode=0 total_ms=11238.538
+GITVAULT_BENCH phase=auth.kdf_identity ms=183.238
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.077
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=501.332
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2558.531
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.726
+GITVAULT_BENCH phase=preflight.total ms=3065.765
+
+scenario=scale-10 operation=deep-scan dataset_files=10 sequence=7 returncode=0 total_ms=20180.124
+GITVAULT_BENCH phase=auth.kdf_identity ms=197.856
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.069
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=1667.815
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2246.429
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.331
+GITVAULT_BENCH phase=preflight.total ms=3919.021
+
+scenario=ycsb-c operation=read dataset_files=10 sequence=8 returncode=0 total_ms=12169.477
+GITVAULT_BENCH phase=auth.kdf_identity ms=195.355
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.072
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=667.187
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=4409.500
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.743
+GITVAULT_BENCH phase=preflight.total ms=5083.690
+GITVAULT_BENCH phase=read.path_resolution ms=4720.471
+GITVAULT_BENCH phase=read.blob_fetch ms=597.894
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.204
+
+scenario=ycsb-c operation=read dataset_files=10 sequence=9 returncode=0 total_ms=9246.040
+GITVAULT_BENCH phase=auth.kdf_identity ms=190.802
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.077
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=502.800
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2466.911
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.765
+GITVAULT_BENCH phase=preflight.total ms=2976.193
+GITVAULT_BENCH phase=read.path_resolution ms=3714.394
+GITVAULT_BENCH phase=read.blob_fetch ms=983.002
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.256
+
+scenario=ycsb-c operation=read dataset_files=10 sequence=10 returncode=0 total_ms=10170.452
+GITVAULT_BENCH phase=auth.kdf_identity ms=195.015
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.074
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=487.346
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2762.694
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.721
+GITVAULT_BENCH phase=preflight.total ms=3256.971
+GITVAULT_BENCH phase=read.path_resolution ms=4694.588
+GITVAULT_BENCH phase=read.blob_fetch ms=585.142
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.197
+
+scenario=ycsb-c operation=read dataset_files=10 sequence=11 returncode=0 total_ms=9751.456
+GITVAULT_BENCH phase=auth.kdf_identity ms=192.390
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.079
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=452.361
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2536.708
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.746
+GITVAULT_BENCH phase=preflight.total ms=2996.745
+GITVAULT_BENCH phase=read.path_resolution ms=4497.715
+GITVAULT_BENCH phase=read.blob_fetch ms=690.228
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.209
+
+scenario=ycsb-c operation=read dataset_files=10 sequence=12 returncode=0 total_ms=9901.960
+GITVAULT_BENCH phase=auth.kdf_identity ms=185.517
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.076
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=591.491
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2292.081
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.775
+GITVAULT_BENCH phase=preflight.total ms=2890.038
+GITVAULT_BENCH phase=read.path_resolution ms=4554.858
+GITVAULT_BENCH phase=read.blob_fetch ms=903.835
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.199
+
+scenario=ycsb-c operation=read dataset_files=10 sequence=13 returncode=0 total_ms=10086.447
+GITVAULT_BENCH phase=auth.kdf_identity ms=185.148
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.084
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=649.712
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2205.532
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.725
+GITVAULT_BENCH phase=preflight.total ms=2862.740
+GITVAULT_BENCH phase=read.path_resolution ms=5021.830
+GITVAULT_BENCH phase=read.blob_fetch ms=702.435
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.200
+
+scenario=ycsb-c operation=read dataset_files=10 sequence=14 returncode=0 total_ms=8907.614
+GITVAULT_BENCH phase=auth.kdf_identity ms=194.370
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.069
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=459.167
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2403.922
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.769
+GITVAULT_BENCH phase=preflight.total ms=2869.566
+GITVAULT_BENCH phase=read.path_resolution ms=3628.931
+GITVAULT_BENCH phase=read.blob_fetch ms=717.324
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.172
+
+scenario=ycsb-c operation=read dataset_files=10 sequence=15 returncode=0 total_ms=9880.276
+GITVAULT_BENCH phase=auth.kdf_identity ms=198.062
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.077
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=526.765
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2253.771
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.715
+GITVAULT_BENCH phase=preflight.total ms=2786.977
+GITVAULT_BENCH phase=read.path_resolution ms=4593.875
+GITVAULT_BENCH phase=read.blob_fetch ms=684.016
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.429
+
+scenario=ycsb-c operation=read dataset_files=10 sequence=16 returncode=0 total_ms=8927.101
+GITVAULT_BENCH phase=auth.kdf_identity ms=186.212
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.068
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=641.625
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2486.632
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.792
+GITVAULT_BENCH phase=preflight.total ms=3135.336
+GITVAULT_BENCH phase=read.path_resolution ms=3664.038
+GITVAULT_BENCH phase=read.blob_fetch ms=659.304
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.241
+
+scenario=ycsb-c operation=read dataset_files=10 sequence=17 returncode=0 total_ms=9947.981
+GITVAULT_BENCH phase=auth.kdf_identity ms=194.945
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.070
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=461.874
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2402.518
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.736
+GITVAULT_BENCH phase=preflight.total ms=2870.717
+GITVAULT_BENCH phase=read.path_resolution ms=4691.389
+GITVAULT_BENCH phase=read.blob_fetch ms=630.885
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.160
+
+scenario=ycsb-c operation=read dataset_files=10 sequence=18 returncode=0 total_ms=10059.116
+GITVAULT_BENCH phase=auth.kdf_identity ms=197.911
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.072
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=484.019
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2250.134
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.849
+GITVAULT_BENCH phase=preflight.total ms=2740.706
+GITVAULT_BENCH phase=read.path_resolution ms=4945.489
+GITVAULT_BENCH phase=read.blob_fetch ms=718.533
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.184
+
+scenario=ycsb-c operation=read dataset_files=10 sequence=19 returncode=0 total_ms=10215.028
+GITVAULT_BENCH phase=auth.kdf_identity ms=200.165
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.071
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=442.704
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2314.019
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.754
+GITVAULT_BENCH phase=preflight.total ms=2762.882
+GITVAULT_BENCH phase=read.path_resolution ms=3887.587
+GITVAULT_BENCH phase=read.blob_fetch ms=1823.189
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.287
+
+scenario=ycsb-c operation=read dataset_files=10 sequence=20 returncode=0 total_ms=9841.893
+GITVAULT_BENCH phase=auth.kdf_identity ms=198.198
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.069
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=524.282
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2311.888
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.775
+GITVAULT_BENCH phase=preflight.total ms=2842.363
+GITVAULT_BENCH phase=read.path_resolution ms=4648.493
+GITVAULT_BENCH phase=read.blob_fetch ms=612.632
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.091
+
+scenario=ycsb-c operation=read dataset_files=10 sequence=21 returncode=0 total_ms=9676.469
+GITVAULT_BENCH phase=auth.kdf_identity ms=177.024
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.069
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=469.033
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2370.630
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.684
+GITVAULT_BENCH phase=preflight.total ms=2846.135
+GITVAULT_BENCH phase=read.path_resolution ms=4590.793
+GITVAULT_BENCH phase=read.blob_fetch ms=622.217
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.176
+
+scenario=ycsb-c operation=read dataset_files=10 sequence=22 returncode=0 total_ms=9965.309
+GITVAULT_BENCH phase=auth.kdf_identity ms=185.499
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.078
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=699.879
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2460.385
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.763
+GITVAULT_BENCH phase=preflight.total ms=3166.923
+GITVAULT_BENCH phase=read.path_resolution ms=4597.406
+GITVAULT_BENCH phase=read.blob_fetch ms=631.969
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.234
+
+scenario=ycsb-c operation=read dataset_files=10 sequence=23 returncode=0 total_ms=10149.525
+GITVAULT_BENCH phase=auth.kdf_identity ms=190.993
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.076
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=599.705
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2599.550
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.764
+GITVAULT_BENCH phase=preflight.total ms=3205.905
+GITVAULT_BENCH phase=read.path_resolution ms=4764.171
+GITVAULT_BENCH phase=read.blob_fetch ms=613.230
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.185
+
+scenario=ycsb-c operation=read dataset_files=10 sequence=24 returncode=0 total_ms=8870.583
+GITVAULT_BENCH phase=auth.kdf_identity ms=182.364
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.074
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=668.024
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2225.443
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.728
+GITVAULT_BENCH phase=preflight.total ms=2899.745
+GITVAULT_BENCH phase=read.path_resolution ms=3829.957
+GITVAULT_BENCH phase=read.blob_fetch ms=613.963
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.184
+
+scenario=ycsb-c operation=read dataset_files=10 sequence=25 returncode=0 total_ms=10035.645
+GITVAULT_BENCH phase=auth.kdf_identity ms=193.979
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.071
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=509.764
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2325.091
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.635
+GITVAULT_BENCH phase=preflight.total ms=2841.895
+GITVAULT_BENCH phase=read.path_resolution ms=4910.453
+GITVAULT_BENCH phase=read.blob_fetch ms=612.913
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.177
+
+scenario=ycsb-c operation=read dataset_files=10 sequence=26 returncode=0 total_ms=8735.459
+GITVAULT_BENCH phase=auth.kdf_identity ms=186.067
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.068
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=535.357
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2356.439
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.752
+GITVAULT_BENCH phase=preflight.total ms=2899.145
+GITVAULT_BENCH phase=read.path_resolution ms=3640.759
+GITVAULT_BENCH phase=read.blob_fetch ms=806.037
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.196
+
+scenario=ycsb-c operation=read dataset_files=10 sequence=27 returncode=0 total_ms=10094.130
+GITVAULT_BENCH phase=auth.kdf_identity ms=197.181
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.075
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=455.177
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2498.846
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.649
+GITVAULT_BENCH phase=preflight.total ms=2960.023
+GITVAULT_BENCH phase=read.path_resolution ms=4612.645
+GITVAULT_BENCH phase=read.blob_fetch ms=717.047
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.195
+
+scenario=ycsb-b operation=read dataset_files=10 sequence=28 returncode=0 total_ms=10123.866
+GITVAULT_BENCH phase=auth.kdf_identity ms=186.581
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.083
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=513.879
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=3710.092
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.433
+GITVAULT_BENCH phase=preflight.total ms=4227.807
+GITVAULT_BENCH phase=read.path_resolution ms=3616.621
+GITVAULT_BENCH phase=read.blob_fetch ms=648.907
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.215
+
+scenario=ycsb-b operation=read dataset_files=10 sequence=29 returncode=0 total_ms=9379.905
+GITVAULT_BENCH phase=auth.kdf_identity ms=178.848
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.066
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=504.473
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2282.382
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.654
+GITVAULT_BENCH phase=preflight.total ms=2793.594
+GITVAULT_BENCH phase=read.path_resolution ms=4470.837
+GITVAULT_BENCH phase=read.blob_fetch ms=621.121
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.088
+
+scenario=ycsb-b operation=update dataset_files=10 sequence=30 returncode=0 total_ms=25131.525
+
+Uploading Blob objects: 1/1 (100.0%)commit=8d2544f67358577117bfed205e4631ae7fdf09559d289136766c16af129d9368
+GITVAULT_BENCH phase=auth.kdf_identity ms=178.855
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.079
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=1572.955
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2272.760
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.627
+GITVAULT_BENCH phase=write.preflight ms=3851.889
+
+Uploading Tree objects... hash=5c0612c3cc2ab4efe7423d7cc045d88a4fd5bfce443994403ba74a73699707db | size: 716 bytes
+
+Uploading Tree objects... hash=6331bc208802b75d7b4e84f98406be0c3aa9bfa06d9df5560d2415e283797de1 | size: 103 bytes
+
+Uploading Tree objects... hash=7287919860c8ed9c24f2a49c2e07b63a403802635268c8e8b3b17892c037b2e1 | size: 56 bytes
+
+Uploading Tree objects... hash=83d90464a4eb8bda97384113670b9e06af802776bd05390633ad9070204b7a30 | size: 69 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=7525.391
+GITVAULT_BENCH phase=write.head_journal ms=3.020
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.371
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=462.781
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2170.742
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.622
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=443.798
+GITVAULT_BENCH phase=commit.dropbox_cas ms=2000.692
+GITVAULT_BENCH phase=commit.dropbox_readback ms=1447.967
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=2.393
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=2316.984
+GITVAULT_BENCH phase=commit.local_finalize ms=4.760
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=379.111
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2362.367
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.624
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=11605.940
+
+scenario=ycsb-b operation=read dataset_files=10 sequence=31 returncode=0 total_ms=10224.188
+GITVAULT_BENCH phase=auth.kdf_identity ms=198.744
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.070
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=1736.607
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2305.928
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.817
+GITVAULT_BENCH phase=preflight.total ms=4050.215
+GITVAULT_BENCH phase=read.path_resolution ms=3737.848
+GITVAULT_BENCH phase=read.blob_fetch ms=755.450
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.159
+
+scenario=ycsb-b operation=read dataset_files=10 sequence=32 returncode=0 total_ms=9085.130
+GITVAULT_BENCH phase=auth.kdf_identity ms=184.652
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.070
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=787.326
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2363.571
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.748
+GITVAULT_BENCH phase=preflight.total ms=3157.558
+GITVAULT_BENCH phase=read.path_resolution ms=3786.941
+GITVAULT_BENCH phase=read.blob_fetch ms=650.040
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.404
+
+scenario=ycsb-b operation=read dataset_files=10 sequence=33 returncode=0 total_ms=12602.771
+GITVAULT_BENCH phase=auth.kdf_identity ms=187.062
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.067
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=496.616
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=5053.667
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.791
+GITVAULT_BENCH phase=preflight.total ms=5556.468
+GITVAULT_BENCH phase=read.path_resolution ms=4906.326
+GITVAULT_BENCH phase=read.blob_fetch ms=629.101
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.132
+
+scenario=ycsb-b operation=read dataset_files=10 sequence=34 returncode=0 total_ms=9778.815
+GITVAULT_BENCH phase=auth.kdf_identity ms=175.800
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.069
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=524.035
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2366.245
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.727
+GITVAULT_BENCH phase=preflight.total ms=2896.343
+GITVAULT_BENCH phase=read.path_resolution ms=4693.135
+GITVAULT_BENCH phase=read.blob_fetch ms=663.706
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.095
+
+scenario=ycsb-b operation=read dataset_files=10 sequence=35 returncode=0 total_ms=10287.939
+GITVAULT_BENCH phase=auth.kdf_identity ms=194.305
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.071
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=545.301
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2315.646
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.742
+GITVAULT_BENCH phase=preflight.total ms=2867.691
+GITVAULT_BENCH phase=read.path_resolution ms=5116.956
+GITVAULT_BENCH phase=read.blob_fetch ms=710.628
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.267
+
+scenario=ycsb-b operation=read dataset_files=10 sequence=36 returncode=0 total_ms=10151.560
+GITVAULT_BENCH phase=auth.kdf_identity ms=185.595
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.081
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=474.015
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2488.872
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.799
+GITVAULT_BENCH phase=preflight.total ms=2970.176
+GITVAULT_BENCH phase=read.path_resolution ms=4979.910
+GITVAULT_BENCH phase=read.blob_fetch ms=641.869
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.197
+
+scenario=ycsb-b operation=read dataset_files=10 sequence=37 returncode=0 total_ms=9790.024
+GITVAULT_BENCH phase=auth.kdf_identity ms=184.363
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.073
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=1701.118
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2283.684
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.807
+GITVAULT_BENCH phase=preflight.total ms=3992.021
+GITVAULT_BENCH phase=read.path_resolution ms=3690.736
+GITVAULT_BENCH phase=read.blob_fetch ms=610.699
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.242
+
+scenario=ycsb-b operation=read dataset_files=10 sequence=38 returncode=0 total_ms=9870.674
+GITVAULT_BENCH phase=auth.kdf_identity ms=183.401
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.078
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=459.717
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2585.736
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.746
+GITVAULT_BENCH phase=preflight.total ms=3051.987
+GITVAULT_BENCH phase=read.path_resolution ms=4788.390
+GITVAULT_BENCH phase=read.blob_fetch ms=579.065
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.279
+
+scenario=ycsb-b operation=read dataset_files=10 sequence=39 returncode=0 total_ms=10343.238
+GITVAULT_BENCH phase=auth.kdf_identity ms=190.608
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.079
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=514.771
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2392.028
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.775
+GITVAULT_BENCH phase=preflight.total ms=2917.785
+GITVAULT_BENCH phase=read.path_resolution ms=5204.968
+GITVAULT_BENCH phase=read.blob_fetch ms=605.947
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.169
+
+scenario=ycsb-b operation=read dataset_files=10 sequence=40 returncode=0 total_ms=9940.538
+GITVAULT_BENCH phase=auth.kdf_identity ms=197.284
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.076
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=1534.013
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2282.989
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.781
+GITVAULT_BENCH phase=preflight.total ms=3824.537
+GITVAULT_BENCH phase=read.path_resolution ms=3691.422
+GITVAULT_BENCH phase=read.blob_fetch ms=708.410
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.097
+
+scenario=ycsb-b operation=read dataset_files=10 sequence=41 returncode=0 total_ms=9850.885
+GITVAULT_BENCH phase=auth.kdf_identity ms=194.084
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.082
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=475.533
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2441.947
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.497
+GITVAULT_BENCH phase=preflight.total ms=2923.805
+GITVAULT_BENCH phase=read.path_resolution ms=4737.256
+GITVAULT_BENCH phase=read.blob_fetch ms=634.678
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.194
+
+scenario=ycsb-b operation=read dataset_files=10 sequence=42 returncode=0 total_ms=9618.105
+GITVAULT_BENCH phase=auth.kdf_identity ms=183.708
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.068
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=572.826
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2321.937
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.568
+GITVAULT_BENCH phase=preflight.total ms=2900.331
+GITVAULT_BENCH phase=read.path_resolution ms=4754.322
+GITVAULT_BENCH phase=read.blob_fetch ms=579.411
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.170
+
+scenario=ycsb-b operation=read dataset_files=10 sequence=43 returncode=0 total_ms=9918.996
+GITVAULT_BENCH phase=auth.kdf_identity ms=198.182
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.069
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=484.634
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2329.530
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.761
+GITVAULT_BENCH phase=preflight.total ms=2821.038
+GITVAULT_BENCH phase=read.path_resolution ms=4838.750
+GITVAULT_BENCH phase=read.blob_fetch ms=614.551
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.181
+
+scenario=ycsb-b operation=read dataset_files=10 sequence=44 returncode=0 total_ms=9844.699
+GITVAULT_BENCH phase=auth.kdf_identity ms=185.777
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.069
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=443.510
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2209.206
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.826
+GITVAULT_BENCH phase=preflight.total ms=2659.992
+GITVAULT_BENCH phase=read.path_resolution ms=4961.926
+GITVAULT_BENCH phase=read.blob_fetch ms=577.152
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=1.116
+
+scenario=ycsb-b operation=read dataset_files=10 sequence=45 returncode=0 total_ms=9830.608
+GITVAULT_BENCH phase=auth.kdf_identity ms=192.623
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.073
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=451.611
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2333.034
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.741
+GITVAULT_BENCH phase=preflight.total ms=2791.274
+GITVAULT_BENCH phase=read.path_resolution ms=4749.358
+GITVAULT_BENCH phase=read.blob_fetch ms=613.664
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.176
+
+scenario=ycsb-b operation=read dataset_files=10 sequence=46 returncode=0 total_ms=11682.830
+GITVAULT_BENCH phase=auth.kdf_identity ms=198.499
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.070
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=502.169
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=3645.573
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.731
+GITVAULT_BENCH phase=preflight.total ms=4154.023
+GITVAULT_BENCH phase=read.path_resolution ms=5242.981
+GITVAULT_BENCH phase=read.blob_fetch ms=582.777
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.268
+
+scenario=ycsb-b operation=read dataset_files=10 sequence=47 returncode=0 total_ms=9744.623
+GITVAULT_BENCH phase=auth.kdf_identity ms=178.472
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.073
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=642.064
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2327.198
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.653
+GITVAULT_BENCH phase=preflight.total ms=2975.196
+GITVAULT_BENCH phase=read.path_resolution ms=4674.063
+GITVAULT_BENCH phase=read.blob_fetch ms=614.847
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.200
+
+scenario=ycsb-a operation=update dataset_files=10 sequence=48 returncode=0 total_ms=24288.534
+
+Uploading Blob objects: 1/1 (100.0%)commit=0ba2de31c95560e7edd3aa3b85be0493a2a87a4ff80fc8d95158198a9681629c
+GITVAULT_BENCH phase=auth.kdf_identity ms=176.860
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.071
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=451.971
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2537.500
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.712
+GITVAULT_BENCH phase=write.preflight ms=2995.999
+
+Uploading Tree objects... hash=8074be723967ba873d184ef74343220942d5a8102773bdafd7666a5f9b219e31 | size: 716 bytes
+
+Uploading Tree objects... hash=79f83af84f21143426326befd43940ab77dfa83e14b4cd243aa8a8da932ea1f8 | size: 103 bytes
+
+Uploading Tree objects... hash=3552ee9c63d28b8b666871d0727d46ab2bf2b531397951d0b49c55f23dbb9216 | size: 56 bytes
+
+Uploading Tree objects... hash=1d42a5d0394d749e3b6ad029a99c85d2a5a243b84110ceafbd4d2997143eba09 | size: 69 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=9205.371
+GITVAULT_BENCH phase=write.head_journal ms=2.419
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.301
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=379.415
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2378.137
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.375
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=498.580
+GITVAULT_BENCH phase=commit.dropbox_cas ms=856.022
+GITVAULT_BENCH phase=commit.dropbox_readback ms=360.614
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=3.010
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=2451.463
+GITVAULT_BENCH phase=commit.local_finalize ms=4.258
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=412.373
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2522.554
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.997
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=9880.377
+
+scenario=ycsb-a operation=read dataset_files=10 sequence=49 returncode=0 total_ms=10002.179
+GITVAULT_BENCH phase=auth.kdf_identity ms=189.090
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.072
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=499.337
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2340.664
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=1.308
+GITVAULT_BENCH phase=preflight.total ms=2848.159
+GITVAULT_BENCH phase=read.path_resolution ms=4681.050
+GITVAULT_BENCH phase=read.blob_fetch ms=670.615
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.195
+
+scenario=ycsb-a operation=update dataset_files=10 sequence=50 returncode=0 total_ms=23963.264
+
+Uploading Blob objects: 1/1 (100.0%)commit=beab4baaa258ff617dce5386fcd9ea67c09b8923d8f8d9c0636529204e59282f
+GITVAULT_BENCH phase=auth.kdf_identity ms=188.182
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.072
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=673.861
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2395.065
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=1.278
+GITVAULT_BENCH phase=write.preflight ms=3078.095
+
+Uploading Tree objects... hash=bf40956a9b965bdf32611469cdc4e8b535f5ffcd6273b411762f8db650c27c76 | size: 716 bytes
+
+Uploading Tree objects... hash=c820074c9bc275c45caf0e7d33b8c7d23f7202fcdfd8d7ce2d75bb2d87ef30cb | size: 103 bytes
+
+Uploading Tree objects... hash=98c99a06bca283f5e7f79a120f3d773c0b580ec877335851fab2b2501589259f | size: 56 bytes
+
+Uploading Tree objects... hash=c65783e7a94d574ec76c15dc06b16d7ca565d4793e907189268cf100f7032fe7 | size: 69 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=9028.604
+GITVAULT_BENCH phase=write.head_journal ms=0.794
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.228
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=441.658
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2315.046
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=1.196
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=448.132
+GITVAULT_BENCH phase=commit.dropbox_cas ms=913.098
+GITVAULT_BENCH phase=commit.dropbox_readback ms=409.745
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=2.306
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=2379.538
+GITVAULT_BENCH phase=commit.local_finalize ms=4.473
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=365.808
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2342.698
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=1.563
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=9640.042
+
+scenario=ycsb-a operation=read dataset_files=10 sequence=51 returncode=0 total_ms=10822.772
+GITVAULT_BENCH phase=auth.kdf_identity ms=202.071
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.068
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=623.846
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2692.654
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=1.307
+GITVAULT_BENCH phase=preflight.total ms=3323.671
+GITVAULT_BENCH phase=read.path_resolution ms=3887.180
+GITVAULT_BENCH phase=read.blob_fetch ms=1979.201
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.276
+
+scenario=ycsb-a operation=update dataset_files=10 sequence=52 returncode=0 total_ms=23722.525
+
+Uploading Blob objects: 1/1 (100.0%)commit=746ede8b02876d6adddcf51994093a3f8ea7090d0bfe0a7327232e8f3fc57c04
+GITVAULT_BENCH phase=auth.kdf_identity ms=198.907
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.069
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=621.689
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2228.097
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.702
+GITVAULT_BENCH phase=write.preflight ms=2855.249
+
+Uploading Tree objects... hash=d948040b8be4d4dcc0cc2ac27ee7968eac7a549a9760c00c546d7451440d32f3 | size: 716 bytes
+
+Uploading Tree objects... hash=14af0768efe68e5d8df4f18d1c8074656cf1da3d5eafb34865cabc18a26b0729 | size: 103 bytes
+
+Uploading Tree objects... hash=c691caeda066253777933690f85003305bb455de8fa17759cbde68ead72eba8d | size: 56 bytes
+
+Uploading Tree objects... hash=e2ad204505c8a7c24e600123d77680d6338218d1ee3dbf8e2e6e8d69903ad2ca | size: 69 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=7576.624
+GITVAULT_BENCH phase=write.head_journal ms=2.224
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.282
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=360.498
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2341.260
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=1.155
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=414.384
+GITVAULT_BENCH phase=commit.dropbox_cas ms=866.069
+GITVAULT_BENCH phase=commit.dropbox_readback ms=415.893
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=3.568
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=2592.450
+GITVAULT_BENCH phase=commit.local_finalize ms=4.646
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=357.319
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2257.977
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.640
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=9630.270
+
+scenario=ycsb-a operation=update dataset_files=10 sequence=53 returncode=0 total_ms=26155.453
+
+Uploading Blob objects: 1/1 (100.0%)commit=0818b0e5a1433efc1e94772c6c84b04df94d9013df8a1e03aa21a424b5e94807
+GITVAULT_BENCH phase=auth.kdf_identity ms=201.390
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.071
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=434.563
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2506.613
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.680
+GITVAULT_BENCH phase=write.preflight ms=2949.115
+
+Uploading Tree objects... hash=1e16498de6f5ffb9e038f88e112ce13adf946c9f81f167251ced6e4bc4890931 | size: 716 bytes
+
+Uploading Tree objects... hash=b5bdf07f2d5792ded0d883e9bff5614b07ec79209b8ed94a72b189e0de4fc50a | size: 103 bytes
+
+Uploading Tree objects... hash=8eaf736f258c08798ffbbeba3876a4e37e6a984e9a295c396b8bf9bfa99fae9a | size: 56 bytes
+
+Uploading Tree objects... hash=d548193571f1afe1031b324fee08afede895fc5f67ca99aa68fcd1b64f1d1b2f | size: 69 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=7581.726
+GITVAULT_BENCH phase=write.head_journal ms=2.015
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.260
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=391.028
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2411.298
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.663
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=1641.667
+GITVAULT_BENCH phase=commit.dropbox_cas ms=1693.886
+GITVAULT_BENCH phase=commit.dropbox_readback ms=374.869
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=2.385
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=3637.981
+GITVAULT_BENCH phase=commit.local_finalize ms=4.285
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=373.440
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2373.029
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.458
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=12919.815
+
+scenario=ycsb-a operation=update dataset_files=10 sequence=54 returncode=0 total_ms=24477.850
+
+Uploading Blob objects: 1/1 (100.0%)commit=ca02d7a3f199f416f17659fa0ff6f641230f46dcf47693aed3571d5b439fcbb6
+GITVAULT_BENCH phase=auth.kdf_identity ms=200.765
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.081
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=478.955
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2465.364
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.658
+GITVAULT_BENCH phase=write.preflight ms=2950.766
+
+Uploading Tree objects... hash=855dedb8cf55470c89aa4b842fade65ffa58ee1265f9ef56b53fad3576c75189 | size: 716 bytes
+
+Uploading Tree objects... hash=002793a1dcb027aadf2ccbe438070dcc31207c6e1432622dd52942d2c007ea27 | size: 103 bytes
+
+Uploading Tree objects... hash=15ecaafd254af5980253b72ea48486b6f221c399e15adc0b7c48938abb35c475 | size: 56 bytes
+
+Uploading Tree objects... hash=ae9113bb3f8162fe7910be16a9b89d4bc26216ff8b00585ac3ad9d3734c0e1fc | size: 69 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=7872.111
+GITVAULT_BENCH phase=write.head_journal ms=4.759
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.388
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=508.156
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=3812.255
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=1.230
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=373.250
+GITVAULT_BENCH phase=commit.dropbox_cas ms=950.265
+GITVAULT_BENCH phase=commit.dropbox_readback ms=386.021
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=2.697
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=2381.911
+GITVAULT_BENCH phase=commit.local_finalize ms=4.441
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=449.865
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2452.530
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.979
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=11336.908
+
+scenario=ycsb-a operation=update dataset_files=10 sequence=55 returncode=0 total_ms=25164.367
+
+Uploading Blob objects: 1/1 (100.0%)commit=bb9d2653e59b0cfee12ff50dc4325393549ca96549a4a4bcdffc245a5fc2770f
+GITVAULT_BENCH phase=auth.kdf_identity ms=211.124
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.062
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=472.250
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2464.642
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.796
+GITVAULT_BENCH phase=write.preflight ms=2943.527
+
+Uploading Tree objects... hash=d4d1366b3937cb1e6d5828fc873e2116546b6ad8b4c97886fb53a91357839a63 | size: 716 bytes
+
+Uploading Tree objects... hash=58ec3e352f98f26c92f1994d63375d819be66bfb7ea1d4804d0b2f2a83192ab8 | size: 103 bytes
+
+Uploading Tree objects... hash=9eac31e0227e3edccb524cabd36c82c33a11f8b3741e90bb51426b4577ef72c8 | size: 56 bytes
+
+Uploading Tree objects... hash=6322550ff30357f526124fa3432e38a9743d7ca9c23466046afdc794a9767278 | size: 69 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=10078.860
+GITVAULT_BENCH phase=write.head_journal ms=2.834
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.282
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=464.670
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2202.240
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.663
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=366.181
+GITVAULT_BENCH phase=commit.dropbox_cas ms=848.197
+GITVAULT_BENCH phase=commit.dropbox_readback ms=351.795
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=3.068
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=2410.850
+GITVAULT_BENCH phase=commit.local_finalize ms=4.431
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=368.736
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2735.500
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.760
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=9771.288
+
+scenario=ycsb-a operation=update dataset_files=10 sequence=56 returncode=0 total_ms=24242.672
+
+Uploading Blob objects: 1/1 (100.0%)commit=86162ed7fdaa9979dd3054074a5e252f1e22fc515287246cba17f8e82cfe0660
+GITVAULT_BENCH phase=auth.kdf_identity ms=202.165
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.078
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=466.218
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2454.678
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.610
+GITVAULT_BENCH phase=write.preflight ms=2928.796
+
+Uploading Tree objects... hash=17ee82e5847a7a044105207e200d1334af6ee6328e36ea3b63ca0d19a048797b | size: 716 bytes
+
+Uploading Tree objects... hash=350ea5a616c997759f35552a30c891551ce20ba4eedaa871f1f88ae8d262ae17 | size: 103 bytes
+
+Uploading Tree objects... hash=66fb4ecfaff3e87b598da322059b6aff05bf09cb99cf91bafbfb5dc834894204 | size: 56 bytes
+
+Uploading Tree objects... hash=370b59d20e3b5427086ac90060c7463455612f3b83af2aa6c2b7540973c37309 | size: 69 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=9274.861
+GITVAULT_BENCH phase=write.head_journal ms=2.212
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.298
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=393.445
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2373.659
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.697
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=565.246
+GITVAULT_BENCH phase=commit.dropbox_cas ms=820.567
+GITVAULT_BENCH phase=commit.dropbox_readback ms=406.968
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=2.347
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=2381.153
+GITVAULT_BENCH phase=commit.local_finalize ms=2.854
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=377.367
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2353.802
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=1.214
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=9692.489
+
+scenario=ycsb-a operation=update dataset_files=10 sequence=57 returncode=0 total_ms=25499.408
+
+Uploading Blob objects: 1/1 (100.0%)commit=4b348c8208dcba00ca4b32395a20857605875373b999bf0a777708f0144ef4d7
+GITVAULT_BENCH phase=auth.kdf_identity ms=211.308
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.071
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=494.338
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2450.932
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.764
+GITVAULT_BENCH phase=write.preflight ms=2952.391
+
+Uploading Tree objects... hash=59eabfdd99c1a4114953597c04bb44532295b8d759ef72d4252bd854319a069f | size: 716 bytes
+
+Uploading Tree objects... hash=1df972959fbb1a9eada9104f072d3c55d1d1fbcaa74c3735f17bb7624f697087 | size: 103 bytes
+
+Uploading Tree objects... hash=096c4a89edeab001ac6dc35128ac0b8cfc6c16f361439a2fdce9cff8d2ff396b | size: 56 bytes
+
+Uploading Tree objects... hash=f4828b905d32d37bbbb1b0ce1bc56e724f7fdfa4164126731338463c0be06700 | size: 69 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=10534.687
+GITVAULT_BENCH phase=write.head_journal ms=5.317
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.406
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=442.027
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2242.501
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.673
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=411.313
+GITVAULT_BENCH phase=commit.dropbox_cas ms=861.485
+GITVAULT_BENCH phase=commit.dropbox_readback ms=384.715
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=3.049
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=2398.785
+GITVAULT_BENCH phase=commit.local_finalize ms=4.691
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=451.824
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2554.680
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.984
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=9771.022
+
+scenario=ycsb-a operation=read dataset_files=10 sequence=58 returncode=0 total_ms=10064.476
+GITVAULT_BENCH phase=auth.kdf_identity ms=195.141
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.067
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=549.521
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2348.106
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.935
+GITVAULT_BENCH phase=preflight.total ms=2905.385
+GITVAULT_BENCH phase=read.path_resolution ms=4923.895
+GITVAULT_BENCH phase=read.blob_fetch ms=651.245
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.314
+
+scenario=ycsb-a operation=read dataset_files=10 sequence=59 returncode=0 total_ms=9795.453
+GITVAULT_BENCH phase=auth.kdf_identity ms=197.001
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.080
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=658.478
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2318.763
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.737
+GITVAULT_BENCH phase=preflight.total ms=2983.722
+GITVAULT_BENCH phase=read.path_resolution ms=3575.264
+GITVAULT_BENCH phase=read.blob_fetch ms=1638.323
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.310
+
+scenario=ycsb-a operation=update dataset_files=10 sequence=60 returncode=0 total_ms=25753.385
+
+Uploading Blob objects: 1/1 (100.0%)commit=bdcd5c33e89b283e34cae381662f882598af9e40e3f0178415f79e778319b44b
+GITVAULT_BENCH phase=auth.kdf_identity ms=178.873
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.079
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=884.867
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=3945.907
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=1.388
+GITVAULT_BENCH phase=write.preflight ms=4839.447
+
+Uploading Tree objects... hash=004e272b52034d7f0ee4636c9158737ac27b57c20c1e941257e6b7b9543cb26c | size: 716 bytes
+
+Uploading Tree objects... hash=78451408fe446f2ae0268ba228df6bc9645c46531c9bbd8f2606f08352bd5f8b | size: 103 bytes
+
+Uploading Tree objects... hash=0f302351a8f1565fd0c827032fd24fed86e087b5f8d978c39b1e618b0210b715 | size: 56 bytes
+
+Uploading Tree objects... hash=e1da5a1a01345a57e4a482588210e3c0d7964fe06e164d056ba2b9ae9d202e56 | size: 69 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=9187.150
+GITVAULT_BENCH phase=write.head_journal ms=2.949
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.456
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=508.357
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2450.627
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.670
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=402.093
+GITVAULT_BENCH phase=commit.dropbox_cas ms=922.785
+GITVAULT_BENCH phase=commit.dropbox_readback ms=396.415
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=3.090
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=2225.905
+GITVAULT_BENCH phase=commit.local_finalize ms=4.274
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=388.645
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2269.063
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=1.435
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=9588.962
+
+scenario=ycsb-a operation=read dataset_files=10 sequence=61 returncode=0 total_ms=8751.202
+GITVAULT_BENCH phase=auth.kdf_identity ms=193.067
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.059
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=447.065
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2319.617
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=1.025
+GITVAULT_BENCH phase=preflight.total ms=2775.432
+GITVAULT_BENCH phase=read.path_resolution ms=3673.693
+GITVAULT_BENCH phase=read.blob_fetch ms=618.620
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.270
+
+scenario=ycsb-a operation=read dataset_files=10 sequence=62 returncode=0 total_ms=10100.441
+GITVAULT_BENCH phase=auth.kdf_identity ms=178.371
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.073
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=523.866
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2430.390
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.360
+GITVAULT_BENCH phase=preflight.total ms=2958.230
+GITVAULT_BENCH phase=read.path_resolution ms=5086.505
+GITVAULT_BENCH phase=read.blob_fetch ms=643.136
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.150
+
+scenario=ycsb-a operation=read dataset_files=10 sequence=63 returncode=0 total_ms=9901.726
+GITVAULT_BENCH phase=auth.kdf_identity ms=186.662
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.088
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=1576.485
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2435.031
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.933
+GITVAULT_BENCH phase=preflight.total ms=4018.073
+GITVAULT_BENCH phase=read.path_resolution ms=3655.882
+GITVAULT_BENCH phase=read.blob_fetch ms=640.799
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.090
+
+scenario=ycsb-a operation=read dataset_files=10 sequence=64 returncode=0 total_ms=8760.495
+GITVAULT_BENCH phase=auth.kdf_identity ms=188.043
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.072
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=492.399
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2421.721
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.647
+GITVAULT_BENCH phase=preflight.total ms=2919.850
+GITVAULT_BENCH phase=read.path_resolution ms=3659.900
+GITVAULT_BENCH phase=read.blob_fetch ms=721.541
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.174
+
+scenario=ycsb-a operation=read dataset_files=10 sequence=65 returncode=0 total_ms=11832.156
+GITVAULT_BENCH phase=auth.kdf_identity ms=187.169
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.080
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=570.063
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=5480.310
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=1.298
+GITVAULT_BENCH phase=preflight.total ms=6057.601
+GITVAULT_BENCH phase=read.path_resolution ms=3585.669
+GITVAULT_BENCH phase=read.blob_fetch ms=636.232
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.215
+
+scenario=ycsb-a operation=read dataset_files=10 sequence=66 returncode=0 total_ms=11262.570
+GITVAULT_BENCH phase=auth.kdf_identity ms=185.227
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.102
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=1753.667
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2378.490
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=1.296
+GITVAULT_BENCH phase=preflight.total ms=4139.690
+GITVAULT_BENCH phase=read.path_resolution ms=4990.957
+GITVAULT_BENCH phase=read.blob_fetch ms=641.275
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.213
+
+scenario=ycsb-a operation=update dataset_files=10 sequence=67 returncode=0 total_ms=23672.520
+
+Uploading Blob objects: 1/1 (100.0%)commit=9c1aac53c9fd7bfb47358ce345220eab4b723227535c32af1b8a2c5e7a16fad1
+GITVAULT_BENCH phase=auth.kdf_identity ms=183.987
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.062
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=526.883
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2401.942
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.725
+GITVAULT_BENCH phase=write.preflight ms=2935.876
+
+Uploading Tree objects... hash=71ca0b24241d1f9c535978bc071db9c526a7f790e9c89d26067ab9147ec2fe84 | size: 85 bytes
+
+Uploading Tree objects... hash=9617c45717e8d42795669eec2dca1b7398723bc0efa0b3a5b688b8127eb6df34 | size: 103 bytes
+
+Uploading Tree objects... hash=1c5ad97f950ba597b5d68812afeb1e2c11565e3c7c230df505b7a5515450c6b6 | size: 56 bytes
+
+Uploading Tree objects... hash=3d04618e20a0632a7d9e4ba674c115c4de4ae426e14375a00d28459aea258014 | size: 69 bytes
+GITVAULT_BENCH phase=write.object_prepare_upload ms=9007.060
+GITVAULT_BENCH phase=write.head_journal ms=2.644
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.264
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=438.117
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2227.277
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=1.002
+GITVAULT_BENCH phase=commit.cloud_head_recheck ms=381.848
+GITVAULT_BENCH phase=commit.dropbox_cas ms=866.145
+GITVAULT_BENCH phase=commit.dropbox_readback ms=425.628
+GITVAULT_BENCH phase=commit.checkpoint_create_journal ms=2.439
+GITVAULT_BENCH phase=commit.checkpoint_publish_w2 ms=2394.097
+GITVAULT_BENCH phase=commit.local_finalize ms=4.083
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=602.299
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2249.355
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.600
+GITVAULT_BENCH phase=write.cas_checkpoint_finalize ms=9605.471
+
+scenario=cleanup operation=destroy dataset_files=0 sequence=68 returncode=0 total_ms=1463.544
+Warning: 'destroy' will permanently remove:
+  local metadata: /Users/dobshn/.gitvault/gitvault-load-20260816172443-2cd7f5-10
+  remote Dropbox folder: /gitvault-load-20260816172443-2cd7f5-10
+
+Proceed? (y/N): Remote vault folder deleted.
+Local vault metadata deleted.
+

@@ -1,0 +1,11 @@
+scenario,operation,dataset_files,file_size_bytes,sequence,total_ms,success,return_code,error_class
+scale-1,init,1,8192,1,15410.245,1,0,
+scale-1,status,1,8192,2,4474.492,1,0,
+scale-1,list,1,8192,3,6427.069,1,0,
+scale-1,tree,1,8192,4,9733.793,1,0,
+scale-1,cat-sample-1,1,8192,5,10284.952,1,0,
+scale-1,quick-scan,1,8192,6,10336.804,1,0,
+scale-1,deep-scan,1,8192,7,11496.387,1,0,
+ycsb-c,read,1,8192,8,10323.385,1,0,
+ycsb-c,read,1,8192,9,10048.21,1,0,
+cleanup,destroy,0,8192,10,1154.058,1,0,

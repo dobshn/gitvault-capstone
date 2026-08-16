@@ -72,6 +72,14 @@ target_link_libraries(gitvault_checkpoint_detection_benchmark PRIVATE
 
 include(CTest)
 if(BUILD_TESTING)
+  add_executable(gitvault_dropbox_retry_tests
+    tests/dropbox_retry_test.cpp
+    src/dropbox_retry.cpp
+  )
+  target_include_directories(gitvault_dropbox_retry_tests PRIVATE src)
+  add_test(NAME gitvault_dropbox_retry_tests
+    COMMAND gitvault_dropbox_retry_tests)
+
   add_executable(gitvault_vector_clock_tests
     tests/vector_clock_test.cpp
     src/vector_clock.cpp
@@ -200,6 +208,7 @@ if(BUILD_TESTING)
     src/anchor_state_machine.cpp
     src/checkpoint_state_machine.cpp
     src/anchor_trust_store.cpp
+    src/dropbox_retry.cpp
     src/dropbox_storage.cpp
     src/format.cpp
     src/nostr_event.cpp

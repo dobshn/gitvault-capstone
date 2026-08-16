@@ -1,0 +1,57 @@
+{
+    "params": {
+        "host_set": "localhost",
+        "launch_by_daemon": false,
+        "version": "3.2",
+        "top": "/var/folders/dv/6qqlc4qd201cxqrq7nd63qcm0000gn/T/gitvault-load-uj38pljr/scale-10",
+        "operation": "create",
+        "files_per_thread": 10,
+        "threads": 1,
+        "file_size": 256,
+        "file_size_distr": -1,
+        "files_per_dir": 10,
+        "share_dir": "N",
+        "fname_prefix": "",
+        "fname_suffix": "",
+        "hash_to_dir": "N",
+        "fsync_after_modify": "N",
+        "pause_between_files": "0",
+        "auto_pause": "False",
+        "cleanup_delay_usec_per_file": "0",
+        "finish_all_requests": "Y",
+        "stonewall": "Y",
+        "verify_read": "Y",
+        "xattr_size": "0",
+        "xattr_count": "0",
+        "permute_host_dirs": "N",
+        "network_sync_dir": "/var/folders/dv/6qqlc4qd201cxqrq7nd63qcm0000gn/T/gitvault-load-uj38pljr/scale-10/network_shared",
+        "min_directories_per_sec": 50,
+        "total_hosts": 1,
+        "startup_timeout": 3,
+        "host_timeout": 3
+    },
+    "results": {
+        "elapsed": 0.007870912551879883,
+        "files": 10,
+        "records": 10,
+        "filesPerSec": 1270.50071184079,
+        "IOPS": 1270.50071184079,
+        "MiBps": 317.6251779601975,
+        "thread": {
+            "00": {
+                "elapsed": 0.007870912551879883,
+                "files": 10,
+                "records": 10,
+                "filesPerSec": 1270.50071184079,
+                "IOPS": 1270.50071184079,
+                "MiBps": 317.6251779601975
+            }
+        },
+        "totalhreads": 1,
+        "totalDataGB": 0.00244140625,
+        "pctFilesDone": 100.0,
+        "startTime": 1786902853.1898398,
+        "status": "Undefined error: 0",
+        "date": "2026-08-16T17:54:13.000Z"
+    }
+}

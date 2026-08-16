@@ -1,0 +1,582 @@
+scenario=scale-1 operation=smallfile-create returncode=0 total_ms=3630.454
+do not need pause between files for single-threaded workload
+changing --finish to true for op type create
+                                 version : 3.2
+                           hosts in test : None
+                        launch by daemon : False
+                   top test directory(s) : ['/var/folders/dv/6qqlc4qd201cxqrq7nd63qcm0000gn/T/gitvault-load-2hrqntoq/scale-1']
+                               operation : create
+                            files/thread : 1
+                                 threads : 1
+           record size (KB, 0 = maximum) : 0
+                          file size (KB) : 8
+                  file size distribution : fixed
+                           files per dir : 10
+                            dirs per dir : 10
+              threads share directories? : N
+                         filename prefix : 
+                         filename suffix : 
+             hash file number into dir.? : N
+                     fsync after modify? : N
+                         incompressible? : Y
+          pause between files (microsec) : 0
+                             auto-pause? : N
+ delay after cleanup per file (microsec) : 0
+             minimum directories per sec : 50
+                             total hosts : 1
+                    finish all requests? : Y
+                              stonewall? : N
+                 measure response times? : N
+                            verify read? : Y
+                                verbose? : N
+                          log to stderr? : N
+host = MacBook-Pro-14.local,thr = 00,elapsed = 0.0015430450439453125,files = 1,records = 1,status = ok
+total threads = 1
+total files = 1
+total IOPS = 648
+total data =     0.000 GiB
+100.00% of requested files processed, warning threshold is  70.00%
+elapsed time =     0.002
+files/sec = 648.069221
+IOPS = 648.069221
+MiB/sec = 5.063041
+
+scenario=scale-1 operation=init dataset_files=1 sequence=1 returncode=0 total_ms=15857.041
+initializing store at /gitvault-load-20260816171903-641d63-1...
+
+Uploading Blob objects: 1/1 (100.0%)
+commit=9b1e61a60a3f143cc5b18f8b1c3d96746e4eaf7570a10ea2971d151e521959eb
+genesis=ad738d8c4aba0a1fbf86ba108ab6b9b265478b60a6669d49f9dce9f22a08cc8c
+GITVAULT_BENCH phase=auth.kdf_identity ms=1181.325
+
+Uploading Tree objects... hash=65c6379927b6a136088f0aa92b7b1f0087ae7df5f46fe31f4d2192ca16ce3c1b | size: 84 bytes
+
+Uploading Tree objects... hash=1f0c07126ce5cbc5e9f27a4cf8d11ffeca6aaf497cd192adcc0974c1f82192ba | size: 5 bytes
+
+Uploading Tree objects... hash=c33018987d37896c502956e7abfd049333d1ca76fe9a1e99f5b6a36308cda791 | size: 103 bytes
+
+Uploading Tree objects... hash=6ec4d2ad6aee5c3ab15d6e3335d8893b8d34dd77fe6e135e4cb5339749c8dfce | size: 56 bytes
+
+Uploading Tree objects... hash=b4314e7ef7838b843aa8a86c5e88e79e203e5b3413d770928ac519d542f3a83c | size: 69 bytes
+GITVAULT_BENCH phase=init.cloud_head_fetch ms=487.805
+GITVAULT_BENCH phase=init.genesis_publish_w2 ms=2742.068
+GITVAULT_BENCH phase=init.checkpoint_publish_w2 ms=2497.445
+
+scenario=scale-1 operation=status dataset_files=1 sequence=2 returncode=0 total_ms=4622.065
+L=9b1e61a60a3f143cc5b18f8b1c3d96746e4eaf7570a10ea2971d151e521959eb
+C=9b1e61a60a3f143cc5b18f8b1c3d96746e4eaf7570a10ea2971d151e521959eb
+N=9b1e61a60a3f143cc5b18f8b1c3d96746e4eaf7570a10ea2971d151e521959eb
+clock_L={}
+clock_C={}
+clock_N={}
+relation_L_C=EQUAL
+relation_C_N=EQUAL
+relation_L_N=EQUAL
+cloud_revision=016592d40daea6500000002948d8a40
+state=CONSISTENT
+reason=NONE
+action=NONE
+detail=local, Dropbox, and signed vector checkpoints agree
+relay=wss://relay.damus.io TRANSPORT_ERROR latency_ms=944 The WebSocket handshake was declined by the remote peer [boost.beast.websocket:20 at /opt/homebrew/include/boost/beast/websocket/impl/stream_impl.hpp:657:40 in function 'operator()']
+relay=wss://relay.primal.net EOSE latency_ms=1871
+relay=wss://relay.ditto.pub EOSE latency_ms=2470
+pending_operation=none
+GITVAULT_BENCH phase=auth.kdf_identity ms=182.047
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.065
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=618.402
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2471.264
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.791
+GITVAULT_BENCH phase=preflight.total ms=3097.090
+
+scenario=scale-1 operation=list dataset_files=1 sequence=3 returncode=0 total_ms=7575.797
+GITVAULT_BENCH phase=auth.kdf_identity ms=199.432
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.089
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=535.941
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2393.131
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.429
+GITVAULT_BENCH phase=preflight.total ms=2934.178
+
+scenario=scale-1 operation=tree dataset_files=1 sequence=4 returncode=0 total_ms=11186.535
+GITVAULT_BENCH phase=auth.kdf_identity ms=180.308
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.071
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=1600.761
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2274.194
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.740
+GITVAULT_BENCH phase=preflight.total ms=3883.441
+
+scenario=scale-1 operation=cat-sample-1 dataset_files=1 sequence=5 returncode=0 total_ms=9905.915
+GITVAULT_BENCH phase=auth.kdf_identity ms=185.793
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.070
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=473.970
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2376.114
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.714
+GITVAULT_BENCH phase=preflight.total ms=2856.783
+GITVAULT_BENCH phase=read.path_resolution ms=4893.820
+GITVAULT_BENCH phase=read.blob_fetch ms=646.708
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.190
+
+scenario=scale-1 operation=quick-scan dataset_files=1 sequence=6 returncode=0 total_ms=9781.898
+GITVAULT_BENCH phase=auth.kdf_identity ms=181.929
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.069
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=449.933
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2402.087
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.848
+GITVAULT_BENCH phase=preflight.total ms=2859.588
+
+scenario=scale-1 operation=deep-scan dataset_files=1 sequence=7 returncode=0 total_ms=10528.080
+GITVAULT_BENCH phase=auth.kdf_identity ms=195.549
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.073
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=514.675
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2276.551
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.765
+GITVAULT_BENCH phase=preflight.total ms=2797.610
+
+scenario=scale-2 operation=smallfile-create returncode=0 total_ms=3654.430
+do not need pause between files for single-threaded workload
+changing --finish to true for op type create
+                                 version : 3.2
+                           hosts in test : None
+                        launch by daemon : False
+                   top test directory(s) : ['/var/folders/dv/6qqlc4qd201cxqrq7nd63qcm0000gn/T/gitvault-load-2hrqntoq/scale-2']
+                               operation : create
+                            files/thread : 2
+                                 threads : 1
+           record size (KB, 0 = maximum) : 0
+                          file size (KB) : 8
+                  file size distribution : fixed
+                           files per dir : 10
+                            dirs per dir : 10
+              threads share directories? : N
+                         filename prefix : 
+                         filename suffix : 
+             hash file number into dir.? : N
+                     fsync after modify? : N
+                         incompressible? : Y
+          pause between files (microsec) : 0
+                             auto-pause? : N
+ delay after cleanup per file (microsec) : 0
+             minimum directories per sec : 50
+                             total hosts : 1
+                    finish all requests? : Y
+                              stonewall? : N
+                 measure response times? : N
+                            verify read? : Y
+                                verbose? : N
+                          log to stderr? : N
+host = MacBook-Pro-14.local,thr = 00,elapsed = 0.004583835601806641,files = 2,records = 2,status = ok
+total threads = 1
+total files = 2
+total IOPS = 436
+total data =     0.000 GiB
+100.00% of requested files processed, warning threshold is  70.00%
+elapsed time =     0.005
+files/sec = 436.315822
+IOPS = 436.315822
+MiB/sec = 3.408717
+
+scenario=scale-2 operation=init dataset_files=2 sequence=8 returncode=0 total_ms=16469.349
+initializing store at /gitvault-load-20260816171903-641d63-2...
+
+Uploading Blob objects: 1/2 (50.0%)
+Uploading Blob objects: 2/2 (100.0%)
+commit=0895f745c476bff7a792882a1fb04c7fbd2b11c7ad1b9e3ccffa2e3960beb160
+genesis=9fd8d956e474f0a982e9b52075acd116d50928f6d8d217bed06903a1fba1ec0c
+GITVAULT_BENCH phase=auth.kdf_identity ms=1113.467
+
+Uploading Tree objects... hash=8c1e05d9c5c3889d2c9fc30017093d129918eec2d07810a473d85471564e60d3 | size: 163 bytes
+
+Uploading Tree objects... hash=faeb41dc70124a2f41de2670cd31c0560b1571b0b0b78d6660305c33b84759e3 | size: 5 bytes
+
+Uploading Tree objects... hash=c874f6bdeb69963955ed10362507a46c93ff50679763c963a2abb9615a3bf756 | size: 103 bytes
+
+Uploading Tree objects... hash=2fdac8db14915be24553b2a67dbfabcdb4078a33f31a6337d9529db36beade3c | size: 56 bytes
+
+Uploading Tree objects... hash=b127f32741328284cd57398c00d19f62e9b857382f827e02cd7562628c25ef2d | size: 69 bytes
+GITVAULT_BENCH phase=init.cloud_head_fetch ms=768.632
+GITVAULT_BENCH phase=init.genesis_publish_w2 ms=2331.366
+GITVAULT_BENCH phase=init.checkpoint_publish_w2 ms=2380.877
+
+scenario=scale-2 operation=status dataset_files=2 sequence=9 returncode=0 total_ms=7153.143
+L=0895f745c476bff7a792882a1fb04c7fbd2b11c7ad1b9e3ccffa2e3960beb160
+C=0895f745c476bff7a792882a1fb04c7fbd2b11c7ad1b9e3ccffa2e3960beb160
+N=0895f745c476bff7a792882a1fb04c7fbd2b11c7ad1b9e3ccffa2e3960beb160
+clock_L={}
+clock_C={}
+clock_N={}
+relation_L_C=EQUAL
+relation_C_N=EQUAL
+relation_L_N=EQUAL
+cloud_revision=016592d45445a3100000002948d8a40
+state=CONSISTENT
+reason=NONE
+action=NONE
+detail=local, Dropbox, and signed vector checkpoints agree
+relay=wss://relay.damus.io EOSE latency_ms=1996
+relay=wss://relay.primal.net EOSE latency_ms=1669
+relay=wss://relay.ditto.pub EOSE latency_ms=3662
+pending_operation=none
+GITVAULT_BENCH phase=auth.kdf_identity ms=201.698
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.076
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=1714.627
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=3662.784
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.795
+GITVAULT_BENCH phase=preflight.total ms=5386.849
+
+scenario=scale-2 operation=list dataset_files=2 sequence=10 returncode=0 total_ms=6149.067
+GITVAULT_BENCH phase=auth.kdf_identity ms=184.175
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.071
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=542.433
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2330.220
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.709
+GITVAULT_BENCH phase=preflight.total ms=2878.789
+
+scenario=scale-2 operation=tree dataset_files=2 sequence=11 returncode=0 total_ms=10670.373
+GITVAULT_BENCH phase=auth.kdf_identity ms=196.044
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.070
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=467.452
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2394.017
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.714
+GITVAULT_BENCH phase=preflight.total ms=2870.065
+
+scenario=scale-2 operation=cat-sample-1 dataset_files=2 sequence=12 returncode=0 total_ms=9806.703
+GITVAULT_BENCH phase=auth.kdf_identity ms=181.825
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.057
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=527.325
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2386.475
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.484
+GITVAULT_BENCH phase=preflight.total ms=2918.996
+GITVAULT_BENCH phase=read.path_resolution ms=4658.390
+GITVAULT_BENCH phase=read.blob_fetch ms=717.866
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.164
+
+scenario=scale-2 operation=quick-scan dataset_files=2 sequence=13 returncode=0 total_ms=9991.423
+GITVAULT_BENCH phase=auth.kdf_identity ms=185.797
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.072
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=546.800
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2361.080
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.736
+GITVAULT_BENCH phase=preflight.total ms=2914.325
+
+scenario=scale-2 operation=deep-scan dataset_files=2 sequence=14 returncode=0 total_ms=12517.677
+GITVAULT_BENCH phase=auth.kdf_identity ms=187.249
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.072
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=585.798
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2277.259
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.819
+GITVAULT_BENCH phase=preflight.total ms=2869.243
+
+scenario=scale-5 operation=smallfile-create returncode=0 total_ms=3643.561
+do not need pause between files for single-threaded workload
+changing --finish to true for op type create
+                                 version : 3.2
+                           hosts in test : None
+                        launch by daemon : False
+                   top test directory(s) : ['/var/folders/dv/6qqlc4qd201cxqrq7nd63qcm0000gn/T/gitvault-load-2hrqntoq/scale-5']
+                               operation : create
+                            files/thread : 5
+                                 threads : 1
+           record size (KB, 0 = maximum) : 0
+                          file size (KB) : 8
+                  file size distribution : fixed
+                           files per dir : 10
+                            dirs per dir : 10
+              threads share directories? : N
+                         filename prefix : 
+                         filename suffix : 
+             hash file number into dir.? : N
+                     fsync after modify? : N
+                         incompressible? : Y
+          pause between files (microsec) : 0
+                             auto-pause? : N
+ delay after cleanup per file (microsec) : 0
+             minimum directories per sec : 50
+                             total hosts : 1
+                    finish all requests? : Y
+                              stonewall? : N
+                 measure response times? : N
+                            verify read? : Y
+                                verbose? : N
+                          log to stderr? : N
+host = MacBook-Pro-14.local,thr = 00,elapsed = 0.0021638870239257812,files = 5,records = 5,status = ok
+total threads = 1
+total files = 5
+total IOPS = 2310
+total data =     0.000 GiB
+100.00% of requested files processed, warning threshold is  70.00%
+elapsed time =     0.002
+files/sec = 2310.656677
+IOPS = 2310.656677
+MiB/sec = 18.052005
+
+scenario=scale-5 operation=init dataset_files=5 sequence=15 returncode=0 total_ms=17691.789
+initializing store at /gitvault-load-20260816171903-641d63-5...
+
+Uploading Blob objects: 1/5 (20.0%)
+Uploading Blob objects: 2/5 (40.0%)
+Uploading Blob objects: 3/5 (60.0%)
+Uploading Blob objects: 4/5 (80.0%)
+Uploading Blob objects: 5/5 (100.0%)
+commit=5104ba92b7ece5e284dd7d72103298a6bbd536d1f4bc9021e8d82eacfe8e85a3
+genesis=12b9bd23e3fbce08c8313c8f76de4b8d42f158c2ae9542753d525cdf5d09c8ee
+GITVAULT_BENCH phase=auth.kdf_identity ms=1231.274
+
+Uploading Tree objects... hash=bf0d0de8eea858fe1bd7b58848914e2357bb4204c4a9dbb809ad989f98a85dcd | size: 400 bytes
+
+Conditional upload rate limited; retrying after 1s (attempt 1/5)
+
+Uploading Tree objects... hash=e2e60e1e4a3cf09a84584273e2ca1c5d3113782b10441e1f79e765fd7608ad8e | size: 5 bytes
+
+Uploading Tree objects... hash=ef48fb30cd435cf00222ac94cb16d4f1c43d187c49f07cd25537a4a53edbad46 | size: 103 bytes
+
+Uploading Tree objects... hash=07f76c5e5a66a94ba678f83524612d0804383faa750ddb00768c95b7714b54b2 | size: 56 bytes
+
+Uploading Tree objects... hash=dc8fc640c6ccdbed7240344ffd23ef319121f2c0bf794cbc2d82857bab2986d3 | size: 69 bytes
+GITVAULT_BENCH phase=init.cloud_head_fetch ms=798.731
+GITVAULT_BENCH phase=init.genesis_publish_w2 ms=2362.687
+GITVAULT_BENCH phase=init.checkpoint_publish_w2 ms=2571.191
+
+scenario=scale-5 operation=status dataset_files=5 sequence=16 returncode=0 total_ms=4603.385
+L=5104ba92b7ece5e284dd7d72103298a6bbd536d1f4bc9021e8d82eacfe8e85a3
+C=5104ba92b7ece5e284dd7d72103298a6bbd536d1f4bc9021e8d82eacfe8e85a3
+N=5104ba92b7ece5e284dd7d72103298a6bbd536d1f4bc9021e8d82eacfe8e85a3
+clock_L={}
+clock_C={}
+clock_N={}
+relation_L_C=EQUAL
+relation_C_N=EQUAL
+relation_L_N=EQUAL
+cloud_revision=016592d49e2758700000002948d8a40
+state=CONSISTENT
+reason=NONE
+action=NONE
+detail=local, Dropbox, and signed vector checkpoints agree
+relay=wss://relay.damus.io EOSE latency_ms=1740
+relay=wss://relay.primal.net EOSE latency_ms=1675
+relay=wss://relay.ditto.pub EOSE latency_ms=2304
+pending_operation=none
+GITVAULT_BENCH phase=auth.kdf_identity ms=178.380
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.074
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=555.968
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2305.288
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.730
+GITVAULT_BENCH phase=preflight.total ms=2867.716
+
+scenario=scale-5 operation=list dataset_files=5 sequence=17 returncode=0 total_ms=6655.955
+GITVAULT_BENCH phase=auth.kdf_identity ms=198.714
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.071
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=455.053
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2330.420
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.738
+GITVAULT_BENCH phase=preflight.total ms=2791.255
+
+scenario=scale-5 operation=tree dataset_files=5 sequence=18 returncode=0 total_ms=9987.129
+GITVAULT_BENCH phase=auth.kdf_identity ms=175.745
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.068
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=596.538
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2375.377
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.851
+GITVAULT_BENCH phase=preflight.total ms=2978.319
+
+scenario=scale-5 operation=cat-sample-1 dataset_files=5 sequence=19 returncode=0 total_ms=10484.780
+GITVAULT_BENCH phase=auth.kdf_identity ms=189.114
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.074
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=603.290
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2547.191
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.739
+GITVAULT_BENCH phase=preflight.total ms=3158.019
+GITVAULT_BENCH phase=read.path_resolution ms=5235.096
+GITVAULT_BENCH phase=read.blob_fetch ms=605.483
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.203
+
+scenario=scale-5 operation=quick-scan dataset_files=5 sequence=20 returncode=0 total_ms=10928.442
+GITVAULT_BENCH phase=auth.kdf_identity ms=175.414
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.067
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=593.235
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2475.997
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.723
+GITVAULT_BENCH phase=preflight.total ms=3075.876
+
+scenario=scale-5 operation=deep-scan dataset_files=5 sequence=21 returncode=0 total_ms=15342.766
+GITVAULT_BENCH phase=auth.kdf_identity ms=182.413
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.089
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=646.626
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2247.789
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.636
+GITVAULT_BENCH phase=preflight.total ms=2900.569
+
+scenario=scale-10 operation=smallfile-create returncode=0 total_ms=3645.406
+do not need pause between files for single-threaded workload
+changing --finish to true for op type create
+                                 version : 3.2
+                           hosts in test : None
+                        launch by daemon : False
+                   top test directory(s) : ['/var/folders/dv/6qqlc4qd201cxqrq7nd63qcm0000gn/T/gitvault-load-2hrqntoq/scale-10']
+                               operation : create
+                            files/thread : 10
+                                 threads : 1
+           record size (KB, 0 = maximum) : 0
+                          file size (KB) : 8
+                  file size distribution : fixed
+                           files per dir : 10
+                            dirs per dir : 10
+              threads share directories? : N
+                         filename prefix : 
+                         filename suffix : 
+             hash file number into dir.? : N
+                     fsync after modify? : N
+                         incompressible? : Y
+          pause between files (microsec) : 0
+                             auto-pause? : N
+ delay after cleanup per file (microsec) : 0
+             minimum directories per sec : 50
+                             total hosts : 1
+                    finish all requests? : Y
+                              stonewall? : Y
+                 measure response times? : N
+                            verify read? : Y
+                                verbose? : N
+                          log to stderr? : N
+host = MacBook-Pro-14.local,thr = 00,elapsed = 0.005621910095214844,files = 10,records = 10,status = ok
+total threads = 1
+total files = 10
+total IOPS = 1778
+total data =     0.000 GiB
+100.00% of requested files processed, warning threshold is  70.00%
+elapsed time =     0.006
+files/sec = 1778.754877
+IOPS = 1778.754877
+MiB/sec = 13.896522
+
+scenario=scale-10 operation=init dataset_files=10 sequence=22 returncode=0 total_ms=19058.530
+initializing store at /gitvault-load-20260816171903-641d63-10...
+
+Uploading Blob objects: 1/9 (11.1%)
+Uploading Blob objects: 2/9 (22.2%)
+Uploading Blob objects: 3/9 (33.3%)
+Uploading Blob objects: 4/9 (44.4%)
+Uploading Blob objects: 5/9 (55.6%)
+Uploading Blob objects: 6/9 (66.7%)
+Uploading Blob objects: 7/9 (77.8%)
+Uploading Blob objects: 8/9 (88.9%)
+Uploading Blob objects: 9/9 (100.0%)
+Uploading Blob objects: 10/10 (100.0%)
+commit=02f14e41151a218cf8a6014ce4184f8d2890a62bf6715c0d36b031857f351152
+genesis=2cfee1a9bed1f280d9803d416c09db7714dade6b25965267a63ce3e325ec2839
+GITVAULT_BENCH phase=auth.kdf_identity ms=1170.877
+
+Uploading Tree objects... hash=b52727bae676a6f005630a7d06e7e1c1b7c28dd03e5f3ce78e2881ae5ea64c9a | size: 716 bytes
+
+Conditional upload rate limited; retrying after 1s (attempt 1/5)
+
+Uploading Tree objects... hash=5738591de9b5e3f264a3db85c8b5e58c31fdd947cffd82db8aebd593a7b627f5 | size: 85 bytes
+
+Uploading Tree objects... hash=21ee65e384d1c517ce37894421a5e9655601958057a140eca9631b3fba778909 | size: 103 bytes
+
+Uploading Tree objects... hash=008413bf198ba01d58a6836cc7c240fd815b566d9c68259c289fcf36cb9173b5 | size: 56 bytes
+
+Uploading Tree objects... hash=c918f2d55fbbbeac54fa665cb3f6cf748f1ec9a57103a6c6835c802413e8d965 | size: 69 bytes
+GITVAULT_BENCH phase=init.cloud_head_fetch ms=721.630
+GITVAULT_BENCH phase=init.genesis_publish_w2 ms=2477.855
+GITVAULT_BENCH phase=init.checkpoint_publish_w2 ms=2405.957
+
+scenario=scale-10 operation=status dataset_files=10 sequence=23 returncode=0 total_ms=4897.933
+L=02f14e41151a218cf8a6014ce4184f8d2890a62bf6715c0d36b031857f351152
+C=02f14e41151a218cf8a6014ce4184f8d2890a62bf6715c0d36b031857f351152
+N=02f14e41151a218cf8a6014ce4184f8d2890a62bf6715c0d36b031857f351152
+clock_L={}
+clock_C={}
+clock_N={}
+relation_L_C=EQUAL
+relation_C_N=EQUAL
+relation_L_N=EQUAL
+cloud_revision=016592d4eb2c75900000002948d8a40
+state=CONSISTENT
+reason=NONE
+action=NONE
+detail=local, Dropbox, and signed vector checkpoints agree
+relay=wss://relay.damus.io EOSE latency_ms=1942
+relay=wss://relay.primal.net EOSE latency_ms=1746
+relay=wss://relay.ditto.pub EOSE latency_ms=2340
+pending_operation=none
+GITVAULT_BENCH phase=auth.kdf_identity ms=196.626
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.067
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=458.393
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2340.735
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.726
+GITVAULT_BENCH phase=preflight.total ms=2805.095
+
+scenario=scale-10 operation=list dataset_files=10 sequence=24 returncode=0 total_ms=7856.418
+GITVAULT_BENCH phase=auth.kdf_identity ms=197.368
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.065
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=534.614
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2310.306
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.749
+GITVAULT_BENCH phase=preflight.total ms=2851.601
+
+scenario=scale-10 operation=tree dataset_files=10 sequence=25 returncode=0 total_ms=8911.526
+GITVAULT_BENCH phase=auth.kdf_identity ms=187.253
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.081
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=637.160
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2339.232
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.411
+GITVAULT_BENCH phase=preflight.total ms=2981.339
+
+scenario=scale-10 operation=cat-sample-1 dataset_files=10 sequence=26 returncode=0 total_ms=10816.769
+GITVAULT_BENCH phase=auth.kdf_identity ms=192.725
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.069
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=626.393
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2507.311
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.739
+GITVAULT_BENCH phase=preflight.total ms=3140.349
+GITVAULT_BENCH phase=read.path_resolution ms=5358.498
+GITVAULT_BENCH phase=read.blob_fetch ms=683.711
+GITVAULT_BENCH phase=read.blob_decrypt_verify ms=0.218
+
+scenario=scale-10 operation=quick-scan dataset_files=10 sequence=27 returncode=0 total_ms=12823.068
+GITVAULT_BENCH phase=auth.kdf_identity ms=186.143
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.073
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=1746.361
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2423.111
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.738
+GITVAULT_BENCH phase=preflight.total ms=4176.080
+
+scenario=scale-10 operation=deep-scan dataset_files=10 sequence=28 returncode=0 total_ms=20457.104
+GITVAULT_BENCH phase=auth.kdf_identity ms=193.378
+GITVAULT_BENCH phase=preflight.outbox_replay ms=0.074
+GITVAULT_BENCH phase=preflight.cloud_head_fetch ms=507.743
+GITVAULT_BENCH phase=preflight.relay_fetch_r2 ms=2264.285
+GITVAULT_BENCH phase=preflight.checkpoint_evaluation ms=0.713
+GITVAULT_BENCH phase=preflight.total ms=2778.538
+
+scenario=cleanup operation=destroy dataset_files=0 sequence=29 returncode=0 total_ms=1448.017
+Warning: 'destroy' will permanently remove:
+  local metadata: /Users/dobshn/.gitvault/gitvault-load-20260816171903-641d63-1
+  remote Dropbox folder: /gitvault-load-20260816171903-641d63-1
+
+Proceed? (y/N): Remote vault folder deleted.
+Local vault metadata deleted.
+
+scenario=cleanup operation=destroy dataset_files=0 sequence=30 returncode=0 total_ms=1353.062
+Warning: 'destroy' will permanently remove:
+  local metadata: /Users/dobshn/.gitvault/gitvault-load-20260816171903-641d63-2
+  remote Dropbox folder: /gitvault-load-20260816171903-641d63-2
+
+Proceed? (y/N): Remote vault folder deleted.
+Local vault metadata deleted.
+
+scenario=cleanup operation=destroy dataset_files=0 sequence=31 returncode=0 total_ms=1529.181
+Warning: 'destroy' will permanently remove:
+  local metadata: /Users/dobshn/.gitvault/gitvault-load-20260816171903-641d63-5
+  remote Dropbox folder: /gitvault-load-20260816171903-641d63-5
+
+Proceed? (y/N): Remote vault folder deleted.
+Local vault metadata deleted.
+
+scenario=cleanup operation=destroy dataset_files=0 sequence=32 returncode=0 total_ms=1340.014
+Warning: 'destroy' will permanently remove:
+  local metadata: /Users/dobshn/.gitvault/gitvault-load-20260816171903-641d63-10
+  remote Dropbox folder: /gitvault-load-20260816171903-641d63-10
+
+Proceed? (y/N): Remote vault folder deleted.
+Local vault metadata deleted.
+

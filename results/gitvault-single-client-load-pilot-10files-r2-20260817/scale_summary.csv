@@ -1,0 +1,2 @@
+scenario,operation,dataset_files,n,successes,mean_ms,median_ms,p95_ms,p99_ms,min_ms,max_ms
+scale-10,init,10,1,0,9728.262,9728.262,9728.262,9728.262,9728.262,9728.262

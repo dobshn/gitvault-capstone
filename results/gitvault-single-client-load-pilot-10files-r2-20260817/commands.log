@@ -1,0 +1,75 @@
+scenario=scale-10 operation=smallfile-create returncode=0 total_ms=3634.055
+do not need pause between files for single-threaded workload
+changing --finish to true for op type create
+                                 version : 3.2
+                           hosts in test : None
+                        launch by daemon : False
+                   top test directory(s) : ['/var/folders/dv/6qqlc4qd201cxqrq7nd63qcm0000gn/T/gitvault-load-rvg2skbc/scale-10']
+                               operation : create
+                            files/thread : 10
+                                 threads : 1
+           record size (KB, 0 = maximum) : 0
+                          file size (KB) : 8
+                  file size distribution : fixed
+                           files per dir : 10
+                            dirs per dir : 10
+              threads share directories? : N
+                         filename prefix : 
+                         filename suffix : 
+             hash file number into dir.? : N
+                     fsync after modify? : N
+                         incompressible? : Y
+          pause between files (microsec) : 0
+                             auto-pause? : N
+ delay after cleanup per file (microsec) : 0
+             minimum directories per sec : 50
+                             total hosts : 1
+                    finish all requests? : Y
+                              stonewall? : Y
+                 measure response times? : N
+                            verify read? : Y
+                                verbose? : N
+                          log to stderr? : N
+host = MacBook-Pro-14.local,thr = 00,elapsed = 0.004775047302246094,files = 10,records = 10,status = ok
+total threads = 1
+total files = 10
+total IOPS = 2094
+total data =     0.000 GiB
+100.00% of requested files processed, warning threshold is  70.00%
+elapsed time =     0.005
+files/sec = 2094.220092
+IOPS = 2094.220092
+MiB/sec = 16.361094
+
+scenario=scale-10 operation=init dataset_files=10 sequence=1 returncode=1 total_ms=9728.262
+initializing store at /gitvault-load-20260816164235-6a64b1-10...
+
+Uploading Blob objects: 1/9 (11.1%)
+Uploading Blob objects: 2/10 (20.0%)
+Uploading Blob objects: 3/10 (30.0%)
+Uploading Blob objects: 4/10 (40.0%)
+Uploading Blob objects: 5/10 (50.0%)
+Uploading Blob objects: 6/10 (60.0%)
+Uploading Blob objects: 7/10 (70.0%)
+Uploading Blob objects: 8/10 (80.0%)
+GITVAULT_BENCH phase=auth.kdf_identity ms=1329.332
+
+Uploading Tree objects... hash=eff10b2d1f803d24c287a271cbdb4bd9fecc9d81dbb4acb78cc5f07bb4b9303f | size: 716 bytes
+
+Uploading Tree objects... hash=0314b40b21e3b6a5fd6f7f68490e8db66a3e4f85fe56a14aed011c500ac28833 | size: 85 bytes
+
+Uploading Tree objects... hash=eb687cb40547926836338ae09fe06cbd4dcea9a863aa0adc6b1cc49c76f6ae3b | size: 103 bytes
+
+Uploading Tree objects... hash=d36cdf871fcde7fac3c799573bb686f31d73440d532b2a8b94ada6b3c6e0cd30 | size: 56 bytes
+
+Uploading Tree objects... hash=b5f51f300a337f0f7d9b5063643bf3514e0a8362065fb3baf3932d2cd0e5e657 | size: 69 bytes
+error: Conditional upload /2/files/upload failed. HTTP 429: {"error_summary": "too_many_write_operations/..", "error": {"reason": {".tag": "too_many_write_operations"}, "retry_after": 1}}
+
+scenario=cleanup operation=destroy dataset_files=0 sequence=2 returncode=0 total_ms=1329.342
+Warning: 'destroy' will permanently remove:
+  local metadata: /Users/dobshn/.gitvault/gitvault-load-20260816164235-6a64b1-10
+  remote Dropbox folder: /gitvault-load-20260816164235-6a64b1-10
+
+Proceed? (y/N): Remote vault folder deleted.
+Local vault metadata deleted.
+

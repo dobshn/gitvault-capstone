@@ -1,0 +1,2 @@
+scenario,operation,dataset_files,phase,n,mean_ms,median_ms,p95_ms,p99_ms
+scale-10,init,10,auth.kdf_identity,1,1329.332,1329.332,1329.332,1329.332
