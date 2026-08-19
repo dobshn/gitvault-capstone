@@ -150,8 +150,12 @@ namespace {
 
     void require_safe_read(AnchorCoordinator& coordinator) {
       const AnchorCoordinatorStatus status = coordinator.preflight(true);
+      if (status.decision.state == AnchorClientState::LocalCatchUp) {
+        throw std::runtime_error(
+            "local Vault state is behind a verified remote checkpoint; "
+            "run \"gitvault sync <vault_name>\" first");
+      }
       if (status.decision.state != AnchorClientState::Consistent &&
-          status.decision.state != AnchorClientState::LocalCatchUp &&
           status.decision.state != AnchorClientState::Announced &&
           status.decision.state != AnchorClientState::DegradedReadOnly) {
         throw std::runtime_error(
@@ -655,11 +659,15 @@ void Vault::execute(Command& cmd) {
       obj_store.fetch(dropbox_token, vault_name);
       VaultEngine vault_engine(obj_store, read_password(cmd));
       auto coordinator = make_anchor_coordinator(obj_store, vault_engine);
-      (void)coordinator->preflight(false);
       const AnchorCoordinatorStatus status = coordinator->preflight(false);
       if (status.relay_fetch.synchronized_count() <
               coordinator->config().read_quorum ||
           status.decision.state != AnchorClientState::Consistent) {
+        if (status.decision.state == AnchorClientState::LocalCatchUp) {
+          throw std::runtime_error(
+              "export-client found a verified remote checkpoint ahead of "
+              "the local Vault; run \"gitvault sync <vault_name>\" first");
+        }
         throw std::runtime_error(
             "export-client requires R=2 and CONSISTENT state");
       }
@@ -749,7 +757,7 @@ void Vault::execute(Command& cmd) {
             vault_engine.identity().signing_secret);
         AnchorCoordinator coordinator(
             obj_store, vault_engine, std::move(channel));
-        (void)coordinator.preflight(false);
+        (void)coordinator.synchronize();
         const AnchorCoordinatorStatus installed =
             coordinator.preflight(false);
         if (installed.relay_fetch.synchronized_count() <
@@ -775,7 +783,7 @@ void Vault::execute(Command& cmd) {
       obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
       VaultEngine vault_engine(obj_store, read_password(cmd));
       auto coordinator = make_anchor_coordinator(obj_store, vault_engine);
-      const AnchorCoordinatorStatus status = coordinator->preflight(false);
+      const AnchorCoordinatorStatus status = coordinator->synchronize();
       print_anchor_status(status);
       if (status.decision.state != AnchorClientState::Consistent &&
           status.decision.state != AnchorClientState::LocalCatchUp &&
@@ -792,7 +800,13 @@ void Vault::execute(Command& cmd) {
       obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
       VaultEngine vault_engine(obj_store, read_password(cmd));
       auto coordinator = make_anchor_coordinator(obj_store, vault_engine);
-      print_anchor_status(coordinator->preflight(true));
+      const AnchorCoordinatorStatus status = coordinator->preflight(true);
+      print_anchor_status(status);
+      if (status.decision.state == AnchorClientState::LocalCatchUp) {
+        std::cout << "hint=run gitvault sync "
+                  << normalize_vault_name(cmd.positional[0])
+                  << " to catch up\n";
+      }
     } else {
         print_usage();
     }

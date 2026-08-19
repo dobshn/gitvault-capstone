@@ -67,7 +67,7 @@ cmake --build build
 # Deep scan: verify commit/tree and re-hash all blobs
 ./build/gitvault deep-scan <vault_name>
 
-# Explain L/C/N, relay EOSE results, pending write and the decision
+# Inspect L/C/N, relay EOSE results, pending writes, and the decision (no catch-up)
 ./build/gitvault status <vault_name>
 
 # Verify relay/Dropbox state and perform only a safe catch-up/recovery
@@ -139,7 +139,7 @@ GitVault stores local state at:
 ```
 
 The refresh token file is created by `login`.
-`checkpoint.json` is the authenticated local trust anchor. HEAD V2 encrypts and authenticates the current Commit, protocol epoch, writer/operation IDs, and a sparse vector clock. GitVault compares the local trusted clock (`L`), Dropbox's revisioned HEAD clock (`C`), and the latest signed per-replica checkpoints (`N`) before every read or write. `sync` never copies Dropbox HEAD unconditionally.
+`checkpoint.json` is the authenticated local trust anchor. HEAD V2 encrypts and authenticates the current Commit, protocol epoch, writer/operation IDs, and a sparse vector clock. GitVault compares the local trusted clock (`L`), Dropbox's revisioned HEAD clock (`C`), and the latest signed per-replica checkpoints (`N`) before every read or write. `status` only inspects this state and never advances the local HEAD or checkpoint. If another command finds a verified checkpoint ahead of the local Vault, it stops and asks the user to run `sync`. `sync` never copies Dropbox HEAD unconditionally.
 Config V2 derives one 32-byte master key with PBKDF2, then uses HKDF-SHA256 labels to derive separate object-encryption, HEAD-MAC, identity-wrapping-encryption, and identity-wrapping-MAC keys.
 New vaults also generate one random secp256k1-compatible signing secret. It is encrypted and authenticated with the identity wrapping keys before being stored locally as `vault-identity.enc`; GitVault does not intentionally write the plaintext signing secret to a file.
 Password-authenticated commands reject a vault whose local identity is missing. Config V1 is unsupported. `export-client` includes exact config bytes, the wrapped Vault identity, a checkpoint, and signed evidence; it never includes a Dropbox token or plaintext password. The bootstrap file must be moved through a confidential, integrity-protected one-time channel such as a trusted USB transfer or AirDrop.

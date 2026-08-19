@@ -301,9 +301,48 @@ void test_two_clients_cas_and_frozen_components() {
   expect(after_a.clock.size() == 1,
          "first CAS adds exactly one replica component");
 
-  const AnchorCoordinatorStatus caught_up = coordinator_b.preflight(false);
+  AnchorTrustStore trust_b(store_b.trust_directory(),
+                           engine_b.trust_mac_key());
+  const AnchorHash checkpoint_before_status =
+      trust_b.load_checkpoint().accepted_head;
+  const ByteVec local_head_before_status = store_b.read_local_head();
+  const std::vector<SignedNostrEvent> witnesses_before_status =
+      trust_b.load_witnesses();
+  const AnchorCoordinatorStatus inspected = coordinator_b.preflight(false);
+  const std::vector<SignedNostrEvent> witnesses_after_status =
+      trust_b.load_witnesses();
+  const bool witnesses_unchanged =
+      witnesses_after_status.size() == witnesses_before_status.size() &&
+      !witnesses_after_status.empty() &&
+      witnesses_after_status.front().id == witnesses_before_status.front().id;
+  expect(inspected.decision.state == AnchorClientState::LocalCatchUp &&
+             trust_b.load_checkpoint().accepted_head ==
+                 checkpoint_before_status &&
+             store_b.read_local_head() == local_head_before_status &&
+             witnesses_unchanged,
+         "preflight reports catch-up without changing local trusted state");
+  expect(coordinator_b.preflight(false).decision.state ==
+             AnchorClientState::LocalCatchUp,
+         "repeated inspection remains read-only while the replica is behind");
+
+  const size_t objects_before_blocked_write = object_count(fixture.cloud);
+  bool sync_guidance = false;
+  try {
+    (void)coordinator_b.execute_write([&](const AnchorHash& base) {
+      return engine_b.prepare_mkdir("must-sync-first", base);
+    });
+  } catch (const std::runtime_error& error) {
+    sync_guidance =
+        std::string(error.what()).find("gitvault sync <vault_name>") !=
+        std::string::npos;
+  }
+  expect(sync_guidance && object_count(fixture.cloud) ==
+                              objects_before_blocked_write,
+         "a stale write is blocked with sync guidance before preparing objects");
+
+  const AnchorCoordinatorStatus caught_up = coordinator_b.synchronize();
   expect(caught_up.decision.state == AnchorClientState::LocalCatchUp,
-         "second replica safely catches up using a comparable checkpoint");
+         "sync safely catches up using a comparable checkpoint");
   expect(coordinator_b.preflight(false).decision.state ==
              AnchorClientState::Consistent,
          "second replica becomes consistent after catch-up");
@@ -316,7 +355,7 @@ void test_two_clients_cas_and_frozen_components() {
   expect(after_b.clock.size() == 2,
          "a newly writing replica adds its own vector component");
 
-  (void)coordinator_a.preflight(false);
+  (void)coordinator_a.synchronize();
   (void)coordinator_a.preflight(false);
   const size_t before_conflict = object_count(fixture.cloud);
   {
@@ -384,10 +423,15 @@ void test_checkpoint_publish_recovery_and_degraded_read() {
          "W=1 after CAS leaves a durable journal and checkpoint outbox");
 
   fixture.anchor->accepted_relay_count = 3;
-  const AnchorCoordinatorStatus recovered = coordinator.preflight(false);
+  const AnchorCoordinatorStatus pending = coordinator.preflight(false);
+  expect(trust.prepared_exists() && !trust.load_outbox().empty() &&
+             pending.prepared.has_value(),
+         "preflight reports a pending write without recovering it");
+
+  const AnchorCoordinatorStatus recovered = coordinator.synchronize();
   expect(!trust.prepared_exists() && trust.load_outbox().empty() &&
              recovered.cloud_head == trust.load_checkpoint().accepted_head,
-         "the next preflight republishes and finalizes the exact CAS result");
+         "sync republishes and finalizes the exact CAS result");
 
   fixture.anchor->synchronized_relay_count = 1;
   const AnchorCoordinatorStatus degraded = coordinator.preflight(true);

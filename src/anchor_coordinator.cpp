@@ -432,7 +432,7 @@ AnchorCoordinatorStatus AnchorCoordinator::evaluate_current(
   if (trust_.prepared_exists()) status.prepared = trust_.load_prepared();
   status.pending_outbox = trust_.load_outbox();
 
-  if (input.channel_synchronized &&
+  if (recover && input.channel_synchronized &&
       status.decision.state != AnchorClientState::Forked) {
     const std::set<AnchorHash> valid(
         status.decision.valid_observation_event_ids.begin(),
@@ -649,8 +649,16 @@ AnchorCoordinatorStatus AnchorCoordinator::preflight(
   const auto started = std::chrono::steady_clock::now();
   VaultProcessLock lock(trust_.trust_directory() / "write.lock");
   AnchorCoordinatorStatus result =
-      evaluate_current(read_only_operation, true);
+      evaluate_current(read_only_operation, false);
   gitvault_benchmark_trace("preflight.total", started);
+  return result;
+}
+
+AnchorCoordinatorStatus AnchorCoordinator::synchronize() {
+  const auto started = std::chrono::steady_clock::now();
+  VaultProcessLock lock(trust_.trust_directory() / "write.lock");
+  AnchorCoordinatorStatus result = evaluate_current(false, true);
+  gitvault_benchmark_trace("sync.total", started);
   return result;
 }
 
@@ -660,8 +668,13 @@ bool AnchorCoordinator::execute_destroy(
     throw std::runtime_error("destroy callback is required");
   }
   VaultProcessLock lock(trust_.trust_directory() / "write.lock");
-  const AnchorCoordinatorStatus status = evaluate_current(false, true);
+  const AnchorCoordinatorStatus status = evaluate_current(false, false);
   if (status.decision.state != AnchorClientState::Consistent) {
+    if (status.decision.state == AnchorClientState::LocalCatchUp) {
+      throw std::runtime_error(
+          "destroy found a verified remote checkpoint ahead of the local "
+          "Vault; run \"gitvault sync <vault_name>\" first");
+    }
     throw std::runtime_error(
         std::string("destroy requires CONSISTENT state; current state is ") +
         anchor_client_state_name(status.decision.state) + " (" +
@@ -676,9 +689,14 @@ PreparedVaultWrite AnchorCoordinator::execute_write(
     const std::function<PreparedVaultWrite(const AnchorHash&)>& prepare) {
   VaultProcessLock lock(trust_.trust_directory() / "write.lock");
   const auto preflight_started = std::chrono::steady_clock::now();
-  AnchorCoordinatorStatus status = evaluate_current(false, true);
+  AnchorCoordinatorStatus status = evaluate_current(false, false);
   gitvault_benchmark_trace("write.preflight", preflight_started);
   if (status.decision.state != AnchorClientState::Consistent) {
+    if (status.decision.state == AnchorClientState::LocalCatchUp) {
+      throw std::runtime_error(
+          "write found a verified remote checkpoint ahead of the local "
+          "Vault; run \"gitvault sync <vault_name>\" first");
+    }
     throw std::runtime_error(
         std::string("write requires CONSISTENT state; current state is ") +
         anchor_client_state_name(status.decision.state) + " (" +

@@ -41,7 +41,10 @@ public:
       IAnchorChannel& channel,
       const std::vector<std::string>& relay_urls);
 
+  // Inspect remote and local anchor state without advancing trusted local state.
   AnchorCoordinatorStatus preflight(bool read_only_operation);
+  // Perform safe pending-write recovery and verified local catch-up.
+  AnchorCoordinatorStatus synchronize();
   bool execute_destroy(const std::function<bool()>& destroy_remote);
   PreparedVaultWrite execute_write(
       const std::function<PreparedVaultWrite(const AnchorHash&)>& prepare);
