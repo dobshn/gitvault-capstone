@@ -162,6 +162,28 @@ namespace {
       }
     }
 
+    template <typename ReadAction>
+    void execute_path_read_command(const Command& cmd,
+                                   const std::string& command_name,
+                                   ObjectStore& obj_store,
+                                   const std::string& dropbox_token,
+                                   ReadAction action) {
+      if (cmd.positional.size() < 1 || cmd.positional.size() > 2) {
+        throw std::runtime_error(
+            command_name + " requires <vault_name> [path]");
+      }
+
+      obj_store.fetch(
+          dropbox_token, normalize_vault_name(cmd.positional[0]));
+      VaultEngine vault_engine(obj_store, read_password(cmd));
+      auto coordinator = make_anchor_coordinator(obj_store, vault_engine);
+      require_safe_read(*coordinator);
+
+      const std::string path =
+          (cmd.positional.size() == 2) ? cmd.positional[1] : "";
+      action(vault_engine, path);
+    }
+
     Config parse_bootstrap_config(const ByteVec& bytes) {
       Config config;
       config.version = 0;
@@ -493,52 +515,43 @@ void Vault::execute(Command& cmd) {
             }).new_head;
         std::cout << "commit=" << to_hex(commit_hash) << "\n";
       }
-    } else if (cmd.command == "list") {
-      if (cmd.positional.size() < 1 || cmd.positional.size() > 2) {
-        throw std::runtime_error("list requires <vault_name> [path]");
-      }
-      obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
-      VaultEngine vault_engine(obj_store, read_password(cmd));
-      auto coordinator = make_anchor_coordinator(obj_store, vault_engine);
-      require_safe_read(*coordinator);
-      std::string path = (cmd.positional.size() == 2) ? cmd.positional[1] : "";
-      Tree tree = vault_engine.list_directory(path);
+    } else if (cmd.command == "ls") {
+      execute_path_read_command(
+          cmd, "ls", obj_store, dropbox_token,
+          [](VaultEngine& vault_engine, const std::string& path) {
+            Tree tree = vault_engine.list_directory(path);
 
-      std::cout << std::left
-                << std::setw(25) << "NAME"
-                << std::setw(12) << "SIZE"
-                << "Modification Time\n";
-      std::cout << std::string(57, '-') << "\n";
-      for (const auto& entry : tree.entries) {
-        std::string name = entry.name;
-        if (entry.type == 1) { // 디렉터리인 경우 / 붙이기. type=1 은 tree를 의미.
-          name += "/";
-        }
-        std::cout << std::left
-                  << std::setw(25) << name;
-        if (entry.size.has_value())
-          std::cout << std::setw(12) << entry.size.value();
-        else
-          std::cout << std::setw(12) << "-";
-        if (entry.mtime.has_value()) {
-          std::time_t t = entry.mtime.value();
-          std::tm* tm = std::localtime(&t);
-          char buf[20];
-          std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M", tm);
-          std::cout << buf;
-        }
-        std::cout << "\n";
-      }
+            std::cout << std::left
+                      << std::setw(25) << "NAME"
+                      << std::setw(12) << "SIZE"
+                      << "Modification Time\n";
+            std::cout << std::string(57, '-') << "\n";
+            for (const auto& entry : tree.entries) {
+              std::string name = entry.name;
+              if (entry.type == 1) {
+                name += "/";
+              }
+              std::cout << std::left << std::setw(25) << name;
+              if (entry.size.has_value())
+                std::cout << std::setw(12) << entry.size.value();
+              else
+                std::cout << std::setw(12) << "-";
+              if (entry.mtime.has_value()) {
+                std::time_t t = entry.mtime.value();
+                std::tm* tm = std::localtime(&t);
+                char buf[20];
+                std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M", tm);
+                std::cout << buf;
+              }
+              std::cout << "\n";
+            }
+          });
     } else if (cmd.command == "tree") {
-      if (cmd.positional.size() < 1 || cmd.positional.size() > 2) {
-        throw std::runtime_error("tree requires <vault_name> [path]");
-      }
-      obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
-      VaultEngine vault_engine(obj_store, read_password(cmd));
-      auto coordinator = make_anchor_coordinator(obj_store, vault_engine);
-      require_safe_read(*coordinator);
-      std::string path = (cmd.positional.size() == 2) ? cmd.positional[1] : "";
-      vault_engine.print_tree(path, std::cout);
+      execute_path_read_command(
+          cmd, "tree", obj_store, dropbox_token,
+          [](VaultEngine& vault_engine, const std::string& path) {
+            vault_engine.print_tree(path, std::cout);
+          });
     } else if (cmd.command == "cat") {
       if (cmd.positional.size() != 2) {
         throw std::runtime_error("cat requires <vault_name> <path>");

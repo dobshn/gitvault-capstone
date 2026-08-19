@@ -325,7 +325,7 @@ def main() -> int:
                     require_success=False,
                 )
                 run_gitvault(
-                    scenario, "list", file_count, ["list", vault],
+                    scenario, "ls", file_count, ["ls", vault],
                     stdout_to_null=True, require_success=False,
                 )
                 run_gitvault(

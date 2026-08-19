@@ -21,7 +21,7 @@ void print_usage() {
     std::cout << "  remove <vault_name> <cloud_path>\n";
     std::cout << "  mkdir <vault_name> <cloud_dir_path>\n";
     std::cout << "  rmdir <vault_name> <cloud_dir_path>\n";
-    std::cout << "  list <vault_name> [path]\n";
+    std::cout << "  ls <vault_name> [path]\n";
     std::cout << "  tree <vault_name> [path]\n";
     std::cout << "  cat <vault_name> <path>\n";
     std::cout << "  quick-scan <vault_name>\n";

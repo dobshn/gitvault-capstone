@@ -50,7 +50,7 @@ cmake --build build
 ./build/gitvault rmdir <vault_name> <cloud_dir_path>
 
 # List a directory inside the vault (lazy load)
-./build/gitvault list <vault_name> [path]
+./build/gitvault ls <vault_name> [path]
 
 # Print the directory structure as a tree
 ./build/gitvault tree <vault_name> [path]
@@ -192,7 +192,7 @@ echo '{"ok":true}' > "$WORK/plain/sub/b.json"
   --relay wss://relay-2.example \
   --relay wss://relay-3.example
 ./build/gitvault status "$VAULT_NAME" --password test123
-./build/gitvault list "$VAULT_NAME" --password test123
+./build/gitvault ls "$VAULT_NAME" --password test123
 ./build/gitvault tree "$VAULT_NAME" --password test123
 ./build/gitvault cat "$VAULT_NAME" a.txt --password test123
 ./build/gitvault quick-scan "$VAULT_NAME" --password test123

@@ -20,7 +20,7 @@ import sys
 OPERATIONS = [
     "init",
     "status",
-    "list",
+    "ls",
     "tree",
     "cat",
     "quick-scan",
