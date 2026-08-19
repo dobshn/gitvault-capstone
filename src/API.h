@@ -1,8 +1,15 @@
 #pragma once
+#include <stdexcept>
 #include <string>
 #include <string_view>
 
 #include "util.h"
+
+class CloudVaultNotFound : public std::runtime_error {
+public:
+    explicit CloudVaultNotFound(const std::string& message)
+        : std::runtime_error(message) {}
+};
 
 struct VersionedBytes {
     ByteVec bytes;

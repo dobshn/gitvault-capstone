@@ -102,7 +102,9 @@ void DropboxStorage::fetch(std::string access_token, std::string root_path) {
     check(res, 200, "Token validation");
   }
 
-  auto check_folder_exists = [&](const std::string& path, const std::string& name) {
+  auto check_folder_exists = [&](const std::string& path,
+                                 const std::string& name,
+                                 bool is_vault_root) {
     auto res = client.Post("/2/files/get_metadata",
                                 {{"Authorization", "Bearer " + access_token_}},
                                 json{{"path", path}}.dump(),
@@ -113,6 +115,9 @@ void DropboxStorage::fetch(std::string access_token, std::string root_path) {
     }
 
     if (res->status == 409) {
+      if (is_vault_root) {
+        throw CloudVaultNotFound(name + " does not exist in cloud.");
+      }
       throw std::runtime_error(name + " does not exist in cloud.");
     }
 
@@ -129,10 +134,10 @@ void DropboxStorage::fetch(std::string access_token, std::string root_path) {
   };
 
   // root 폴더 존재 확인
-  check_folder_exists(root_path_, "Root folder");
+  check_folder_exists(root_path_, "Root folder", true);
 
   // objects 폴더 존재 확인
-  check_folder_exists(root_path_ + "/objects", "Objects folder");
+  check_folder_exists(root_path_ + "/objects", "Objects folder", false);
 
   fetched = true;
 }

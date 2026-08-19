@@ -491,17 +491,18 @@ void test_destroy_requires_consistent_anchor_state() {
   AnchorCoordinator coordinator(
       fixture.store_a, engine,
       std::make_unique<ThreeRelayChannel>(fixture.anchor, fixture.endpoints));
-
-  bool callback_called = false;
-  const bool deleted = coordinator.execute_destroy([&] {
-    callback_called = true;
-    return true;
-  });
-  expect(deleted && callback_called,
-         "destroy invokes its callback after a CONSISTENT R=2 preflight");
+  ObjectStore store_b(std::make_unique<FakeCloudApi>(fixture.cloud),
+                      fixture.temp.path / "b");
+  store_b.fetch("token", "vault");
+  install_second_client(
+      fixture.store_a, engine, store_b, fixture.password);
+  VaultEngine engine_b(store_b, fixture.password);
+  AnchorCoordinator coordinator_b(
+      store_b, engine_b,
+      std::make_unique<ThreeRelayChannel>(fixture.anchor, fixture.endpoints));
 
   fixture.anchor->synchronized_relay_count = 1;
-  callback_called = false;
+  bool callback_called = false;
   bool blocked = false;
   try {
     (void)coordinator.execute_destroy([&] {
@@ -509,11 +510,40 @@ void test_destroy_requires_consistent_anchor_state() {
       return true;
     });
   } catch (const std::runtime_error& error) {
-    blocked = std::string(error.what()).find(
-                  "destroy requires CONSISTENT state") != std::string::npos;
+    blocked = std::string(error.what()).find("Nostr R=2") !=
+              std::string::npos;
   }
   expect(blocked && !callback_called,
          "destroy does not touch remote storage when relay state is unsafe");
+
+  fixture.anchor->synchronized_relay_count = 3;
+  bool marker_preceded_delete = false;
+  const bool deleted = coordinator.execute_destroy([&] {
+    callback_called = true;
+    std::lock_guard<std::mutex> lock(fixture.anchor->mutex);
+    marker_preceded_delete = std::any_of(
+        fixture.anchor->immutable.begin(), fixture.anchor->immutable.end(),
+        [](const auto& entry) {
+          return entry.second.kind == kGitVaultDestroyedEventKind;
+        });
+    return true;
+  });
+  expect(deleted && callback_called && marker_preceded_delete,
+         "destroy publishes a terminal event to W=2 before remote deletion");
+  expect(coordinator.has_destroyed_event(),
+         "a synchronized client recognizes the Vault-key-signed tombstone");
+  expect(coordinator_b.has_destroyed_event(),
+         "another installation recognizes the tombstone after the cloud "
+         "Vault disappears");
+
+  bool retry_callback_called = false;
+  const bool retry_deleted = coordinator.execute_destroy([&] {
+    retry_callback_called = true;
+    return false;
+  });
+  expect(!retry_deleted && retry_callback_called,
+         "a repeated destroy recognizes the tombstone and finishes an "
+         "idempotent remote deletion");
 }
 }  // namespace
 

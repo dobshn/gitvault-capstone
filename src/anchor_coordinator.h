@@ -45,6 +45,9 @@ public:
   AnchorCoordinatorStatus preflight(bool read_only_operation);
   // Perform safe pending-write recovery and verified local catch-up.
   AnchorCoordinatorStatus synchronize();
+  // Requires a synchronized R-quorum and accepts only a Vault-key-signed,
+  // channel-bound terminal event.
+  bool has_destroyed_event();
   bool execute_destroy(const std::function<bool()>& destroy_remote);
   PreparedVaultWrite execute_write(
       const std::function<PreparedVaultWrite(const AnchorHash&)>& prepare);
@@ -73,6 +76,7 @@ private:
       const AnchorHash& checkpoint_event_id,
       const VersionedBytes& cloud);
   void finalize_prepared(const PreparedWriteRecord& prepared);
+  bool has_destroyed_event_unlocked();
 
   ObjectStore& store_;
   VaultEngine& engine_;

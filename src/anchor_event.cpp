@@ -221,6 +221,15 @@ std::string serialize_anchor_event_payload(
           value["observed_cloud_revision"] =
               event.observed_cloud_revision;
           return value;
+        } else if constexpr (std::is_same_v<Event, VaultDestroyedEvent>) {
+          json value = common_json(event.common, "vault_destroyed");
+          value["final_head"] = array_to_hex(event.final_head);
+          value["final_vector_clock"] = vector_clock_json(event.final_clock);
+          value["final_head_envelope_hash"] =
+              array_to_hex(event.final_head_envelope_hash);
+          value["checkpoint_event_id"] =
+              array_to_hex(event.checkpoint_event_id);
+          return value;
         } else {
           json value = common_json(event.common, "head_checkpoint");
           value["head"] = array_to_hex(event.head);
@@ -297,6 +306,25 @@ AnchorEventPayload deserialize_anchor_event_payload(
       event.observed_cloud_revision = parse_string(
           encoded.at("observed_cloud_revision"), "observed_cloud_revision");
       payload = event;
+    } else if (event_type == "vault_destroyed") {
+      require_exact_fields(encoded, {
+          "protocol_version", "event_type", "vault_id", "operation_id",
+          "protocol_epoch", "installation_id", "final_head",
+          "final_vector_clock", "final_head_envelope_hash",
+          "checkpoint_event_id",
+      });
+      VaultDestroyedEvent event;
+      event.common = parse_common(encoded);
+      event.final_head = parse_fixed_lower_hex<32>(
+          encoded.at("final_head"), "final_head");
+      event.final_clock = parse_vector_clock(
+          encoded.at("final_vector_clock"));
+      event.final_head_envelope_hash = parse_fixed_lower_hex<32>(
+          encoded.at("final_head_envelope_hash"),
+          "final_head_envelope_hash");
+      event.checkpoint_event_id = parse_fixed_lower_hex<32>(
+          encoded.at("checkpoint_event_id"), "checkpoint_event_id");
+      payload = event;
     } else if (event_type == "head_checkpoint") {
       require_exact_fields(encoded, {
           "protocol_version", "event_type", "vault_id", "operation_id",
@@ -338,7 +366,9 @@ SignedNostrEvent sign_anchor_event(
   event.created_at = created_at;
   event.kind = std::holds_alternative<HeadCheckpointEvent>(payload)
                    ? kGitVaultCheckpointEventKind
-                   : kGitVaultAnchorEventKind;
+                   : std::holds_alternative<VaultDestroyedEvent>(payload)
+                         ? kGitVaultDestroyedEventKind
+                         : kGitVaultAnchorEventKind;
   event.tags = tags;
   event.content = serialize_anchor_event_payload(payload);
   return sign_nostr_event(event, signing_secret);
@@ -356,7 +386,9 @@ SignedNostrEvent sign_encrypted_anchor_event(
   event.created_at = created_at;
   event.kind = std::holds_alternative<HeadCheckpointEvent>(payload)
                    ? kGitVaultCheckpointEventKind
-                   : kGitVaultAnchorEventKind;
+                   : std::holds_alternative<VaultDestroyedEvent>(payload)
+                         ? kGitVaultDestroyedEventKind
+                         : kGitVaultAnchorEventKind;
   event.tags = tags;
   event.content = nip44_encrypt(serialize_anchor_event_payload(payload),
                                 conversation_key);
@@ -368,6 +400,7 @@ AnchorEventPayload verify_decrypt_anchor_event(
     const SchnorrPublicKey& trusted_public_key,
     const std::array<uint8_t, 32>& decryption_secret) {
   if ((event.kind != kGitVaultAnchorEventKind &&
+       event.kind != kGitVaultDestroyedEventKind &&
        event.kind != kGitVaultCheckpointEventKind) ||
       !verify_nostr_event(event, trusted_public_key)) {
     throw std::runtime_error("anchor event signature verification failed");

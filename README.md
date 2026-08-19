@@ -108,9 +108,15 @@ If password is not provided, the tool prompts on stdin.
 `vault_name` can be `my_vault` or `/my_vault`.
 
 `destroy` first requires the local, Dropbox, and Nostr checkpoint state to reach
-`CONSISTENT` with the configured R=2 relay quorum. It then removes the Dropbox
-folder `/<vault_name>` followed by `~/.gitvault/<vault_name>/`. A failed
-consistency check or remote deletion preserves the local metadata.
+`CONSISTENT` with the configured R=2 relay quorum. It publishes an encrypted,
+Vault-key-signed terminal event to W=2, then removes the Dropbox folder
+`/<vault_name>` followed by `~/.gitvault/<vault_name>/`. If another installation
+later finds the Dropbox Vault missing, it queries the pinned relays instead of
+immediately treating the absence as an error. A matching terminal event is
+accepted only after R=2 synchronization and signature/channel/Vault validation.
+Running `destroy` there removes its remaining local metadata. Without a valid
+terminal event (or without R=2), cloud disappearance remains an error and local
+data is preserved.
 
 `destroy --hard` still requires the Vault password and verifies it against the
 local wrapped Vault identity, but bypasses HEAD and Nostr consistency checks. It

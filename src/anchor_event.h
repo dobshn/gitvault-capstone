@@ -15,6 +15,7 @@ using AnchorOperationId = std::array<uint8_t, 16>;
 constexpr uint8_t kAnchorProtocolVersion = 2;
 constexpr uint8_t kAnchorCommitFormatVersion = 2;
 constexpr uint16_t kGitVaultAnchorEventKind = 9500;
+constexpr uint16_t kGitVaultDestroyedEventKind = 9501;
 constexpr uint16_t kGitVaultCheckpointEventKind = 30078;
 
 struct AnchorEventCommon {
@@ -64,11 +65,23 @@ struct HeadCheckpointEvent {
   std::string observed_cloud_revision;
 };
 
+// A durable, Vault-key-authorized tombstone. It is published to the pinned
+// relays before the cloud Vault is removed, so another installation can
+// distinguish an intentional destroy from an unexplained cloud disappearance.
+struct VaultDestroyedEvent {
+  AnchorEventCommon common;
+  AnchorHash final_head{};
+  VectorClock final_clock;
+  AnchorHash final_head_envelope_hash{};
+  AnchorHash checkpoint_event_id{};
+};
+
 using AnchorEventPayload = std::variant<
     VaultGenesisEvent,
     HeadProposalEvent,
     HeadObservationEvent,
-    HeadCheckpointEvent>;
+    HeadCheckpointEvent,
+    VaultDestroyedEvent>;
 
 bool vault_head_states_equal(const VaultHeadState& left,
                              const VaultHeadState& right);

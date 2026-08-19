@@ -134,6 +134,14 @@ std::string clock_relation(const VaultHeadState& left,
   return vector_clock_relation_name(
       compare_vector_clocks(left.clock, right.clock));
 }
+
+bool is_replica_id_text(const std::string& value) {
+  if (value.size() != 32) return false;
+  return std::all_of(value.begin(), value.end(), [](char character) {
+    return (character >= '0' && character <= '9') ||
+           (character >= 'a' && character <= 'f');
+  });
+}
 }  // namespace
 
 AnchorCoordinator::AnchorCoordinator(
@@ -323,7 +331,7 @@ AnchorPublishResult AnchorCoordinator::ensure_published(
   }
   trust_.save_outbox(record);
   if (record.accepted_endpoints.size() < config_.publish_quorum) {
-    throw std::runtime_error("checkpoint did not reach W=2: " +
+    throw std::runtime_error("anchor event did not reach W=2: " +
                              publish_failure_detail(result));
   }
   return result;
@@ -662,12 +670,62 @@ AnchorCoordinatorStatus AnchorCoordinator::synchronize() {
   return result;
 }
 
+bool AnchorCoordinator::has_destroyed_event_unlocked() {
+  AnchorChannelQuery query;
+  query.author = config_.vault_public_key;
+  query.kind = kGitVaultDestroyedEventKind;
+  query.required_tags = {{"t", to_hex(config_.channel_id)}};
+  const AnchorFetchResult fetched = channel_->fetch(query);
+  if (synchronized_configured_relays(fetched, config_) <
+      config_.read_quorum) {
+    throw std::runtime_error(
+        "cannot determine whether the Vault was destroyed: Nostr R=2 "
+        "synchronization was not reached");
+  }
+
+  const std::vector<NostrTag> expected_tags = {
+      {"t", to_hex(config_.channel_id)}};
+  for (const auto& event : fetched.events) {
+    // A relay can claim any author in its response. Silently discard events
+    // that do not authenticate; malformed events genuinely signed by the
+    // Vault key remain fail-closed protocol errors.
+    if (event.kind != kGitVaultDestroyedEventKind ||
+        event.tags != expected_tags ||
+        !verify_nostr_event(event, config_.vault_public_key)) {
+      continue;
+    }
+    const AnchorEventPayload decoded = verify_decrypt_anchor_event(
+        event, config_.vault_public_key, engine_.identity().signing_secret);
+    const auto* destroyed = std::get_if<VaultDestroyedEvent>(&decoded);
+    if (destroyed == nullptr ||
+        destroyed->common.vault_id != config_.vault_id ||
+        destroyed->common.protocol_epoch != config_.protocol_epoch ||
+        !is_replica_id_text(destroyed->common.installation_id)) {
+      throw std::runtime_error(
+          "Vault-key-signed destroyed event does not match this Vault");
+    }
+    return true;
+  }
+  return false;
+}
+
+bool AnchorCoordinator::has_destroyed_event() {
+  VaultProcessLock lock(trust_.trust_directory() / "write.lock");
+  return has_destroyed_event_unlocked();
+}
+
 bool AnchorCoordinator::execute_destroy(
     const std::function<bool()>& destroy_remote) {
   if (!destroy_remote) {
     throw std::runtime_error("destroy callback is required");
   }
   VaultProcessLock lock(trust_.trust_directory() / "write.lock");
+  // A previous attempt may have durably announced destruction and then
+  // crashed before deleting Dropbox. In that case the terminal decision is
+  // already authoritative; finish the idempotent remote deletion.
+  if (has_destroyed_event_unlocked()) {
+    return destroy_remote();
+  }
   const AnchorCoordinatorStatus status = evaluate_current(false, false);
   if (status.decision.state != AnchorClientState::Consistent) {
     if (status.decision.state == AnchorClientState::LocalCatchUp) {
@@ -682,7 +740,26 @@ bool AnchorCoordinator::execute_destroy(
         status.decision.detail +
         "; use destroy --hard only if bypassing these checks is intended");
   }
-  return destroy_remote();
+
+  const AnchorCheckpoint checkpoint = trust_.load_checkpoint();
+  VaultDestroyedEvent destroyed;
+  destroyed.common.vault_id = config_.vault_id;
+  destroyed.common.operation_id = random_array<16>();
+  destroyed.common.protocol_epoch = config_.protocol_epoch;
+  destroyed.common.installation_id = config_.installation_id;
+  destroyed.final_head = status.cloud_head_state.head;
+  destroyed.final_clock = status.cloud_head_state.clock;
+  destroyed.final_head_envelope_hash = Sha256::hash(status.cloud_head_bytes);
+  destroyed.checkpoint_event_id = checkpoint.tip_event_id;
+  const SignedNostrEvent event = sign_encrypted_anchor_event(
+      destroyed, now_seconds(), {{"t", to_hex(config_.channel_id)}},
+      engine_.identity().signing_secret);
+  trust_.save_outbox({event, {}});
+  (void)ensure_published(event);
+
+  const bool removed = destroy_remote();
+  trust_.remove_outbox(event.id);
+  return removed;
 }
 
 PreparedVaultWrite AnchorCoordinator::execute_write(

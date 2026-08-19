@@ -166,6 +166,32 @@ namespace {
       }
     }
 
+    void fetch_vault_or_detect_destroyed(const Command& cmd,
+                                         ObjectStore& store,
+                                         const std::string& access_token,
+                                         const std::string& vault_name) {
+      try {
+        store.fetch(access_token, vault_name);
+        return;
+      } catch (const CloudVaultNotFound&) {
+        // Dropbox no longer has enough information to identify an
+        // intentional destroy. Use only the locally pinned channel/key to
+        // authenticate the terminal Nostr event.
+        store.select_root(vault_name);
+        if (!store.config_exists() || !store.vault_identity_exists()) {
+          throw;
+        }
+        VaultEngine engine(store, read_password(cmd));
+        auto coordinator = make_anchor_coordinator(store, engine);
+        if (coordinator->has_destroyed_event()) {
+          throw std::runtime_error(
+              "Vault '" + vault_name +
+              "' was intentionally destroyed (verified by Nostr R=2)");
+        }
+        throw;
+      }
+    }
+
     template <typename ReadAction>
     void execute_path_read_command(const Command& cmd,
                                    const std::string& command_name,
@@ -177,8 +203,9 @@ namespace {
             command_name + " requires <vault_name> [path]");
       }
 
-      obj_store.fetch(
-          dropbox_token, normalize_vault_name(cmd.positional[0]));
+      fetch_vault_or_detect_destroyed(
+          cmd, obj_store, dropbox_token,
+          normalize_vault_name(cmd.positional[0]));
       VaultEngine vault_engine(obj_store, read_password(cmd));
       auto coordinator = make_anchor_coordinator(obj_store, vault_engine);
       require_safe_read(*coordinator);
@@ -454,18 +481,38 @@ void Vault::execute(Command& cmd) {
         }
 
         const std::string token = lh->login(loadRefreshToken());
-        destroy_store.fetch(token, vault_name);
+        try {
+            destroy_store.fetch(token, vault_name);
+        } catch (const CloudVaultNotFound&) {
+            destroy_store.select_root(vault_name);
+            if (!destroy_store.config_exists() ||
+                !destroy_store.vault_identity_exists()) {
+                throw;
+            }
+            VaultEngine vault_engine(destroy_store, read_password(cmd));
+            auto coordinator = make_anchor_coordinator(
+                destroy_store, vault_engine);
+            if (!coordinator->has_destroyed_event()) {
+                throw;
+            }
+            std::cout
+                << "Remote vault folder is already absent; verified the "
+                   "destroyed event via Nostr R=2.\n";
+            const bool local_deleted =
+                destroy_store.remove_local_metadata();
+            std::cout << (local_deleted
+                              ? "Local vault metadata deleted.\n"
+                              : "Local vault metadata not found.\n");
+            return;
+        }
         VaultEngine vault_engine(destroy_store, read_password(cmd));
         auto coordinator = make_anchor_coordinator(destroy_store, vault_engine);
         const bool remote_deleted = coordinator->execute_destroy([&] {
             return destroy_store.destroy(token, vault_name);
         });
-        if (!remote_deleted) {
-            throw std::runtime_error(
-                "remote vault folder disappeared after consistency checks; "
-                "local metadata was preserved");
-        }
-        std::cout << "Remote vault folder deleted.\n";
+        std::cout << (remote_deleted
+                          ? "Remote vault folder deleted.\n"
+                          : "Remote vault folder already absent.\n");
 
         const bool local_deleted = destroy_store.remove_local_metadata();
         std::cout << (local_deleted
@@ -514,7 +561,9 @@ void Vault::execute(Command& cmd) {
         if (cmd.positional.size() != 3) {
             throw std::runtime_error("add requires <vault_name> <local_path> <cloud_path>");
         }
-        obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
+        fetch_vault_or_detect_destroyed(
+            cmd, obj_store, dropbox_token,
+            normalize_vault_name(cmd.positional[0]));
         VaultEngine vault_engine(obj_store, read_password(cmd));
         auto coordinator = make_anchor_coordinator(obj_store, vault_engine);
         auto commit_hash = coordinator->execute_write(
@@ -528,7 +577,9 @@ void Vault::execute(Command& cmd) {
       if (cmd.positional.size() != 2) {
         throw std::runtime_error("mkdir requires <vault_name> <cloud_dir_path>");
       }
-      obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
+      fetch_vault_or_detect_destroyed(
+          cmd, obj_store, dropbox_token,
+          normalize_vault_name(cmd.positional[0]));
       VaultEngine vault_engine(obj_store, read_password(cmd));
       auto coordinator = make_anchor_coordinator(obj_store, vault_engine);
       auto commit_hash = coordinator->execute_write(
@@ -540,7 +591,9 @@ void Vault::execute(Command& cmd) {
       if (cmd.positional.size() != 2) {
         throw std::runtime_error("remove requires <vault_name> <cloud_path>");
       }
-      obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
+      fetch_vault_or_detect_destroyed(
+          cmd, obj_store, dropbox_token,
+          normalize_vault_name(cmd.positional[0]));
       VaultEngine vault_engine(obj_store, read_password(cmd));
       auto coordinator = make_anchor_coordinator(obj_store, vault_engine);
       auto commit_hash = coordinator->execute_write(
@@ -552,7 +605,9 @@ void Vault::execute(Command& cmd) {
       if (cmd.positional.size() != 2) {
         throw std::runtime_error("rmdir requires <vault_name> <cloud_dir_path>");
       }
-      obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
+      fetch_vault_or_detect_destroyed(
+          cmd, obj_store, dropbox_token,
+          normalize_vault_name(cmd.positional[0]));
       VaultEngine vault_engine(obj_store, read_password(cmd));
       auto coordinator = make_anchor_coordinator(obj_store, vault_engine);
       const std::string cloud_dir_path = cmd.positional[1];
@@ -626,7 +681,9 @@ void Vault::execute(Command& cmd) {
       if (cmd.positional.size() != 2) {
         throw std::runtime_error("cat requires <vault_name> <path>");
       }
-      obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
+      fetch_vault_or_detect_destroyed(
+          cmd, obj_store, dropbox_token,
+          normalize_vault_name(cmd.positional[0]));
       VaultEngine vault_engine(obj_store, read_password(cmd));
       auto coordinator = make_anchor_coordinator(obj_store, vault_engine);
       require_safe_read(*coordinator);
@@ -638,7 +695,9 @@ void Vault::execute(Command& cmd) {
       if (cmd.positional.size() != 1) {
         throw std::runtime_error(cmd.command + " requires <vault_name>");
       }
-      obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
+      fetch_vault_or_detect_destroyed(
+          cmd, obj_store, dropbox_token,
+          normalize_vault_name(cmd.positional[0]));
       VaultEngine vault_engine(obj_store, read_password(cmd));
       auto coordinator = make_anchor_coordinator(obj_store, vault_engine);
       require_safe_read(*coordinator);
@@ -656,7 +715,8 @@ void Vault::execute(Command& cmd) {
       }
       const std::string vault_name =
           normalize_vault_name(cmd.positional[0]);
-      obj_store.fetch(dropbox_token, vault_name);
+      fetch_vault_or_detect_destroyed(
+          cmd, obj_store, dropbox_token, vault_name);
       VaultEngine vault_engine(obj_store, read_password(cmd));
       auto coordinator = make_anchor_coordinator(obj_store, vault_engine);
       const AnchorCoordinatorStatus status = coordinator->preflight(false);
@@ -704,7 +764,8 @@ void Vault::execute(Command& cmd) {
             "import destination already contains local metadata: " +
             local_vault_dir.string());
       }
-      obj_store.fetch(dropbox_token, bootstrap.vault_name);
+      fetch_vault_or_detect_destroyed(
+          cmd, obj_store, dropbox_token, bootstrap.vault_name);
       if (!constant_time_equal(obj_store.read_cloud_config_bytes(),
                                bootstrap.config_bytes)) {
         throw std::runtime_error(
@@ -780,7 +841,9 @@ void Vault::execute(Command& cmd) {
       if (cmd.positional.size() != 1) {
         throw std::runtime_error(cmd.command + " requires <vault_name>");
       }
-      obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
+      fetch_vault_or_detect_destroyed(
+          cmd, obj_store, dropbox_token,
+          normalize_vault_name(cmd.positional[0]));
       VaultEngine vault_engine(obj_store, read_password(cmd));
       auto coordinator = make_anchor_coordinator(obj_store, vault_engine);
       const AnchorCoordinatorStatus status = coordinator->synchronize();
@@ -797,7 +860,9 @@ void Vault::execute(Command& cmd) {
       if (cmd.positional.size() != 1) {
         throw std::runtime_error("status requires <vault_name>");
       }
-      obj_store.fetch(dropbox_token, normalize_vault_name(cmd.positional[0]));
+      fetch_vault_or_detect_destroyed(
+          cmd, obj_store, dropbox_token,
+          normalize_vault_name(cmd.positional[0]));
       VaultEngine vault_engine(obj_store, read_password(cmd));
       auto coordinator = make_anchor_coordinator(obj_store, vault_engine);
       const AnchorCoordinatorStatus status = coordinator->preflight(true);
