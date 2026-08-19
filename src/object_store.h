@@ -36,6 +36,7 @@ public:
   ~ObjectStore() = default;
   void init(std::string access_token, std::string root_path);
   void fetch(std::string access_token, std::string root_path);
+  void select_root(std::string root_path);
   bool destroy(std::string access_token, std::string root_path);
 
   const std::string& root() const;

@@ -42,6 +42,7 @@ public:
       const std::vector<std::string>& relay_urls);
 
   AnchorCoordinatorStatus preflight(bool read_only_operation);
+  bool execute_destroy(const std::function<bool()>& destroy_remote);
   PreparedVaultWrite execute_write(
       const std::function<PreparedVaultWrite(const AnchorHash&)>& prepare);
 

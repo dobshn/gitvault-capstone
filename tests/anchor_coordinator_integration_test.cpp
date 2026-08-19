@@ -436,12 +436,48 @@ void test_incompatible_signed_checkpoints_detect_fork() {
                  AnchorStateReason::DivergentObservedBranches,
          "incompatible signed vector checkpoints expose a CAS fork");
 }
+
+void test_destroy_requires_consistent_anchor_state() {
+  Fixture fixture;
+  VaultEngine engine(fixture.store_a, fixture.password, true);
+  (void)engine.init_vault();
+  ThreeRelayChannel channel(fixture.anchor, fixture.endpoints);
+  (void)AnchorCoordinator::initialize(
+      fixture.store_a, engine, channel, fixture.endpoints);
+  AnchorCoordinator coordinator(
+      fixture.store_a, engine,
+      std::make_unique<ThreeRelayChannel>(fixture.anchor, fixture.endpoints));
+
+  bool callback_called = false;
+  const bool deleted = coordinator.execute_destroy([&] {
+    callback_called = true;
+    return true;
+  });
+  expect(deleted && callback_called,
+         "destroy invokes its callback after a CONSISTENT R=2 preflight");
+
+  fixture.anchor->synchronized_relay_count = 1;
+  callback_called = false;
+  bool blocked = false;
+  try {
+    (void)coordinator.execute_destroy([&] {
+      callback_called = true;
+      return true;
+    });
+  } catch (const std::runtime_error& error) {
+    blocked = std::string(error.what()).find(
+                  "destroy requires CONSISTENT state") != std::string::npos;
+  }
+  expect(blocked && !callback_called,
+         "destroy does not touch remote storage when relay state is unsafe");
+}
 }  // namespace
 
 int main() {
   test_two_clients_cas_and_frozen_components();
   test_checkpoint_publish_recovery_and_degraded_read();
   test_incompatible_signed_checkpoints_detect_fork();
+  test_destroy_requires_consistent_anchor_state();
   if (failures != 0) {
     std::cerr << failures << " test(s) failed\n";
     return 1;

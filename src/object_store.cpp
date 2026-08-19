@@ -138,6 +138,10 @@ void ObjectStore::init(std::string access_token, std::string root_path) {
   CloudAPI->init(access_token, root_);
 }
 
+void ObjectStore::select_root(std::string root_path) {
+  root_ = normalize_root_path(std::move(root_path));
+}
+
 bool ObjectStore::destroy(std::string access_token, std::string root_path) {
   root_ = normalize_root_path(std::move(root_path));
   return CloudAPI->destroy(access_token, root_);

@@ -348,6 +348,9 @@ Vault::~Vault() {
 }
 
 void Vault::execute(Command& cmd) {
+    if (cmd.hard && cmd.command != "destroy") {
+        throw std::runtime_error("--hard is only valid with destroy");
+    }
     if (cmd.command == "help") {
         print_usage();
         return;
@@ -365,6 +368,105 @@ void Vault::execute(Command& cmd) {
     } else if (cmd.command == "logout") {
         removeRefreshToken();      
         std::cout << "Logged out.\n";
+        return;
+    }
+
+    if (cmd.command == "destroy") {
+        if (cmd.positional.size() != 1) {
+            throw std::runtime_error("destroy requires <vault_name>");
+        }
+
+        const std::string vault_name = normalize_vault_name(cmd.positional[0]);
+        const std::filesystem::path local_vault_dir =
+            std::filesystem::path(getHomeDirectory()) / ".gitvault" / vault_name;
+
+        std::cout
+            << "Warning: 'destroy" << (cmd.hard ? " --hard" : "")
+            << "' will remove:\n"
+            << "  local metadata: " << local_vault_dir.string() << "\n"
+            << "  remote Dropbox folder: /" << vault_name << "\n";
+        if (cmd.hard) {
+            std::cout
+                << "  consistency checks: BYPASSED\n"
+                << "Each target will be attempted even if another deletion fails.\n";
+        } else {
+            std::cout
+                << "  consistency checks: Dropbox HEAD and Nostr R=2\n";
+        }
+        std::cout << "\nProceed? (y/N): ";
+
+        std::string answer;
+        std::getline(std::cin, answer);
+        if (!(answer == "y" || answer == "Y")) {
+            std::cout << "Destroy cancelled.\n";
+            return;
+        }
+
+        ObjectStore destroy_store;
+        if (cmd.hard) {
+            destroy_store.select_root(vault_name);
+            VaultEngine authentication(
+                destroy_store, read_password(cmd));
+            (void)authentication.identity();
+
+            std::vector<std::string> failures;
+            try {
+                const std::string token = lh->login(loadRefreshToken());
+                const bool remote_deleted =
+                    destroy_store.destroy(token, vault_name);
+                std::cout << (remote_deleted
+                                  ? "Remote vault folder deleted.\n"
+                                  : "Remote vault folder not found.\n");
+            } catch (const std::exception& error) {
+                failures.push_back(
+                    std::string("remote Dropbox deletion failed: ") +
+                    error.what());
+                std::cerr << "Warning: " << failures.back() << "\n";
+            }
+
+            try {
+                const bool local_deleted =
+                    destroy_store.remove_local_metadata();
+                std::cout << (local_deleted
+                                  ? "Local vault metadata deleted.\n"
+                                  : "Local vault metadata not found.\n");
+            } catch (const std::exception& error) {
+                failures.push_back(
+                    std::string("local metadata deletion failed: ") +
+                    error.what());
+                std::cerr << "Warning: " << failures.back() << "\n";
+            }
+
+            if (!failures.empty()) {
+                std::ostringstream detail;
+                for (size_t index = 0; index < failures.size(); ++index) {
+                    if (index != 0) detail << "; ";
+                    detail << failures[index];
+                }
+                throw std::runtime_error(
+                    "hard destroy completed with failures: " + detail.str());
+            }
+            return;
+        }
+
+        const std::string token = lh->login(loadRefreshToken());
+        destroy_store.fetch(token, vault_name);
+        VaultEngine vault_engine(destroy_store, read_password(cmd));
+        auto coordinator = make_anchor_coordinator(destroy_store, vault_engine);
+        const bool remote_deleted = coordinator->execute_destroy([&] {
+            return destroy_store.destroy(token, vault_name);
+        });
+        if (!remote_deleted) {
+            throw std::runtime_error(
+                "remote vault folder disappeared after consistency checks; "
+                "local metadata was preserved");
+        }
+        std::cout << "Remote vault folder deleted.\n";
+
+        const bool local_deleted = destroy_store.remove_local_metadata();
+        std::cout << (local_deleted
+                          ? "Local vault metadata deleted.\n"
+                          : "Local vault metadata not found.\n");
         return;
     }
 
@@ -404,42 +506,6 @@ void Vault::execute(Command& cmd) {
             obj_store, vault_engine, channel, cmd.relays);
         std::cout << "\ncommit=" << to_hex(commit_hash) << "\n";
         std::cout << "genesis=" << to_hex(anchor.genesis_event_id) << "\n";
-    } else if (cmd.command == "destroy") {
-        if (cmd.positional.size() != 1) {
-            throw std::runtime_error("destroy requires <vault_name>");
-        }
-
-        const std::string vault_name = normalize_vault_name(cmd.positional[0]);
-        const std::filesystem::path local_vault_dir =
-            std::filesystem::path(getHomeDirectory()) / ".gitvault" / vault_name;
-
-        std::cout
-            << "Warning: 'destroy' will permanently remove:\n"
-            << "  local metadata: " << local_vault_dir.string() << "\n"
-            << "  remote Dropbox folder: /" << vault_name << "\n\n"
-            << "Proceed? (y/N): ";
-
-        std::string answer;
-        std::getline(std::cin, answer);
-        if (!(answer == "y" || answer == "Y")) {
-            std::cout << "Destroy cancelled.\n";
-            return;
-        }
-
-        const bool remote_deleted = obj_store.destroy(dropbox_token, vault_name);
-        const bool local_deleted = obj_store.remove_local_metadata();
-
-        if (remote_deleted) {
-            std::cout << "Remote vault folder deleted.\n";
-        } else {
-            std::cout << "Remote vault folder not found.\n";
-        }
-
-        if (local_deleted) {
-            std::cout << "Local vault metadata deleted.\n";
-        } else {
-            std::cout << "Local vault metadata not found.\n";
-        }
     } else if (cmd.command == "add") {
         if (cmd.positional.size() != 3) {
             throw std::runtime_error("add requires <vault_name> <local_path> <cloud_path>");

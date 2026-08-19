@@ -9,6 +9,7 @@
 struct Command {
     std::string command;
     std::optional<std::string> password;
+    bool hard = false;
     std::vector<std::string> relays;
     std::vector<std::string> positional;
 };

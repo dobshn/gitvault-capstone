@@ -16,7 +16,8 @@ void print_usage() {
     std::cout << "gitvault <command> [args] [--password <pw>]\n";
     std::cout << "\nCommands:\n";
     std::cout << "  init <vault_name> [folder_path] --relay <wss://...> --relay <wss://...> --relay <wss://...>\n";
-    std::cout << "  destroy <vault_name> (Delete the local metadata and remote vault folder)\n";
+    std::cout << "  destroy <vault_name> (Delete only after consistency checks)\n";
+    std::cout << "  destroy --hard <vault_name> (Best-effort delete regardless of Vault state)\n";
     std::cout << "  add <vault_name> <local_path> <cloud_path>\n";
     std::cout << "  remove <vault_name> <cloud_path>\n";
     std::cout << "  mkdir <vault_name> <cloud_dir_path>\n";

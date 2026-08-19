@@ -19,6 +19,11 @@ namespace {
                     throw std::runtime_error("--password requires a value");
                 }
                 cmd.password = argv[++i];
+            } else if (arg == "--hard") {
+                if (cmd.hard) {
+                    throw std::runtime_error("--hard may only be specified once");
+                }
+                cmd.hard = true;
             } else if (arg == "--relay") {
                 if (i + 1 >= argc) {
                     throw std::runtime_error("--relay requires a value");

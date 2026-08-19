@@ -654,6 +654,24 @@ AnchorCoordinatorStatus AnchorCoordinator::preflight(
   return result;
 }
 
+bool AnchorCoordinator::execute_destroy(
+    const std::function<bool()>& destroy_remote) {
+  if (!destroy_remote) {
+    throw std::runtime_error("destroy callback is required");
+  }
+  VaultProcessLock lock(trust_.trust_directory() / "write.lock");
+  const AnchorCoordinatorStatus status = evaluate_current(false, true);
+  if (status.decision.state != AnchorClientState::Consistent) {
+    throw std::runtime_error(
+        std::string("destroy requires CONSISTENT state; current state is ") +
+        anchor_client_state_name(status.decision.state) + " (" +
+        anchor_state_reason_name(status.decision.reason) + "): " +
+        status.decision.detail +
+        "; use destroy --hard only if bypassing these checks is intended");
+  }
+  return destroy_remote();
+}
+
 PreparedVaultWrite AnchorCoordinator::execute_write(
     const std::function<PreparedVaultWrite(const AnchorHash&)>& prepare) {
   VaultProcessLock lock(trust_.trust_directory() / "write.lock");

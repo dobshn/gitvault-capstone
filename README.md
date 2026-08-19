@@ -34,8 +34,11 @@ cmake --build build
   --relay wss://relay-2.example \
   --relay wss://relay-3.example
 
-# Destroy a vault completely (local metadata + Dropbox folder)
+# Destroy a vault after Dropbox/Nostr consistency checks
 ./build/gitvault destroy <vault_name>
+
+# Best-effort deletion that bypasses Vault consistency checks
+./build/gitvault destroy --hard <vault_name>
 
 # Add one local file into a vault path (missing parent directories are created automatically)
 ./build/gitvault add <vault_name> <local_path> <cloud_path>
@@ -104,7 +107,17 @@ Provide the vault password via:
 If password is not provided, the tool prompts on stdin.
 `vault_name` can be `my_vault` or `/my_vault`.
 
-`destroy` removes both `~/.gitvault/<vault_name>/` and the Dropbox folder `/<vault_name>` after a confirmation prompt.
+`destroy` first requires the local, Dropbox, and Nostr checkpoint state to reach
+`CONSISTENT` with the configured R=2 relay quorum. It then removes the Dropbox
+folder `/<vault_name>` followed by `~/.gitvault/<vault_name>/`. A failed
+consistency check or remote deletion preserves the local metadata.
+
+`destroy --hard` still requires the Vault password and verifies it against the
+local wrapped Vault identity, but bypasses HEAD and Nostr consistency checks. It
+attempts the Dropbox deletion and local metadata deletion independently, so
+local cleanup is still attempted if Dropbox authentication, networking, or
+remote deletion fails. It reports a non-zero exit status if any attempted
+deletion fails.
 
 ### Local metadata
 
