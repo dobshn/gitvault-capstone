@@ -3,6 +3,7 @@
 
 # CMake / build outputs
 /build/
+/build-release
 /cmake-build-*/
 CMakeCache.txt
 CMakeFiles/
@@ -25,3 +26,8 @@ install_manifest.txt
 *.exe
 *.out
 gitvault
+
+# Others
+/docs
+/results
+/test
