@@ -12,6 +12,7 @@
 #include "anchor_coordinator.h"
 #include "anchor_trust_store.h"
 #include "nostr_anchor_channel.h"
+#include "relay_selection.h"
 #include "client_bootstrap.h"
 #include "crypto/CryptoImpl.h"
 #include "crypto/sha256.h"
@@ -529,9 +530,9 @@ void Vault::execute(Command& cmd) {
         if (cmd.positional.size() != 1 && cmd.positional.size() != 2) {
             throw std::runtime_error("init requires <vault_name> [folder_path]");
         }
-        if (cmd.relays.size() != 3) {
+        if (!cmd.relays.empty() && cmd.relays.size() != 3) {
             throw std::runtime_error(
-                "init requires exactly three --relay wss://... options");
+                "init accepts either no relays (automatic) or exactly three --relay wss://... options");
         }
         std::string vault_name = normalize_vault_name(cmd.positional[0]);
         std::filesystem::path local_vault_dir = getHomeDirectory() + "/.gitvault/" + vault_name;
@@ -539,6 +540,18 @@ void Vault::execute(Command& cmd) {
             throw std::runtime_error(
                 "local vault metadata already exists: " +
                 local_vault_dir.string());
+        }
+        auto relays = cmd.relays;
+        if (relays.empty()) {
+            std::cout << "Finding responsive Nostr relays..." << std::endl;
+            relays = discover_init_relays();
+        }
+        // Validate explicit URLs before creating any Vault data.
+        std::array<uint8_t, 32> validation_secret{};
+        validation_secret.back() = 1;
+        (void)NostrAnchorChannel(relays, validation_secret);
+        for (const auto& relay : relays) {
+            std::cout << "Selected relay: " << relay << "\n";
         }
         obj_store.init(dropbox_token, vault_name);
         VaultEngine vault_engine(obj_store, read_password(cmd), true);
@@ -552,9 +565,9 @@ void Vault::execute(Command& cmd) {
           commit_hash = vault_engine.lock_vault(plain_dir);
         }
         NostrAnchorChannel channel(
-            cmd.relays, vault_engine.identity().signing_secret);
+            relays, vault_engine.identity().signing_secret);
         const AnchorChannelConfig anchor = AnchorCoordinator::initialize(
-            obj_store, vault_engine, channel, cmd.relays);
+            obj_store, vault_engine, channel, relays);
         std::cout << "\ncommit=" << to_hex(commit_hash) << "\n";
         std::cout << "genesis=" << to_hex(anchor.genesis_event_id) << "\n";
     } else if (cmd.command == "add") {

@@ -174,10 +174,26 @@ void configure_websocket(WebSocket& ws,
       }));
 }
 
+// Beast timeouts apply to asynchronous operations. Drive each operation to
+// completion on this connection's private io_context.
+template <typename Stream, typename Start>
+void run_io(Stream& stream, Start start) {
+  auto& io = static_cast<asio::io_context&>(stream.get_executor().context());
+  io.restart();
+  beast::error_code error;
+  bool completed = false;
+  start([&](beast::error_code result, auto&&...) {
+    error = result;
+    completed = true;
+  });
+  while (!completed) io.run_one();
+  if (error) throw beast::system_error(error);
+}
+
 template <typename WebSocket>
 json read_message(WebSocket& ws) {
   beast::flat_buffer buffer;
-  ws.read(buffer);
+  run_io(ws, [&](auto done) { ws.async_read(buffer, done); });
   const std::string encoded = beast::buffers_to_string(buffer.data());
   try {
     return json::parse(encoded);
@@ -190,7 +206,7 @@ json read_message(WebSocket& ws) {
 template <typename WebSocket>
 void send_text(WebSocket& ws, const std::string& message) {
   ws.text(true);
-  ws.write(asio::buffer(message));
+  run_io(ws, [&](auto done) { ws.async_write(asio::buffer(message), done); });
 }
 
 template <typename WebSocket>
@@ -323,16 +339,40 @@ auto with_relay_socket(const RelayUrl& relay,
                        Operation operation) {
   asio::io_context io;
   tcp::resolver resolver(io);
-  const auto endpoints = resolver.resolve(relay.host, relay.port);
+  tcp::resolver::results_type endpoints;
+  asio::steady_timer resolve_timer(io);
+  resolve_timer.expires_after(options.connect_timeout);
+  bool resolve_timed_out = false;
+  resolve_timer.async_wait([&](beast::error_code error) {
+    if (!error) {
+      resolve_timed_out = true;
+      resolver.cancel();
+    }
+  });
+  beast::error_code resolve_error;
+  resolver.async_resolve(relay.host, relay.port,
+      [&](beast::error_code error, tcp::resolver::results_type result) {
+        resolve_error = error;
+        endpoints = std::move(result);
+        resolve_timer.cancel();
+      });
+  io.run();
+  if (resolve_timed_out) throw beast::system_error(beast::error::timeout);
+  if (resolve_error) throw beast::system_error(resolve_error);
   if (relay.scheme == "ws") {
     websocket::stream<beast::tcp_stream> ws(io);
     configure_websocket(ws, options);
     beast::get_lowest_layer(ws).expires_after(options.connect_timeout);
-    beast::get_lowest_layer(ws).connect(endpoints);
-    ws.handshake(host_header(relay), relay.target);
+    run_io(ws, [&](auto done) {
+      beast::get_lowest_layer(ws).async_connect(endpoints, done);
+    });
+    beast::get_lowest_layer(ws).expires_never();
+    run_io(ws, [&](auto done) {
+      ws.async_handshake(host_header(relay), relay.target, done);
+    });
     auto result = operation(ws);
     beast::error_code ignored;
-    ws.close(websocket::close_code::normal, ignored);
+    beast::get_lowest_layer(ws).socket().close(ignored);
     return result;
   }
 
@@ -348,12 +388,20 @@ auto with_relay_socket(const RelayUrl& relay,
         static_cast<int>(::ERR_get_error()), asio::error::get_ssl_category());
   }
   beast::get_lowest_layer(ws).expires_after(options.connect_timeout);
-  beast::get_lowest_layer(ws).connect(endpoints);
-  ws.next_layer().handshake(ssl::stream_base::client);
-  ws.handshake(host_header(relay), relay.target);
+  run_io(ws, [&](auto done) {
+    beast::get_lowest_layer(ws).async_connect(endpoints, done);
+  });
+  beast::get_lowest_layer(ws).expires_after(options.connect_timeout);
+  run_io(ws, [&](auto done) {
+    ws.next_layer().async_handshake(ssl::stream_base::client, done);
+  });
+  beast::get_lowest_layer(ws).expires_never();
+  run_io(ws, [&](auto done) {
+      ws.async_handshake(host_header(relay), relay.target, done);
+    });
   auto result = operation(ws);
   beast::error_code ignored;
-  ws.close(websocket::close_code::normal, ignored);
+  beast::get_lowest_layer(ws).socket().close(ignored);
   return result;
 }
 

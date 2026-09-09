@@ -242,6 +242,7 @@ if(BUILD_TESTING)
 
   add_executable(gitvault_nostr_anchor_channel_tests
     tests/nostr_anchor_channel_test.cpp
+    src/relay_selection.cpp
     src/anchor_channel.cpp
     src/nostr_anchor_channel.cpp
     src/nostr_event.cpp

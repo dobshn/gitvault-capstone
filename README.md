@@ -28,7 +28,10 @@ cmake --build build
 # Remove the saved refresh token
 ./build/gitvault logout
 
-# Initialize a vault and pin three user-selected Nostr relays
+# Initialize a vault; automatically select and pin three responsive Nostr relays
+./build/gitvault init <vault_name> [folder_path]
+
+# Or explicitly choose all three relays
 ./build/gitvault init <vault_name> [folder_path] \
   --relay wss://relay-1.example \
   --relay wss://relay-2.example \
@@ -163,6 +166,8 @@ The immutable Genesis uses kind `9500` with one searchable `t` tag holding a ran
 `IAnchorChannel` separates immutable event transport from Vault security decisions. `publish()` reports `OK`, rejection, timeout, or transport failure per endpoint; `fetch()` reports `EOSE` or failure per endpoint and returns the event-ID union. A receipt or filter match does not make an event trusted.
 
 `LocalFileAnchorChannel` is the deterministic test adapter. It stores one JSON file per event ID under `<channel-root>/events/<event-id>.json`. Publishing the same event again is idempotent, and an existing ID is never overwritten with different bytes. Concurrent publishers install the completed event with an atomic no-replace hard link. Fetch results are sorted by event ID only for reproducible tests; that order has no security meaning.
+
+When `init` omits `--relay`, GitVault probes a built-in list of public relay candidates in parallel and selects the three with the lowest combined query latency. Both Genesis (kind `9500`) and checkpoint (kind `30078`) queries must reach EOSE. Probes use a disposable identity and random filters. Selection happens before creating Vault data and fails if fewer than three candidates respond. This checks current read availability, not write permission, long-term uptime, or retention; initialization still requires the existing write quorum. The selected URLs are pinned and included in bootstrap exports; later commands do not automatically replace them. To override selection, supply exactly three `--relay` options.
 
 `NostrAnchorChannel` uses WebSocket/TLS, connects to all configured relays in parallel, counts only a matching `OK=true`, waits for `EOSE`, deduplicates exact event IDs, handles NIP-42 AUTH with the Vault key, and rejects same-ID/different-bytes responses. Checkpoints use addressable kind `30078` and `d=gitvault:<vault-id>:<replica-id>`, so a conforming relay retains only the latest signed checkpoint for each replica. The authenticated outbox retries an interrupted publication on the next command.
 

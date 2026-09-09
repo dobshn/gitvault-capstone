@@ -1,4 +1,5 @@
 #include "nostr_anchor_channel.h"
+#include "relay_selection.h"
 #include "nostr_event.h"
 #include "json.hpp"
 #include "util.h"
@@ -255,14 +256,41 @@ void test_rejection_duplicate_and_missing_eose_are_reported() {
       {no_eose.url()}, signing_secret, options);
   const AnchorFetchResult timed_out = timeout_channel.fetch();
   expect(timed_out.synchronized_count() == 0 &&
-             timed_out.endpoints[0].status !=
-                 AnchorFetchStatus::Synchronized,
+             timed_out.endpoints[0].status ==
+                 AnchorFetchStatus::Timeout,
          "a subscription without EOSE never counts toward R");
   no_eose.finish();
+}
+void test_relay_selection() {
+  const std::vector<std::string> candidates = {"slow", "fast", "middle", "down", "fast", "last"};
+  auto probe = [](const std::string& endpoint) {
+    if (endpoint == "down") throw std::runtime_error("unreachable");
+    return AnchorFetchEndpointResult{
+        endpoint, AnchorFetchStatus::Synchronized, "",
+        endpoint == "fast" ? 1u : endpoint == "middle" ? 2u :
+        endpoint == "slow" ? 3u : 4u};
+  };
+  expect(select_init_relays(candidates, probe) ==
+             std::vector<std::string>({"fast", "middle", "slow"}),
+         "selection excludes failures, deduplicates, and ranks by latency");
+  expect_throw([&] { select_init_relays({"fast", "fast", "middle", "down"}, probe); },
+               "selection requires three distinct responsive relays");
+  expect_throw([&] { select_init_relays({}, probe); }, "empty candidates");
+  expect_throw([&] {
+    select_init_relays({"a", "b", "c"}, [](const std::string& endpoint) {
+      return AnchorFetchEndpointResult{endpoint, AnchorFetchStatus::Rejected, "closed", 0};
+    });
+  }, "rejected subscriptions do not qualify");
+  const auto tied = select_init_relays({"c", "b", "a", "d"}, [](const std::string& endpoint) {
+    return AnchorFetchEndpointResult{endpoint, AnchorFetchStatus::Synchronized, "", 1};
+  });
+  expect(tied == std::vector<std::string>({"a", "b", "c"}),
+         "latency ties have deterministic URL order");
 }
 }  // namespace
 
 int main() {
+  test_relay_selection();
   test_publish_waits_for_matching_ok();
   test_fetch_uses_filter_deduplicates_and_waits_for_eose();
   test_nip42_auth_challenge_is_signed_then_operation_retried();
